@@ -74,7 +74,15 @@ export const ReviewResult = z.object({
 });
 export type ReviewResult = z.infer<typeof ReviewResult>;
 
-export const ProviderId = z.enum(['local', 'openai', 'anthropic', 'kimi', 'qwen', 'ollama']);
+export const ProviderId = z.enum([
+  'local',
+  'openai',
+  'anthropic',
+  'kimi',
+  'qwen',
+  'ollama',
+  'groq',
+]);
 export type ProviderId = z.infer<typeof ProviderId>;
 
 export const ModelInput = z.object({

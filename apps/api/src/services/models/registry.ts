@@ -34,6 +34,7 @@ const allProviders: Record<string, () => ModelProvider> = {
     return new OpenAICompatibleProvider('kimi', 'Kimi');
   },
   qwen: () => new OpenAICompatibleProvider('qwen', 'Qwen'),
+  groq: () => new OpenAICompatibleProvider('groq', 'Groq'),
   anthropic: () => new AnthropicProvider(),
   ollama: () => new OllamaProvider(),
 };

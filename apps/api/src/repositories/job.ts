@@ -1,5 +1,4 @@
 import { eq } from 'drizzle-orm';
-import { db } from '../db/client';
 import * as schema from '../db/schema';
 import type { TenantContext } from '../db/tenant-context';
 
@@ -11,7 +10,7 @@ export interface CreateJobInput {
 }
 
 export async function createJob(ctx: TenantContext, input: CreateJobInput) {
-  const [created] = await db
+  const [created] = await ctx.tenantScopedDb
     .insert(schema.job)
     .values({
       tenantId: ctx.tenantId,
@@ -31,7 +30,7 @@ export async function updateJobStatus(
   status: (typeof schema.job.$inferSelect)['status'],
   update: Partial<typeof schema.job.$inferSelect> = {}
 ) {
-  const [updated] = await db
+  const [updated] = await ctx.tenantScopedDb
     .update(schema.job)
     .set({
       status,
@@ -44,12 +43,15 @@ export async function updateJobStatus(
 }
 
 export async function getJob(ctx: TenantContext, jobId: string) {
-  const [found] = await db.select().from(schema.job).where(eq(schema.job.id, jobId));
+  const [found] = await ctx.tenantScopedDb
+    .select()
+    .from(schema.job)
+    .where(eq(schema.job.id, jobId));
   return found;
 }
 
 export async function findJobByIdempotency(ctx: TenantContext, idempotencyKey: string) {
-  const [found] = await db
+  const [found] = await ctx.tenantScopedDb
     .select()
     .from(schema.job)
     .where(eq(schema.job.idempotencyKey, idempotencyKey));

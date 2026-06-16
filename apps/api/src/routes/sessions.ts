@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { TenantContext } from '../db/tenant-context';
+import { withTenantTransaction } from '../db/tenant-context';
 import { Scopes, requireScope } from '../middleware/rbac';
 import { createMessage, createSession, listMessages, listSessions } from '../repositories/session';
 
@@ -34,8 +34,9 @@ export async function sessionRoutes(app: FastifyInstance) {
         return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
 
       const body = createSessionSchema.parse(request.body);
-      const ctx = new TenantContext(user.tenantId);
-      const session = await createSession(ctx, body);
+      const session = await withTenantTransaction(user.tenantId, async (ctx) => {
+        return createSession(ctx, body);
+      });
       return reply.status(201).send(session);
     }
   );
@@ -46,8 +47,9 @@ export async function sessionRoutes(app: FastifyInstance) {
       return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
 
     const query = paginationSchema.parse(request.query);
-    const ctx = new TenantContext(user.tenantId);
-    const result = await listSessions(ctx, query);
+    const result = await withTenantTransaction(user.tenantId, async (ctx) => {
+      return listSessions(ctx, query);
+    });
     return reply.send(result);
   });
 
@@ -60,8 +62,9 @@ export async function sessionRoutes(app: FastifyInstance) {
         return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
 
       const body = createMessageSchema.parse(request.body);
-      const ctx = new TenantContext(user.tenantId);
-      const message = await createMessage(ctx, { ...body, sessionId: request.params.sessionId });
+      const message = await withTenantTransaction(user.tenantId, async (ctx) => {
+        return createMessage(ctx, { ...body, sessionId: request.params.sessionId });
+      });
       return reply.status(201).send(message);
     }
   );
@@ -72,8 +75,9 @@ export async function sessionRoutes(app: FastifyInstance) {
       return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
 
     const query = paginationSchema.parse(request.query);
-    const ctx = new TenantContext(user.tenantId);
-    const result = await listMessages(ctx, request.params.sessionId, query);
+    const result = await withTenantTransaction(user.tenantId, async (ctx) => {
+      return listMessages(ctx, request.params.sessionId, query);
+    });
     return reply.send(result);
   });
 }

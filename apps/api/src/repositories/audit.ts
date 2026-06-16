@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
 import { and, desc, eq, lt } from 'drizzle-orm';
-import { db } from '../db/client';
 import * as schema from '../db/schema';
 import type { TenantContext } from '../db/tenant-context';
 
@@ -54,7 +53,7 @@ function computeEventHash(input: {
 }
 
 export async function getLatestHash(ctx: TenantContext): Promise<string | null> {
-  const [latest] = await db
+  const [latest] = await ctx.tenantScopedDb
     .select({ hash: schema.auditEvent.hash })
     .from(schema.auditEvent)
     .where(eq(schema.auditEvent.tenantId, ctx.tenantId))
@@ -79,7 +78,7 @@ export async function createAuditEvent(
     ts: tsIso,
   });
 
-  const [row] = await db
+  const [row] = await ctx.tenantScopedDb
     .insert(schema.auditEvent)
     .values({
       tenantId: ctx.tenantId,
@@ -115,7 +114,7 @@ export async function listAuditEvents(
     : undefined;
   const where = cursorFilter ? and(tenantFilter, cursorFilter) : tenantFilter;
 
-  const rows = await db
+  const rows = await ctx.tenantScopedDb
     .select()
     .from(schema.auditEvent)
     .where(where)

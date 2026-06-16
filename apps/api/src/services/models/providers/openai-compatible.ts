@@ -6,18 +6,21 @@ const DEFAULT_BASE_URLS: Record<string, string> = {
   openai: 'https://api.openai.com/v1',
   kimi: 'https://api.moonshot.cn/v1',
   qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  groq: 'https://api.groq.com/openai/v1',
 };
 
 const API_KEY_NAMES: Record<string, string> = {
   openai: 'OPENAI_API_KEY',
   kimi: 'KIMI_API_KEY',
   qwen: 'QWEN_API_KEY',
+  groq: 'GROQ_API_KEY',
 };
 
 const BASE_URL_NAMES: Record<string, string> = {
   openai: 'OPENAI_BASE_URL',
   kimi: 'KIMI_BASE_URL',
   qwen: 'QWEN_BASE_URL',
+  groq: 'GROQ_BASE_URL',
 };
 
 export class OpenAICompatibleProvider implements ModelProvider {
@@ -26,16 +29,17 @@ export class OpenAICompatibleProvider implements ModelProvider {
   readonly supportedTiers = [1, 2] as const;
   setupHint: string;
 
-  constructor(id: 'openai' | 'kimi' | 'qwen', name: string) {
+  constructor(id: 'openai' | 'kimi' | 'qwen' | 'groq', name: string) {
     this.id = id;
     this.name = name;
     this.setupHint = `Set ${API_KEY_NAMES[id]} to enable ${name}.`;
   }
 
   private getCredentials() {
+    const envUrl = getEnv(BASE_URL_NAMES[this.id]);
     return {
       apiKey: getEnv(API_KEY_NAMES[this.id]),
-      baseUrl: getEnv(BASE_URL_NAMES[this.id]) || DEFAULT_BASE_URLS[this.id],
+      baseUrl: envUrl && envUrl.trim() !== '' ? envUrl : DEFAULT_BASE_URLS[this.id],
     };
   }
 
@@ -90,6 +94,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
       openai: 'gpt-4o-mini',
       kimi: 'moonshot-v1-8k',
       qwen: 'qwen-turbo',
+      groq: 'llama-3.1-8b-instant',
     };
     return defaults[this.id];
   }
