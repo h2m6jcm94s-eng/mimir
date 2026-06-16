@@ -1,0 +1,17 @@
+web:
+  - apps/web/**/*
+api:
+  - apps/api/**/*
+shared-types:
+  - packages/shared-types/**/*
+contracts:
+  - packages/contracts/**/*
+services:
+  - services/**/*
+infra:
+  - infra/**/*
+docs:
+  - docs/**/*
+  - '*.md'
+workflows:
+  - .github/workflows/**/*

@@ -1,0 +1,47 @@
+name: Upstream Hermes check
+
+on:
+  schedule:
+    # Every Monday at 09:00 UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Hermes release metadata
+        id: hermes
+        env:
+          HERMES_REPO_URL: https://github.com/nousresearch/hermes-agent
+        run: |
+          RELEASE_JSON=$(curl -sL "${HERMES_REPO_URL/https:\/\/github.com/https:\/\/api.github.com/repos}/releases/latest" || true)
+          LATEST_TAG=$(echo "$RELEASE_JSON" | grep -o '"tag_name": "[^"]*"' | head -1 | cut -d'"' -f4 || true)
+          echo "latest_tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Compare with baseline
+        id: compare
+        run: |
+          BASELINE_TAG=$(grep -E '^[[:space:]]*-?[[:space:]]*(Baseline|Tag|Commit):' docs/references/hermes-baseline.md | head -1 | sed -E 's/.*:\s*//' | tr -d '[:space:]')
+          echo "baseline_tag=$BASELINE_TAG" >> "$GITHUB_OUTPUT"
+          if [[ "$BASELINE_TAG" == "${{ steps.hermes.outputs.latest_tag }}" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open triage issue
+        if: steps.compare.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "upstream/hermes-$(date +%Y-%m-%d): review ${{ steps.hermes.outputs.latest_tag }}" \
+            --body $'Hermes release `${{ steps.hermes.outputs.latest_tag }}` is ahead of the Mimir baseline (`${{ steps.compare.outputs.baseline_tag }}`).\n\nRun the triage rubric from ROADMAP.md §5.2 and update `docs/references/hermes-baseline.md`.\n\n**Do not upload Hermes code to this repo.**' \
+            --label upstream,hermes

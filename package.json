@@ -1,0 +1,34 @@
+{
+  "name": "mimir",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Privacy-tiered AI orchestration mesh",
+  "license": "TBD",
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:integration": "pnpm --filter @mimir/api test:integration",
+    "test:e2e": "playwright test --config tests/e2e/playwright.config.ts",
+    "test:e2e:ui": "playwright test --config tests/e2e/playwright.config.ts --ui",
+    "test:e2e:debug": "playwright test --config tests/e2e/playwright.config.ts --debug",
+    "format": "biome format --write .",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.8.0",
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
+    "@playwright/test": "^1.61.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.0.0",
+    "turbo": "^2.0.0"
+  }
+}

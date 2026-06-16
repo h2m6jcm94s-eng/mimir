@@ -1,0 +1,13 @@
+[project]
+name = "mimir-agent"
+version = "0.0.1"
+description = "Mimir agent worker"
+requires-python = ">=3.11"
+dependencies = [
+    "mimir-shared",
+    "temporalio>=1.6.0",
+    "pydantic>=2.7.0",
+]
+
+[tool.uv.sources]
+mimir-shared = { workspace = true }

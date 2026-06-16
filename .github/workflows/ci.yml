@@ -1,0 +1,66 @@
+name: ci
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Python dependencies
+        run: uv sync
+
+      - name: Build shared-types
+        run: pnpm --filter @mimir/shared-types build
+
+      - name: Generate contracts
+        run: pnpm --filter @mimir/contracts generate
+
+      - name: Lint
+        run: |
+          pnpm exec biome ci .
+          uv run ruff check services
+
+      - name: Typecheck
+        run: |
+          pnpm typecheck
+          uv run mypy services
+
+      - name: Test
+        run: |
+          pnpm test
+          uv run pytest services
+
+      - name: Build
+        run: pnpm build
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info

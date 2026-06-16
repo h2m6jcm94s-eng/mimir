@@ -1,0 +1,12 @@
+# Global fallback
+* @h2m6jcm94s-eng
+
+# Areas
+apps/web/ @h2m6jcm94s-eng
+apps/api/ @h2m6jcm94s-eng
+packages/shared-types/ @h2m6jcm94s-eng
+packages/contracts/ @h2m6jcm94s-eng
+services/ @h2m6jcm94s-eng
+infra/ @h2m6jcm94s-eng
+docs/ @h2m6jcm94s-eng
+.github/ @h2m6jcm94s-eng

@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+__pypackages__/
+.venv/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Data
+data/
+*.db
+*.db-*
+
+# Private / unpublished strategy docs
+docs/enterprise.md
+docs/private/
+*.private.md
+
+# Logs
+*.log
+logs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Temporal
+temporal/
+
+# Local reference clones (never commit external runtimes)
+.hermes/
+refs/hermes/
+vendor/hermes/
+~/.hermes/
+open-design/
+Kimi_Agent_Hermes UI改进/
+design/

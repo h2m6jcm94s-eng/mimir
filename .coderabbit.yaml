@@ -1,0 +1,25 @@
+language: en
+reviews:
+  profile: assertive
+  request_changes_flow: true
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+  path_filters:
+    - '!**/node_modules/**'
+    - '!**/.next/**'
+    - '!**/dist/**'
+    - '!**/__pycache__/**'
+  path_instructions:
+    - path: 'apps/api/**/*.ts'
+      instructions: 'Check for tenant_id usage, RLS context, and no business logic in routers.'
+    - path: 'packages/shared-types/**/*.ts'
+      instructions: 'Ensure schemas are the single source of truth and exported cleanly.'
+    - path: 'services/**/*.py'
+      instructions: 'Check for type hints, no plaintext secrets, and Temporal activity patterns.'
+  auto_review:
+    enabled: true
+    drafts: false
+  chat:
+    auto_reply: true
