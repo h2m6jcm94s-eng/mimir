@@ -7,6 +7,7 @@ export type { JsonPatchOperation, ReviewResult } from '@mimir/shared-types';
 import { withTenantTransaction } from '../db/tenant-context';
 import { createAuditEvent } from '../repositories/audit';
 import { addJobCost, getJob, updateJobStatus } from '../repositories/job';
+import { checkRunawayCost } from '../services/cost/governor';
 import { hashObject } from '../services/diff/ast-diff';
 import { ModelRouter } from '../services/models/router';
 import { applyPatch as applyJsonPatch } from '../services/patch/json-patch';
@@ -88,6 +89,7 @@ export async function build(input: TaskRunInput): Promise<BuildResult> {
           `Job cost ceiling exceeded: ${totalCostUsd} micro-USD spent vs ${budget} micro-USD budget`
         );
       }
+      await checkRunawayCost(input.tenantId, input.jobId, callCostUsd, input.userId);
     }
 
     const result: BuildResult = {

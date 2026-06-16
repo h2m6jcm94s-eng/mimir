@@ -110,16 +110,22 @@ dogfood 30 days (0 critical) → prove → sell.** Gates **G1–G9** are binary.
 **Status:** Repo scaffolded, CI green, branch `feat/review-loop` pushed to GitHub. Implemented and
 committed: provider registry (Kimi/Groq/OpenAI/Qwen/Anthropic/Ollama), runtime Postgres RLS tenant
 isolation, Clerk JWT auth + auto-provisioning, real LLM reviewer + apply registry, model circuit
-breakers/failover/cost ceiling, foundational RAG ingest/search (pgvector), console→API→Temporal→Kimi
-Playwright e2e. All unit tests pass; integration/e2e tests pass when Postgres/Temporal are running.
+breakers/failover/cost ceiling, foundational RAG ingest/search (pgvector), global emergency halt with
+UI button and activity guards, auto circuit-breaker on runaway daily cost, Status/Tasks pages wired to
+real API data, console→API→Temporal→Kimi Playwright e2e. All unit tests pass; integration/e2e tests
+pass when Postgres/Temporal are running.
 
 **Immediate next steps (pick up here):**
-1. **F-026 Emergency halt + auto circuit-breaker** (P0): global halt state, API endpoints,
-   wired `HaltButton`, halt checks before model/apply activities, tests.
-2. **F-022 Web pages** (status topology, tasks list with real data) and/or **F-018 GitHub connector**.
-3. Continue down ROADMAP §23 features table in priority order (P0 first), testing each feature with
+1. **Next P0 feature** (choose one):
+   - Full data-classification gateway enforcing T0/T1/T2 routing rules.
+   - Durable Kanban job queue with status transitions and optimistic UI updates.
+   - Leader/fencing for single-writer brain.
+   - gVisor sandbox for untrusted code execution.
+   - Secrets vault (no plaintext provider keys).
+   - GitHub connector (F-018).
+2. Continue down ROADMAP §23 features table in priority order (P0 first), testing each feature with
    real keys (Kimi preferred, Groq/OpenAI rarely) before moving on.
-4. Keep commits small and push `feat/review-loop` after each feature batch.
+3. Keep commits small and push `feat/review-loop` after each feature batch.
 
 ---
 

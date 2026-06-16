@@ -1,4 +1,4 @@
-import { desc, eq, lt, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import type { TenantContext } from '../db/tenant-context';
 
@@ -62,6 +62,20 @@ export async function addJobCost(ctx: TenantContext, jobId: string, deltaUsd: nu
     .where(eq(schema.job.id, jobId))
     .returning();
   return updated;
+}
+
+export async function getTenantDailyCostUsd(ctx: TenantContext, date: Date): Promise<number> {
+  const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+
+  const [row] = await ctx.tenantScopedDb
+    .select({
+      total: sql`coalesce(sum(${schema.job.costUsd}), 0)`,
+    })
+    .from(schema.job)
+    .where(and(gte(schema.job.createdAt, start), lt(schema.job.createdAt, end)));
+
+  return Number(row?.total ?? 0);
 }
 
 export async function getJob(ctx: TenantContext, jobId: string) {
