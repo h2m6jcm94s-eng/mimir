@@ -41,6 +41,8 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
+        NODE_ENV: 'test',
+        CLERK_SECRET_KEY: '',
         PORT: '3001',
         DATABASE_URL:
           process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/mimir',
@@ -61,6 +63,8 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
+        NODE_ENV: 'test',
+        CLERK_SECRET_KEY: '',
         DATABASE_URL:
           process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/mimir',
         TEMPORAL_HOST: process.env.TEMPORAL_HOST || 'localhost:7233',
