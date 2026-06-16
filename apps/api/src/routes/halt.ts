@@ -1,7 +1,7 @@
-import '@fastify/rate-limit';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { Scopes, requireScope } from '../middleware/rbac';
+import { strictRouteConfig } from '../middleware/route-config';
 import { clearHalt, getHaltState, setHalted } from '../services/halt/state';
 
 const setHaltSchema = z.object({
@@ -9,16 +9,17 @@ const setHaltSchema = z.object({
 });
 
 export async function haltRoutes(app: FastifyInstance) {
-  // Strict local rate limit for emergency halt operations.
-  const haltRateLimit = app.rateLimit({ max: 60, timeWindow: '1 minute' });
-
-  app.get('/', { preHandler: [haltRateLimit, requireScope(Scopes.HALT_READ)] }, async () => {
-    return getHaltState();
-  });
+  app.get(
+    '/',
+    { config: strictRouteConfig, preHandler: requireScope(Scopes.HALT_READ) },
+    async () => {
+      return getHaltState();
+    }
+  );
 
   app.post<{ Body: { reason?: string } }>(
     '/',
-    { preHandler: [haltRateLimit, requireScope(Scopes.HALT_WRITE)] },
+    { config: strictRouteConfig, preHandler: requireScope(Scopes.HALT_WRITE) },
     async (request: FastifyRequest, reply) => {
       const user = request.user;
       if (!user) {
@@ -31,8 +32,12 @@ export async function haltRoutes(app: FastifyInstance) {
     }
   );
 
-  app.delete('/', { preHandler: [haltRateLimit, requireScope(Scopes.HALT_WRITE)] }, async () => {
-    await clearHalt();
-    return { halted: false };
-  });
+  app.delete(
+    '/',
+    { config: strictRouteConfig, preHandler: requireScope(Scopes.HALT_WRITE) },
+    async () => {
+      await clearHalt();
+      return { halted: false };
+    }
+  );
 }

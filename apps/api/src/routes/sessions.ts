@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { withTenantTransaction } from '../db/tenant-context';
 import { Scopes, requireScope } from '../middleware/rbac';
+import { protectedRouteConfig } from '../middleware/route-config';
 import { createMessage, createSession, listMessages, listSessions } from '../repositories/session';
 
 const createSessionSchema = z.object({
@@ -27,7 +28,7 @@ export async function sessionRoutes(app: FastifyInstance) {
 
   app.post(
     '/',
-    { preHandler: requireScope(Scopes.CHAT_WRITE) },
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.CHAT_WRITE) },
     async (request: FastifyRequest, reply) => {
       const user = request.user;
       if (!user)
@@ -41,7 +42,7 @@ export async function sessionRoutes(app: FastifyInstance) {
     }
   );
 
-  app.get('/', async (request: FastifyRequest, reply) => {
+  app.get('/', { config: protectedRouteConfig }, async (request: FastifyRequest, reply) => {
     const user = request.user;
     if (!user)
       return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
@@ -55,7 +56,7 @@ export async function sessionRoutes(app: FastifyInstance) {
 
   app.post<{ Params: { sessionId: string } }>(
     '/:sessionId/messages',
-    { preHandler: requireScope(Scopes.CHAT_WRITE) },
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.CHAT_WRITE) },
     async (request, reply) => {
       const user = request.user;
       if (!user)
@@ -69,15 +70,19 @@ export async function sessionRoutes(app: FastifyInstance) {
     }
   );
 
-  app.get<{ Params: { sessionId: string } }>('/:sessionId/messages', async (request, reply) => {
-    const user = request.user;
-    if (!user)
-      return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+  app.get<{ Params: { sessionId: string } }>(
+    '/:sessionId/messages',
+    { config: protectedRouteConfig },
+    async (request, reply) => {
+      const user = request.user;
+      if (!user)
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
 
-    const query = paginationSchema.parse(request.query);
-    const result = await withTenantTransaction(user.tenantId, async (ctx) => {
-      return listMessages(ctx, request.params.sessionId, query);
-    });
-    return reply.send(result);
-  });
+      const query = paginationSchema.parse(request.query);
+      const result = await withTenantTransaction(user.tenantId, async (ctx) => {
+        return listMessages(ctx, request.params.sessionId, query);
+      });
+      return reply.send(result);
+    }
+  );
 }

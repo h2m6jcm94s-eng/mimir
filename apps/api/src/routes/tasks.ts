@@ -4,6 +4,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { withTenantTransaction } from '../db/tenant-context';
 import { Scopes, requireScope } from '../middleware/rbac';
+import { protectedRouteConfig } from '../middleware/route-config';
 import { createAuditEvent } from '../repositories/audit';
 import {
   createJob,
@@ -45,7 +46,7 @@ const taskQueue = process.env.TEMPORAL_TASK_QUEUE || 'mimir-task-queue';
 export async function taskRoutes(app: FastifyInstance) {
   app.post(
     '/',
-    { preHandler: requireScope(Scopes.CHAT_WRITE) },
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.CHAT_WRITE) },
     async (request: FastifyRequest, reply) => {
       const user = request.user;
       if (!user)
@@ -128,7 +129,7 @@ export async function taskRoutes(app: FastifyInstance) {
 
   app.get(
     '/',
-    { preHandler: requireScope(Scopes.JOBS_READ) },
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.JOBS_READ) },
     async (request: FastifyRequest, reply) => {
       const user = request.user;
       if (!user)
@@ -146,7 +147,7 @@ export async function taskRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { jobId: string } }>(
     '/:jobId',
-    { preHandler: requireScope(Scopes.JOBS_READ) },
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.JOBS_READ) },
     async (request, reply) => {
       const user = request.user;
       if (!user)

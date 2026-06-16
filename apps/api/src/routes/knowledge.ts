@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { withTenantTransaction } from '../db/tenant-context';
 import { Scopes, requireScope } from '../middleware/rbac';
+import { protectedRouteConfig } from '../middleware/route-config';
 import { searchKnowledge } from '../repositories/knowledge';
 import { ingestDocument } from '../services/knowledge/ingest';
 
@@ -21,7 +22,7 @@ const searchSchema = z.object({
 export async function knowledgeRoutes(app: FastifyInstance) {
   app.post(
     '/',
-    { preHandler: requireScope(Scopes.KNOWLEDGE_WRITE) },
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.KNOWLEDGE_WRITE) },
     async (request: FastifyRequest, reply) => {
       const user = request.user;
       if (!user) {
@@ -45,7 +46,7 @@ export async function knowledgeRoutes(app: FastifyInstance) {
 
   app.get(
     '/search',
-    { preHandler: requireScope(Scopes.KNOWLEDGE_READ) },
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.KNOWLEDGE_READ) },
     async (request, reply) => {
       const user = request.user;
       if (!user) {
