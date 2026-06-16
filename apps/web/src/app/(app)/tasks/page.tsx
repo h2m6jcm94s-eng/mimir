@@ -6,12 +6,12 @@ import { TierBadge } from '@/components/ui/TierBadge';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, MoreHorizontal, Play, Plus, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type Status = 'Queued' | 'Running' | 'Blocked' | 'Needs Attention' | 'Done';
 
 interface Task {
-  id: number;
+  id: string;
   title: string;
   description: string;
   blastRadius: string;
@@ -19,6 +19,15 @@ interface Task {
   tier: 0 | 1 | 2;
   model: 'kimi' | 'claude' | 'ollama';
   cost: number;
+}
+
+interface ApiJob {
+  id: string;
+  type: string;
+  status: 'queued' | 'running' | 'blocked' | 'needs_attention' | 'done' | 'failed';
+  tier: number;
+  input?: Record<string, unknown> | null;
+  costUsd: number;
 }
 
 const columns: Status[] = ['Queued', 'Running', 'Blocked', 'Needs Attention', 'Done'];
@@ -47,63 +56,50 @@ const columnMeta: Record<Status, { color: string; border: string; icon: typeof P
   },
 };
 
-const initialTasks: Task[] = [
-  {
-    id: 1,
-    title: 'Weekly security brief',
-    description: 'Compile alerts and incidents into a digest.',
-    blastRadius: '1 briefing · 0 services affected',
-    status: 'Running',
-    tier: 0,
-    model: 'kimi',
-    cost: 0.004,
-  },
-  {
-    id: 2,
-    title: 'Dependency audit',
-    description: 'Review new packages for license and security issues.',
-    blastRadius: '3 packages · 2 services affected',
-    status: 'Queued',
-    tier: 0,
-    model: 'claude',
-    cost: 0.002,
-  },
-  {
-    id: 3,
-    title: 'Email digest',
-    description: 'Summarize unread threads and draft replies.',
-    blastRadius: '12 threads · 1 reply drafted',
-    status: 'Needs Attention',
-    tier: 2,
-    model: 'ollama',
-    cost: 0.001,
-  },
-  {
-    id: 4,
-    title: 'Tailscale node patch',
-    description: 'Apply patch to the relay node.',
-    blastRadius: '1 node · 4 users affected',
-    status: 'Blocked',
-    tier: 1,
-    model: 'kimi',
-    cost: 0.0,
-  },
-  {
-    id: 5,
-    title: 'Clerk key rotation',
-    description: 'Rotate signing key and verify downstream services.',
-    blastRadius: 'All auth sessions · 120 users',
-    status: 'Done',
-    tier: 2,
-    model: 'claude',
-    cost: 0.0,
-  },
-];
+const statusMap: Record<ApiJob['status'], Status | null> = {
+  queued: 'Queued',
+  running: 'Running',
+  blocked: 'Blocked',
+  needs_attention: 'Needs Attention',
+  done: 'Done',
+  failed: 'Blocked',
+};
+
+function classifyModel(input: ApiJob['input']): Task['model'] {
+  if (typeof input?.model === 'string') {
+    const m = input.model.toLowerCase();
+    if (m.includes('claude')) return 'claude';
+    if (m.includes('ollama')) return 'ollama';
+  }
+  const checkpoint = input?.checkpoint;
+  if (typeof checkpoint === 'object' && checkpoint && 'classification' in checkpoint) {
+    const classification = checkpoint.classification as Record<string, unknown> | undefined;
+    const provider = classification?.provider;
+    if (provider === 'anthropic') return 'claude';
+    if (provider === 'ollama') return 'ollama';
+  }
+  return 'kimi';
+}
+
+function mapJobToTask(job: ApiJob): Task {
+  const status = statusMap[job.status] ?? 'Queued';
+  const prompt = typeof job.input?.prompt === 'string' ? job.input.prompt : undefined;
+  return {
+    id: job.id,
+    title: job.type || `Task ${job.id.slice(0, 6)}`,
+    description: prompt ?? 'No description provided.',
+    blastRadius: '1 task · 0 services affected',
+    status,
+    tier: (job.tier as 0 | 1 | 2) ?? 0,
+    model: classifyModel(job.input),
+    cost: (job.costUsd ?? 0) / 1_000_000,
+  };
+}
 
 function TaskCard({
   task,
   onStatusChange,
-}: { task: Task; onStatusChange: (id: number, status: Status) => void }) {
+}: { task: Task; onStatusChange: (id: string, status: Status) => void }) {
   const meta = columnMeta[task.status];
   const Icon = meta.icon;
 
@@ -171,10 +167,52 @@ function TaskCard({
 }
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleStatusChange(id: number, status: Status) {
+  useEffect(() => {
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch('/api/v1/tasks?limit=100', {
+          // TODO: replace dev stub token with Clerk session JWT.
+          headers: { Authorization: 'Bearer test' },
+        });
+        if (!res.ok) throw new Error(`Tasks fetch failed: ${res.status}`);
+        const body = (await res.json()) as { data: ApiJob[] };
+        setTasks(body.data.map(mapJobToTask));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load tasks');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void load();
+  }, []);
+
+  function handleStatusChange(id: string, status: Status) {
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-sm text-[var(--text-muted)]">Loading tasks…</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      </div>
+    );
   }
 
   return (

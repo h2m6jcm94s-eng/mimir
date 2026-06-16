@@ -1,9 +1,13 @@
 import Fastify from 'fastify';
+import rateLimit from 'fastify-rate-limit';
 import { loadConfig } from './config';
 import { redis } from './db/redis';
 import { authMiddleware, registerAuth } from './middleware/auth';
 import { auditRoutes } from './routes/audit';
+import { haltRoutes } from './routes/halt';
 import { healthRoutes } from './routes/health';
+import { knowledgeRoutes } from './routes/knowledge';
+import { nodeRoutes } from './routes/nodes';
 import { sessionRoutes } from './routes/sessions';
 import { taskRoutes } from './routes/tasks';
 import { getTemporalConnection } from './temporal/client';
@@ -19,6 +23,12 @@ const app = Fastify({
 async function main() {
   await registerAuth(app);
 
+  // Rate limit all routes (in-memory store; Redis store can be wired later).
+  await app.register(rateLimit, {
+    max: 1000,
+    timeWindow: '1 minute',
+  });
+
   // Public health endpoints
   app.register(healthRoutes, { prefix: '/' });
 
@@ -31,7 +41,10 @@ async function main() {
 
   app.register(sessionRoutes, { prefix: '/v1/sessions' });
   app.register(taskRoutes, { prefix: '/v1/tasks' });
+  app.register(nodeRoutes, { prefix: '/v1/nodes' });
   app.register(auditRoutes, { prefix: '/v1/audit' });
+  app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
+  app.register(haltRoutes, { prefix: '/v1/halt' });
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error(error);

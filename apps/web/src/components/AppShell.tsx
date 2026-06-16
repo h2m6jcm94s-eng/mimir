@@ -26,10 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <span className="font-semibold">Mimir</span>
           <CostChip amount={0.0} />
         </div>
-        <div className="flex items-center gap-3">
-          {!online && <OfflineBanner />}
-          <EmergencyHalt />
-        </div>
+        <div className="flex items-center gap-3">{!online && <OfflineBanner />}</div>
       </header>
       <main className="p-4">{children}</main>
     </div>
@@ -49,24 +46,5 @@ function OfflineBanner() {
     <span className="rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-100">
       Offline — local model active
     </span>
-  );
-}
-
-function EmergencyHalt() {
-  const [halted, setHalted] = useState(false);
-
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        setHalted(true);
-        // TODO: wire to API halt endpoint
-        alert('HALT activated');
-      }}
-      className={`rounded px-3 py-1 text-xs font-bold text-white ${halted ? 'bg-gray-500' : 'bg-red-600 hover:bg-red-700'}`}
-      disabled={halted}
-    >
-      {halted ? 'HALTED' : 'HALT'}
-    </button>
   );
 }

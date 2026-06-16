@@ -1,7 +1,8 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { TenantContext } from '../db/tenant-context';
+import { withTenantTransaction } from '../db/tenant-context';
 import { Scopes, requireScope } from '../middleware/rbac';
+import { protectedRouteConfig } from '../middleware/route-config';
 import { listAuditEvents, verifyChain } from '../repositories/audit';
 
 const auditQuerySchema = z.object({
@@ -12,7 +13,7 @@ const auditQuerySchema = z.object({
 export async function auditRoutes(app: FastifyInstance) {
   app.addHook('preHandler', requireScope(Scopes.AUDIT_READ));
 
-  app.get('/', async (request: FastifyRequest, reply) => {
+  app.get('/', { config: protectedRouteConfig }, async (request: FastifyRequest, reply) => {
     const user = request.user;
     if (!user)
       return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
@@ -22,8 +23,9 @@ export async function auditRoutes(app: FastifyInstance) {
       ? (JSON.parse(Buffer.from(query.cursor, 'base64').toString()) as { ts: string; id: string })
       : undefined;
 
-    const ctx = new TenantContext(user.tenantId);
-    const { data, nextCursor } = await listAuditEvents(ctx, { limit: query.limit, cursor });
+    const { data, nextCursor } = await withTenantTransaction(user.tenantId, async (ctx) => {
+      return listAuditEvents(ctx, { limit: query.limit, cursor });
+    });
 
     return reply.send({
       data,

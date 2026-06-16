@@ -33,6 +33,8 @@ test.describe('Knowledge', () => {
   test('clicking a screenshot opens lightbox', async ({ page }) => {
     await page.getByText('Screenshot: billing page').click();
     await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByRole('dialog').getByText('Total: $142.50 · Invoice #9921')).toBeVisible();
+    await expect(
+      page.getByRole('dialog').getByText('Total: $142.50 · Invoice #9921')
+    ).toBeVisible();
   });
 });

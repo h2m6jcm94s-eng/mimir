@@ -41,6 +41,8 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
+        NODE_ENV: 'test',
+        CLERK_SECRET_KEY: '',
         PORT: '3001',
         DATABASE_URL:
           process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/mimir',
@@ -48,6 +50,11 @@ export default defineConfig({
         TEMPORAL_HOST: process.env.TEMPORAL_HOST || 'localhost:7233',
         TEMPORAL_TASK_QUEUE: process.env.TEMPORAL_TASK_QUEUE || 'mimir-task-queue',
         LOG_LEVEL: 'warn',
+        KIMI_API_KEY: process.env.KIMI_API_KEY || '',
+        KIMI_BASE_URL: process.env.KIMI_BASE_URL || '',
+        MODEL_PROVIDER_T0: process.env.MODEL_PROVIDER_T0 || 'kimi',
+        MODEL_PROVIDER_T1: process.env.MODEL_PROVIDER_T1 || 'kimi',
+        MODEL_PROVIDER_T2: process.env.MODEL_PROVIDER_T2 || 'kimi',
       },
     },
     {
@@ -56,12 +63,19 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
+        NODE_ENV: 'test',
+        CLERK_SECRET_KEY: '',
         DATABASE_URL:
           process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/mimir',
         TEMPORAL_HOST: process.env.TEMPORAL_HOST || 'localhost:7233',
         TEMPORAL_TASK_QUEUE: process.env.TEMPORAL_TASK_QUEUE || 'mimir-task-queue',
         WORKER_HEALTH_PORT: '3002',
         LOG_LEVEL: 'warn',
+        KIMI_API_KEY: process.env.KIMI_API_KEY || '',
+        KIMI_BASE_URL: process.env.KIMI_BASE_URL || '',
+        MODEL_PROVIDER_T0: process.env.MODEL_PROVIDER_T0 || 'kimi',
+        MODEL_PROVIDER_T1: process.env.MODEL_PROVIDER_T1 || 'kimi',
+        MODEL_PROVIDER_T2: process.env.MODEL_PROVIDER_T2 || 'kimi',
       },
     },
     {
@@ -70,7 +84,9 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
+        PORT: '3000',
         NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_Y2xlcms',
         PLAYWRIGHT_TEST: 'true',
       },
     },

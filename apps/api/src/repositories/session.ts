@@ -1,5 +1,4 @@
 import { and, desc, eq, gt } from 'drizzle-orm';
-import { db } from '../db/client';
 import * as schema from '../db/schema';
 import type { TenantContext } from '../db/tenant-context';
 
@@ -27,7 +26,7 @@ export async function createSession(
   ctx: TenantContext,
   input: CreateSessionInput
 ): Promise<typeof schema.session.$inferSelect> {
-  const [row] = await db
+  const [row] = await ctx.tenantScopedDb
     .insert(schema.session)
     .values({
       tenantId: ctx.tenantId,
@@ -50,7 +49,7 @@ export async function listSessions(
     conditions.push(gt(schema.session.id, pagination.cursor));
   }
 
-  const rows = await db
+  const rows = await ctx.tenantScopedDb
     .select()
     .from(schema.session)
     .where(and(...conditions))
@@ -68,7 +67,7 @@ export async function createMessage(
   ctx: TenantContext,
   input: CreateMessageInput
 ): Promise<typeof schema.message.$inferSelect> {
-  const [row] = await db
+  const [row] = await ctx.tenantScopedDb
     .insert(schema.message)
     .values({
       tenantId: ctx.tenantId,
@@ -89,7 +88,7 @@ export async function listMessages(
   pagination: CursorPaginationInput
 ): Promise<{ data: (typeof schema.message.$inferSelect)[]; nextCursor?: string }> {
   const limit = pagination.limit;
-  const rows = await db
+  const rows = await ctx.tenantScopedDb
     .select()
     .from(schema.message)
     .where(and(eq(schema.message.tenantId, ctx.tenantId), eq(schema.message.sessionId, sessionId)))

@@ -107,6 +107,39 @@ function isSystem(msg: Message): msg is SystemMessage {
   return msg.role === 'system';
 }
 
+const MODEL_TO_PROVIDER = {
+  kimi: 'kimi',
+  claude: 'anthropic',
+  ollama: 'ollama',
+} as const;
+
+async function pollJob(jobId: string): Promise<string> {
+  for (let attempt = 0; attempt < 30; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const res = await fetch(`/api/v1/tasks/${jobId}`, {
+      headers: { Authorization: 'Bearer test' },
+    });
+    if (!res.ok) continue;
+    const job = (await res.json()) as {
+      status: string;
+      checkpoint?: {
+        build?: {
+          result?: {
+            artifacts?: {
+              model?: { text?: string };
+            };
+          };
+        };
+      };
+    };
+    if (job.status === 'done' || job.status === 'failed' || job.status === 'needs_attention') {
+      const text = job.checkpoint?.build?.result?.artifacts?.model?.text;
+      return text ?? `Task finished with status: ${job.status}`;
+    }
+  }
+  return 'Task is still running. Check the tasks page for the final result.';
+}
+
 export default function ConsolePage() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>(sampleMessages);
@@ -130,7 +163,7 @@ export default function ConsolePage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
-  function handleSend() {
+  async function handleSend() {
     const text = input.trim();
     if (!text || isStreaming) return;
 
@@ -139,12 +172,37 @@ export default function ConsolePage() {
     setInput('');
     setIsStreaming(true);
 
-    setTimeout(() => {
+    try {
+      const provider = MODEL_TO_PROVIDER[model];
+      const res = await fetch('/api/v1/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Dev stub token. In production this is the Clerk session JWT.
+          Authorization: 'Bearer test',
+        },
+        body: JSON.stringify({
+          idempotencyKey: `console-${Date.now()}`,
+          type: 'chat',
+          prompt: text,
+          payload: {},
+          attachments: [],
+          provider,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = (await res.json()) as { error?: { message?: string } };
+        throw new Error(err.error?.message ?? `HTTP ${res.status}`);
+      }
+
+      const { jobId } = (await res.json()) as { jobId: string };
+      const answer = await pollJob(jobId);
+
       const assistant: AssistantMessage = {
         id: Date.now() + 1,
         role: 'assistant',
-        content:
-          'I have queued that task. The cloud worker will pick it up once you approve the deployment.',
+        content: answer,
         model,
         confidence: 0.89,
         cost: 0.007,
@@ -152,8 +210,17 @@ export default function ConsolePage() {
         sources: ['task-plan.md'],
       };
       setMessages((prev) => [...prev, assistant]);
+    } catch (err) {
+      const systemMsg: SystemMessage = {
+        id: Date.now() + 1,
+        role: 'system',
+        variant: 'error',
+        content: err instanceof Error ? err.message : 'Failed to reach Mimir API.',
+      };
+      setMessages((prev) => [...prev, systemMsg]);
+    } finally {
       setIsStreaming(false);
-    }, 1200);
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {

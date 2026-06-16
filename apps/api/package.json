@@ -8,6 +8,7 @@
     "dev": "tsx watch src/server.ts",
     "worker": "tsx watch src/temporal/worker.ts",
     "build": "tsc",
+    "generate:openapi": "tsx src/scripts/generate-openapi.ts",
     "start": "node dist/server.js",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
@@ -18,9 +19,11 @@
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
+    "@clerk/backend": "^3.7.1",
     "@fastify/cors": "^9.0.0",
     "@fastify/env": "^4.3.0",
     "@fastify/redis": "^7.0.0",
+    "@fastify/swagger": "^8.15.0",
     "@libsql/client": "^0.7.0",
     "@mimir/shared-types": "workspace:*",
     "@temporalio/client": "^1.18.1",
@@ -29,11 +32,13 @@
     "@temporalio/workflow": "^1.18.1",
     "drizzle-orm": "^0.31.0",
     "fastify": "^4.28.0",
+    "fastify-rate-limit": "npm:@fastify/rate-limit@9.1.0",
     "ioredis": "^5.4.0",
     "postgres": "^3.4.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@temporalio/testing": "^1.18.1",
     "@types/node": "^20.14.0",
     "drizzle-kit": "^0.22.0",
     "tsx": "^4.15.0",

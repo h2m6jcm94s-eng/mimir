@@ -246,6 +246,77 @@ classification, audit, cost control, and tier enforcement can be applied at ever
   projects like Hermes (Nous), but Mimir implements its own runtime. The privacy tiers, multi‑node
   mesh, multi‑tenancy, immutable audit, and cost governance are Mimir's own (see `ROADMAP.md` §5.1).
 
+### Visual architecture
+
+```mermaid
+graph TB
+  subgraph Surfaces
+    Web[Web PWA]
+    CLI[CLI]
+    Telegram[Telegram bot]
+    API[API clients]
+  end
+
+  Surfaces -->|HTTPS / SSE| Brain[Mimir Brain<br/>Fastify + Temporal + Next.js]
+  Brain -->|classify + route| Gateway[Classification Gateway]
+  Gateway -->|Tier 0 / Tier 1| Local[Local / Desktop Worker]
+  Gateway -->|Tier 2| Cloud[Cloud Worker<br/>air-gapped, ship-and-wipe]
+
+  Brain --> Postgres[(Postgres memory)]
+  Brain --> Redis[(Redis queues)]
+  Brain --> TemporalServer[Temporal Server]
+
+  Local --> LocalModel[(Local model<br/>Ollama)]
+  Cloud --> CloudModel[Cloud models<br/>OpenAI · Anthropic · Kimi · Qwen]
+```
+
+### Request lifecycle
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant S as Surface
+  participant B as Mimir Brain
+  participant C as Classifier
+  participant R as Model Router
+  participant P as Model Provider
+
+  U->>S: prompt / task
+  S->>B: POST /v1/tasks
+  B->>C: classify(prompt, attachments)
+  C-->>B: tier + provider/model prefs
+  B->>R: invoke(tier, prompt, prefs)
+  R->>P: adapter.invoke(...)
+  P-->>R: ModelOutput
+  R-->>B: result
+  B-->>S: job completed
+  S-->>U: answer + citations
+```
+
+### Model adapter registry
+
+```mermaid
+graph LR
+  Router[ModelRouter] --> Registry[ProviderRegistry]
+  Registry --> Local[LocalProvider]
+  Registry --> OpenAI[OpenAICompatibleProvider]
+  Registry --> Anthropic[AnthropicMessagesProvider]
+  Registry --> Ollama[OllamaProvider]
+
+  OpenAI --> OAI[OpenAI]
+  OpenAI --> KimiMS[Kimi Moonshot]
+  OpenAI --> Qwen[Qwen]
+
+  Anthropic --> Claude[Anthropic Claude]
+  Anthropic --> KimiCode[Kimi Code<br/>sk-kimi keys]
+```
+
+The registry is provider-agnostic: each adapter implements the same `ModelProvider` interface, and
+the `ModelRouter` picks the first available candidate for the requested privacy tier (or an explicit
+provider/model override). `MODEL_PROVIDER_T0/T1/T2` env vars configure which providers are tried per
+tier; Kimi Code keys (`sk-kimi-*`) are auto-detected and routed to the Kimi Code Anthropic-compatible
+endpoint.
+
 Deep architecture: `ROADMAP.md` §3, §5.1, §6–§14.
 
 ---

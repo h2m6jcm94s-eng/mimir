@@ -10,6 +10,8 @@ build/
 .next/
 out/
 *.tsbuildinfo
+.turbo/
+*.egg-info/
 
 # Environment
 .env
@@ -45,9 +47,10 @@ coverage/
 .nyc_output/
 playwright-report/
 test-results/
+tests/e2e/results/
 
 # Temporal
-temporal/
+/temporal/
 
 # Local reference clones (never commit external runtimes)
 .hermes/
