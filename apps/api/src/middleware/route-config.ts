@@ -1,4 +1,4 @@
-import '@fastify/rate-limit';
+import 'fastify-rate-limit';
 
 export const protectedRouteConfig = {
   rateLimit: {

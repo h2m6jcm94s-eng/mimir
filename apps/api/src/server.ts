@@ -1,5 +1,5 @@
-import rateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
+import rateLimit from 'fastify-rate-limit';
 import { loadConfig } from './config';
 import { redis } from './db/redis';
 import { authMiddleware, registerAuth } from './middleware/auth';

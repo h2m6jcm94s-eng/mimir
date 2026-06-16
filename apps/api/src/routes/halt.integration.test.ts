@@ -1,5 +1,5 @@
-import rateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
+import rateLimit from 'fastify-rate-limit';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerAuth } from '../middleware/auth';
 import { haltRoutes } from './halt';
