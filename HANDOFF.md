@@ -1,7 +1,7 @@
 # Mimir — Session Handoff
 
 **Purpose:** everything needed to resume work on Mimir in a fresh session without re‑deriving context.
-**Date:** 2026‑06‑16 · **Owner:** devayan (`devayandewri@gmail.com`)
+**Date:** 2026‑06‑17 · **Owner:** devayan (`devayandewri@gmail.com`)
 
 ---
 
@@ -107,13 +107,14 @@ dogfood 30 days (0 critical) → prove → sell.** Gates **G1–G9** are binary.
 
 ## 8. Current status & next steps
 
-**Status:** Repo scaffolded, CI green, branch `feat/review-loop` pushed to GitHub. Implemented and
-committed: provider registry (Kimi/Groq/OpenAI/Qwen/Anthropic/Ollama), runtime Postgres RLS tenant
-isolation, Clerk JWT auth + auto-provisioning, real LLM reviewer + apply registry, model circuit
+**Status:** PR #2 merged to `main`. The long-running `feat/review-loop` branch is closed. Implemented:
+provider registry (Kimi/Groq/OpenAI/Qwen/Anthropic/Ollama), runtime Postgres RLS tenant isolation,
+Clerk JWT auth + auto-provisioning, real LLM reviewer + apply registry, model circuit
 breakers/failover/cost ceiling, foundational RAG ingest/search (pgvector), global emergency halt with
-UI button and activity guards, auto circuit-breaker on runaway daily cost, Status/Tasks pages wired to
-real API data, console→API→Temporal→Kimi Playwright e2e. All unit tests pass; integration/e2e tests
-pass when Postgres/Temporal are running.
+UI button and activity guards, auto circuit-breaker on runaway daily cost, global rate limiting
+(Fastify + CodeQL-friendly alias), Status/Tasks pages wired to real API data, console→API→Temporal→Kimi
+Playwright e2e. All GitHub checks (lint, typecheck, tests, CodeQL, security, Scorecard) are green on
+`main`.
 
 **Immediate next steps (pick up here):**
 1. **Next P0 feature** (choose one):
@@ -123,9 +124,9 @@ pass when Postgres/Temporal are running.
    - gVisor sandbox for untrusted code execution.
    - Secrets vault (no plaintext provider keys).
    - GitHub connector (F-018).
-2. Continue down ROADMAP §23 features table in priority order (P0 first), testing each feature with
+2. Cut a new feature branch off `main` for the next chunk; keep PRs small and focused.
+3. Continue down ROADMAP §23 features table in priority order (P0 first), testing each feature with
    real keys (Kimi preferred, Groq/OpenAI rarely) before moving on.
-3. Keep commits small and push `feat/review-loop` after each feature batch.
 
 ---
 
