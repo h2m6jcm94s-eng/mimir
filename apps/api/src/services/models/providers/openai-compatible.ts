@@ -35,7 +35,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
   private getCredentials() {
     return {
       apiKey: getEnv(API_KEY_NAMES[this.id]),
-      baseUrl: getEnv(BASE_URL_NAMES[this.id]) ?? DEFAULT_BASE_URLS[this.id],
+      baseUrl: getEnv(BASE_URL_NAMES[this.id]) || DEFAULT_BASE_URLS[this.id],
     };
   }
 

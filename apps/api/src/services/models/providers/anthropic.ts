@@ -35,7 +35,7 @@ export class AnthropicMessagesProvider implements ModelProvider {
   private getCredentials() {
     return {
       apiKey: getEnv(this.apiKeyName),
-      baseUrl: getEnv(this.baseUrlName) ?? this.defaultBaseUrl,
+      baseUrl: getEnv(this.baseUrlName) || this.defaultBaseUrl,
     };
   }
 
