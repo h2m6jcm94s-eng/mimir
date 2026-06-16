@@ -1,3 +1,4 @@
+import rateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
 import { loadConfig } from './config';
 import { redis } from './db/redis';
@@ -21,6 +22,12 @@ const app = Fastify({
 
 async function main() {
   await registerAuth(app);
+
+  // Rate limit all routes (in-memory store; Redis store can be wired later).
+  await app.register(rateLimit, {
+    max: 1000,
+    timeWindow: '1 minute',
+  });
 
   // Public health endpoints
   app.register(healthRoutes, { prefix: '/' });

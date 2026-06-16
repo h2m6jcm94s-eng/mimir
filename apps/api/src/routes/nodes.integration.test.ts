@@ -1,18 +1,12 @@
-import Fastify from 'fastify';
 import { describe, expect, it } from 'vitest';
-import { authMiddleware, registerAuth } from '../middleware/auth';
+import { buildTestApp } from '../test-helpers/build-app';
 import { nodeRoutes } from './nodes';
 
 describe('nodes routes', () => {
   it('returns 401 without an authorization header', async () => {
-    const app = Fastify();
-    await registerAuth(app);
-    app.addHook('preHandler', async (request, reply) => {
-      if (request.url.startsWith('/v1/')) {
-        await authMiddleware(request, reply);
-      }
+    const app = await buildTestApp(async (app) => {
+      await app.register(nodeRoutes, { prefix: '/v1/nodes' });
     });
-    app.register(nodeRoutes, { prefix: '/v1/nodes' });
 
     const response = await app.inject({
       method: 'GET',
@@ -23,14 +17,9 @@ describe('nodes routes', () => {
   });
 
   it.skipIf(!process.env.RUN_DB_TESTS)('returns an empty list for a new tenant', async () => {
-    const app = Fastify();
-    await registerAuth(app);
-    app.addHook('preHandler', async (request, reply) => {
-      if (request.url.startsWith('/v1/')) {
-        await authMiddleware(request, reply);
-      }
+    const app = await buildTestApp(async (app) => {
+      await app.register(nodeRoutes, { prefix: '/v1/nodes' });
     });
-    app.register(nodeRoutes, { prefix: '/v1/nodes' });
 
     const response = await app.inject({
       method: 'GET',

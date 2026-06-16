@@ -1,18 +1,13 @@
-import Fastify from 'fastify';
 import { describe, expect, it } from 'vitest';
-import { authMiddleware, registerAuth, setTokenVerifier } from '../middleware/auth';
+import { setTokenVerifier } from '../middleware/auth';
+import { buildTestApp } from '../test-helpers/build-app';
 import { sessionRoutes } from './sessions';
 
 describe('sessions routes', () => {
   it('returns 401 without an authorization header', async () => {
-    const app = Fastify();
-    await registerAuth(app);
-    app.addHook('preHandler', async (request, reply) => {
-      if (request.url.startsWith('/v1/')) {
-        await authMiddleware(request, reply);
-      }
+    const app = await buildTestApp(async (app) => {
+      await app.register(sessionRoutes, { prefix: '/v1/sessions' });
     });
-    app.register(sessionRoutes, { prefix: '/v1/sessions' });
 
     const response = await app.inject({
       method: 'POST',
@@ -29,14 +24,9 @@ describe('sessions routes', () => {
       return { sub: `clerk_sessions_user_${Date.now()}` };
     });
 
-    const app = Fastify();
-    await registerAuth(app);
-    app.addHook('preHandler', async (request, reply) => {
-      if (request.url.startsWith('/v1/')) {
-        await authMiddleware(request, reply);
-      }
+    const app = await buildTestApp(async (app) => {
+      await app.register(sessionRoutes, { prefix: '/v1/sessions' });
     });
-    app.register(sessionRoutes, { prefix: '/v1/sessions' });
 
     const response = await app.inject({
       method: 'POST',

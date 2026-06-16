@@ -1,18 +1,13 @@
-import Fastify from 'fastify';
 import { describe, expect, it } from 'vitest';
-import { authMiddleware, registerAuth, setTokenVerifier } from '../middleware/auth';
+import { setTokenVerifier } from '../middleware/auth';
+import { buildTestApp } from '../test-helpers/build-app';
 import { knowledgeRoutes } from './knowledge';
 
 describe('knowledge routes', () => {
   it('returns 401 without an authorization header', async () => {
-    const app = Fastify();
-    await registerAuth(app);
-    app.addHook('preHandler', async (request, reply) => {
-      if (request.url.startsWith('/v1/')) {
-        await authMiddleware(request, reply);
-      }
+    const app = await buildTestApp(async (app) => {
+      await app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
     });
-    app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
 
     const response = await app.inject({
       method: 'POST',
@@ -30,14 +25,9 @@ describe('knowledge routes', () => {
       return { sub: clerkId };
     });
 
-    const app = Fastify();
-    await registerAuth(app);
-    app.addHook('preHandler', async (request, reply) => {
-      if (request.url.startsWith('/v1/')) {
-        await authMiddleware(request, reply);
-      }
+    const app = await buildTestApp(async (app) => {
+      await app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
     });
-    app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
 
     const ingestResponse = await app.inject({
       method: 'POST',

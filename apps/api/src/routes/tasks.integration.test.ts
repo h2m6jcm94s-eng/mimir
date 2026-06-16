@@ -1,20 +1,15 @@
-import Fastify from 'fastify';
 import { describe, expect, it } from 'vitest';
 import { withTenantTransaction } from '../db/tenant-context';
-import { authMiddleware, registerAuth, resolveAuthUser } from '../middleware/auth';
+import { resolveAuthUser } from '../middleware/auth';
 import { createJob } from '../repositories/job';
+import { buildTestApp } from '../test-helpers/build-app';
 import { taskRoutes } from './tasks';
 
 describe('tasks routes', () => {
   it('returns 401 without an authorization header', async () => {
-    const app = Fastify();
-    await registerAuth(app);
-    app.addHook('preHandler', async (request, reply) => {
-      if (request.url.startsWith('/v1/')) {
-        await authMiddleware(request, reply);
-      }
+    const app = await buildTestApp(async (app) => {
+      await app.register(taskRoutes, { prefix: '/v1/tasks' });
     });
-    app.register(taskRoutes, { prefix: '/v1/tasks' });
 
     const response = await app.inject({
       method: 'GET',
@@ -36,14 +31,9 @@ describe('tasks routes', () => {
       return { job: created };
     });
 
-    const app = Fastify();
-    await registerAuth(app);
-    app.addHook('preHandler', async (request, reply) => {
-      if (request.url.startsWith('/v1/')) {
-        await authMiddleware(request, reply);
-      }
+    const app = await buildTestApp(async (app) => {
+      await app.register(taskRoutes, { prefix: '/v1/tasks' });
     });
-    app.register(taskRoutes, { prefix: '/v1/tasks' });
 
     const response = await app.inject({
       method: 'GET',
