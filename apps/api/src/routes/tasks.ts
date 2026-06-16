@@ -1,0 +1,111 @@
+import { Client, Connection } from '@temporalio/client';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { z } from 'zod';
+import { TenantContext } from '../db/tenant-context';
+import { Scopes, requireScope } from '../middleware/rbac';
+import { createAuditEvent } from '../repositories/audit';
+import { createJob, findJobByIdempotency, getJob, updateJobStatus } from '../repositories/job';
+import { ClassificationGateway } from '../services/classification/gateway';
+
+const attachmentSchema = z.object({
+  name: z.string().min(1),
+  contentType: z.string().default('application/octet-stream'),
+  size: z.number().int().min(0).default(0),
+});
+
+const createTaskSchema = z.object({
+  idempotencyKey: z.string().min(1),
+  type: z.string().min(1),
+  prompt: z.string().min(1),
+  payload: z.record(z.unknown()).default({}),
+  attachments: z.array(attachmentSchema).default([]),
+});
+
+const classifier = new ClassificationGateway();
+
+const temporalHost = process.env.TEMPORAL_HOST || 'localhost:7233';
+const taskQueue = process.env.TEMPORAL_TASK_QUEUE || 'mimir-task-queue';
+
+export async function taskRoutes(app: FastifyInstance) {
+  app.addHook('preHandler', requireScope(Scopes.CHAT_WRITE));
+
+  app.post('/', async (request: FastifyRequest, reply) => {
+    const user = request.user;
+    if (!user)
+      return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+
+    const body = createTaskSchema.parse(request.body);
+    const ctx = new TenantContext(user.tenantId);
+
+    const existing = await findJobByIdempotency(ctx, body.idempotencyKey);
+    if (existing) {
+      return reply
+        .status(200)
+        .send({ jobId: existing.id, status: existing.status, idempotent: true });
+    }
+
+    const classification = classifier.classify({
+      prompt: body.prompt,
+      attachments: body.attachments,
+      retrievedContext: [],
+    });
+
+    const job = await createJob(ctx, {
+      idempotencyKey: body.idempotencyKey,
+      type: body.type,
+      tier: classification.tier,
+      input: { prompt: body.prompt, payload: body.payload, attachments: body.attachments },
+    });
+
+    await updateJobStatus(ctx, job.id, 'queued', {
+      checkpoint: { classification },
+    });
+
+    await createAuditEvent(ctx, {
+      actor: user.userId,
+      action: 'classification_decision',
+      tier: classification.tier,
+      payload: classification as unknown as Record<string, unknown>,
+    });
+
+    const connection = await Connection.connect({ address: temporalHost });
+    const client = new Client({ connection });
+    const workflowId = `task-${job.id}`;
+
+    const handle = await client.workflow.start('taskRunWorkflow', {
+      taskQueue,
+      workflowId,
+      args: [
+        {
+          tenantId: user.tenantId,
+          userId: user.userId,
+          jobId: job.id,
+          idempotencyKey: body.idempotencyKey,
+          type: body.type,
+          tier: classification.tier,
+          payload: { prompt: body.prompt, ...body.payload },
+        },
+      ],
+    });
+
+    return reply.status(201).send({
+      jobId: job.id,
+      workflowId: handle.workflowId,
+      runId: handle.firstExecutionRunId,
+      status: job.status,
+    });
+  });
+
+  app.get<{ Params: { jobId: string } }>('/:jobId', async (request, reply) => {
+    const user = request.user;
+    if (!user)
+      return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+
+    const ctx = new TenantContext(user.tenantId);
+    const found = await getJob(ctx, request.params.jobId);
+    if (!found)
+      return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Job not found' } });
+
+    return reply.send(found);
+  });
+}

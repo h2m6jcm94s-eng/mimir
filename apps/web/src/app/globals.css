@@ -1,0 +1,284 @@
+@import url("https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@400;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-primary: #faf9f6;
+    --bg-surface: #f1efe9;
+    --bg-surface-raised: #e8e5dd;
+    --bg-input: #ffffff;
+    --bg-glass: rgba(250, 249, 246, 0.72);
+    --bg-glass-border: rgba(33, 31, 26, 0.06);
+    --bg-glass-hover: rgba(250, 249, 246, 0.88);
+
+    --border-subtle: rgba(33, 31, 26, 0.08);
+    --border-subtle-solid: #e5e2da;
+    --border-focus: #4338ca;
+
+    --text-primary: #211f1a;
+    --text-secondary: #6b675e;
+    --text-muted: #a39e93;
+
+    --accent-primary: #4338ca;
+    --accent-teal: #0d9488;
+    --accent-indigo: #4338ca;
+    --accent-slate: #64748b;
+    --accent-warning: #d97706;
+    --accent-danger: #dc2626;
+    --accent-success: #16a34a;
+    --accent-gold: #d97706;
+
+    --kimi-badge: #2563eb;
+    --claude-badge: #d97706;
+    --ollama-badge: #64748b;
+
+    --halt-red: #dc2626;
+    --halt-red-hover: #b91c1c;
+
+    --cost-chip-bg: rgba(67, 56, 202, 0.08);
+    --cost-chip-text: #4338ca;
+
+    --tier0-color: #4338ca;
+    --tier1-color: #0d9488;
+    --tier2-color: #64748b;
+
+    --shadow-sm: 0 1px 2px rgba(33, 31, 26, 0.04);
+    --shadow-md: 0 4px 12px rgba(33, 31, 26, 0.06), 0 1px 3px rgba(33, 31, 26, 0.04);
+    --shadow-lg: 0 8px 24px rgba(33, 31, 26, 0.08), 0 2px 6px rgba(33, 31, 26, 0.04);
+    --shadow-xl: 0 16px 40px rgba(33, 31, 26, 0.1), 0 4px 12px rgba(33, 31, 26, 0.06);
+    --shadow-glow-indigo: 0 0 20px rgba(67, 56, 202, 0.12);
+    --shadow-glow-amber: 0 0 20px rgba(217, 119, 6, 0.12);
+    --shadow-card: 0 1px 3px rgba(33, 31, 26, 0.06), 0 0 0 1px rgba(33, 31, 26, 0.04);
+    --shadow-hover: 0 4px 20px rgba(33, 31, 26, 0.1);
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    --background: 40 20% 97%;
+    --foreground: 40 12% 12%;
+    --card: 40 14% 94%;
+    --card-foreground: 40 12% 12%;
+    --popover: 40 14% 94%;
+    --popover-foreground: 40 12% 12%;
+    --primary: 243 75% 51%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 14% 94%;
+    --secondary-foreground: 40 12% 12%;
+    --muted: 40 10% 90%;
+    --muted-foreground: 38 8% 42%;
+    --accent: 40 14% 94%;
+    --accent-foreground: 40 12% 12%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 12% 88%;
+    --input: 0 0% 100%;
+    --ring: 243 75% 51%;
+    --radius: 0.625rem;
+  }
+
+  [data-theme="dark"] {
+    --bg-primary: #111014;
+    --bg-surface: #1a191d;
+    --bg-surface-raised: #232228;
+    --bg-input: #1e1d22;
+    --bg-glass: rgba(17, 16, 20, 0.75);
+    --bg-glass-border: rgba(255, 255, 255, 0.06);
+    --bg-glass-hover: rgba(17, 16, 20, 0.88);
+
+    --border-subtle: rgba(255, 255, 255, 0.06);
+    --border-subtle-solid: #2a2930;
+    --border-focus: #818cf8;
+
+    --text-primary: #f5f3ee;
+    --text-secondary: #9c988f;
+    --text-muted: #5c5850;
+
+    --accent-primary: #818cf8;
+    --accent-teal: #2dd4bf;
+    --accent-indigo: #818cf8;
+    --accent-slate: #94a3b8;
+    --accent-warning: #fbbf24;
+    --accent-danger: #f87171;
+    --accent-success: #4ade80;
+    --accent-gold: #fbbf24;
+
+    --kimi-badge: #60a5fa;
+    --claude-badge: #fbbf24;
+    --ollama-badge: #94a3b8;
+
+    --halt-red: #ef4444;
+    --halt-red-hover: #dc2626;
+
+    --cost-chip-bg: rgba(129, 140, 248, 0.12);
+    --cost-chip-text: #818cf8;
+
+    --tier0-color: #818cf8;
+    --tier1-color: #2dd4bf;
+    --tier2-color: #94a3b8;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+    --shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-glow-indigo: 0 0 20px rgba(129, 140, 248, 0.15);
+    --shadow-glow-amber: 0 0 20px rgba(251, 191, 36, 0.15);
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.03);
+    --shadow-hover: 0 4px 20px rgba(0, 0, 0, 0.4);
+
+    --background: 260 14% 7%;
+    --foreground: 40 20% 95%;
+    --card: 260 10% 11%;
+    --card-foreground: 40 20% 95%;
+    --popover: 260 10% 11%;
+    --popover-foreground: 40 20% 95%;
+    --primary: 234 89% 74%;
+    --primary-foreground: 260 14% 7%;
+    --secondary: 260 10% 11%;
+    --secondary-foreground: 40 20% 95%;
+    --muted: 260 8% 18%;
+    --muted-foreground: 38 10% 58%;
+    --accent: 260 10% 11%;
+    --accent-foreground: 40 20% 95%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 260 8% 18%;
+    --input: 260 8% 15%;
+    --ring: 234 89% 74%;
+  }
+
+  [data-theme="variant-b"] {
+    --bg-primary: #1a1814;
+    --bg-surface: #24211c;
+    --bg-surface-raised: #2e2a24;
+    --bg-input: #2a2620;
+    --bg-glass: rgba(26, 24, 20, 0.72);
+    --bg-glass-border: rgba(212, 175, 55, 0.08);
+    --bg-glass-hover: rgba(26, 24, 20, 0.88);
+
+    --border-subtle: rgba(212, 175, 55, 0.08);
+    --border-subtle-solid: #332f28;
+    --border-focus: #d4af37;
+
+    --text-primary: #f5f0e6;
+    --text-secondary: #a8a090;
+    --text-muted: #6b6558;
+
+    --accent-primary: #d4af37;
+    --accent-teal: #2dd4bf;
+    --accent-indigo: #d4af37;
+    --accent-slate: #94a3b8;
+    --accent-warning: #fbbf24;
+    --accent-danger: #f87171;
+    --accent-success: #4ade80;
+    --accent-gold: #fbbf24;
+
+    --kimi-badge: #60a5fa;
+    --claude-badge: #fbbf24;
+    --ollama-badge: #94a3b8;
+
+    --halt-red: #ef4444;
+    --halt-red-hover: #dc2626;
+
+    --cost-chip-bg: rgba(212, 175, 55, 0.12);
+    --cost-chip-text: #d4af37;
+
+    --tier0-color: #d4af37;
+    --tier1-color: #2dd4bf;
+    --tier2-color: #94a3b8;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+    --shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-glow-indigo: 0 0 20px rgba(212, 175, 55, 0.15);
+    --shadow-glow-amber: 0 0 20px rgba(251, 191, 36, 0.15);
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(212, 175, 55, 0.04);
+    --shadow-hover: 0 4px 20px rgba(0, 0, 0, 0.4);
+
+    --background: 40 18% 10%;
+    --foreground: 40 30% 94%;
+    --card: 40 14% 12%;
+    --card-foreground: 40 30% 94%;
+    --popover: 40 14% 12%;
+    --popover-foreground: 40 30% 94%;
+    --primary: 43 74% 52%;
+    --primary-foreground: 40 18% 10%;
+    --secondary: 40 14% 12%;
+    --secondary-foreground: 40 30% 94%;
+    --muted: 40 10% 18%;
+    --muted-foreground: 40 12% 58%;
+    --accent: 40 14% 12%;
+    --accent-foreground: 40 30% 94%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 10% 18%;
+    --input: 40 10% 15%;
+    --ring: 43 74% 52%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-[var(--border-subtle-solid)];
+  }
+
+  html {
+    font-family: "Schibsted Grotesk", system-ui, sans-serif;
+  }
+
+  body {
+    @apply bg-[var(--bg-primary)] text-[var(--text-primary)] antialiased;
+  }
+
+  code,
+  pre {
+    font-family: "JetBrains Mono", monospace;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: "Playfair Display", serif;
+  }
+
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  .shadow-hover {
+    box-shadow: var(--shadow-hover);
+  }
+
+  .glass {
+    background: var(--bg-glass);
+    border: 1px solid var(--bg-glass-border);
+    backdrop-filter: blur(12px);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  @keyframes dash-flow {
+    from {
+      stroke-dashoffset: 24;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  .animate-dash-flow {
+    animation: dash-flow 1.5s linear infinite;
+  }
+}
