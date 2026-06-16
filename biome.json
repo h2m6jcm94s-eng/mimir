@@ -10,7 +10,10 @@
       "test-results",
       "open-design",
       "temporal",
-      ".venv"
+      ".venv",
+      ".turbo",
+      "design",
+      "Kimi_Agent_Hermes UI改进"
     ]
   },
   "organizeImports": {

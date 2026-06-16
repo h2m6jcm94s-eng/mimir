@@ -19,7 +19,9 @@ test.describe('Approvals', () => {
 
   test('approval card shows blast radius, models, and countdown', async ({ page }) => {
     const card = page.getByTestId('approval-1');
-    await expect(card.getByText('Deploys 1 service · Restarts 1 service · ~12 users affected')).toBeVisible();
+    await expect(
+      card.getByText('Deploys 1 service · Restarts 1 service · ~12 users affected')
+    ).toBeVisible();
     await expect(card.getByText('Models agree')).toBeVisible();
     await expect(card.getByText('PIN required')).toBeVisible();
   });
