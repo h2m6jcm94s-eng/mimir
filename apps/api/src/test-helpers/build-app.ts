@@ -12,6 +12,7 @@ export async function buildTestApp(
     max: 10_000,
     timeWindow: '1 minute',
   });
+  // lgtm[js/missing-rate-limiting] rate-limit plugin is registered above.
   app.addHook('preHandler', async (request, reply) => {
     if (request.url.startsWith('/v1/')) {
       await authMiddleware(request, reply);

@@ -1,3 +1,4 @@
+import rateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerAuth } from '../middleware/auth';
@@ -19,6 +20,7 @@ describe('halt routes', () => {
     process.env.CLERK_SECRET_KEY = undefined;
 
     await registerAuth(app);
+    await app.register(rateLimit, { max: 10_000, timeWindow: '1 minute' });
     app.addHook('preHandler', async (request) => {
       if (request.url.startsWith('/v1/halt')) {
         request.user = {

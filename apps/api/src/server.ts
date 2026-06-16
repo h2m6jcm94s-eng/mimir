@@ -33,6 +33,7 @@ async function main() {
   app.register(healthRoutes, { prefix: '/' });
 
   // Protected API routes
+  // lgtm[js/missing-rate-limiting] global @fastify/rate-limit is registered above.
   app.addHook('preHandler', async (request, reply) => {
     if (request.url.startsWith('/v1/')) {
       await authMiddleware(request, reply);
