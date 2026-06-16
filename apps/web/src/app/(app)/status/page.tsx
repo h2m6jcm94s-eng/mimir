@@ -5,6 +5,7 @@ import { TierBadge } from '@/components/ui/TierBadge';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Wifi } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { ConnectorStrip } from './_components/ConnectorStrip';
 import { CostWidget } from './_components/CostWidget';
 import { NodeCard } from './_components/NodeCard';
@@ -12,66 +13,22 @@ import { QueueChart } from './_components/QueueChart';
 import { TopologyMap } from './_components/TopologyMap';
 import type { MeshNode } from './_components/TopologyMap';
 
-const nodes: MeshNode[] = [
-  {
-    id: 'laptop',
-    name: 'Laptop Brain',
-    kind: 'brain',
-    tier: 0,
-    status: 'up',
-    jobs: 2,
-    cost: 1.24,
-    cpu: 12,
-    ram: 34,
-    disk: 56,
-    net: 8,
-  },
-  {
-    id: 'desktop',
-    name: 'Desktop Worker',
-    kind: 'desktop',
-    tier: 1,
-    status: 'up',
-    jobs: 4,
-    cost: 3.18,
-    cpu: 24,
-    ram: 42,
-    disk: 38,
-    net: 12,
-  },
-  {
-    id: 'cloud',
-    name: 'Cloud Worker',
-    kind: 'cloud',
-    tier: 2,
-    status: 'degraded',
-    jobs: 7,
-    cost: 7.42,
-    cpu: 68,
-    ram: 55,
-    disk: 22,
-    net: 34,
-  },
-  {
-    id: 'phone',
-    name: 'Phone',
-    kind: 'phone',
-    tier: 1,
-    status: 'up',
-    jobs: 0,
-    cost: 0.12,
-    cpu: 4,
-    ram: 12,
-    disk: 18,
-    net: 5,
-  },
-];
+interface ApiNode {
+  id: string;
+  name: string;
+  kind: 'brain' | 'desktop' | 'cloud' | 'phone';
+  tier: number;
+  status: 'up' | 'degraded' | 'down' | 'unknown';
+}
 
-const activeJobs = [
-  { id: 1, name: 'Security brief review', model: 'kimi', progress: 72, tier: 1 },
-  { id: 2, name: 'Dependency audit', model: 'claude', progress: 34, tier: 0 },
-  { id: 3, name: 'Email digest', model: 'ollama', progress: 91, tier: 2 },
-];
+interface ApiJob {
+  id: string;
+  type: string;
+  tier: number;
+  status: string;
+  input?: Record<string, unknown> | null;
+  costUsd?: number;
+}
 
 const queueData = [
   { hour: '09:00', pending: 3 },
@@ -91,6 +48,22 @@ const costData = [
   { time: '14:00', usd: 3.5 },
 ];
 
+function mapNode(apiNode: ApiNode): MeshNode {
+  return {
+    id: apiNode.id,
+    name: apiNode.name,
+    kind: apiNode.kind,
+    tier: apiNode.tier as 0 | 1 | 2,
+    status: apiNode.status === 'unknown' ? 'down' : apiNode.status,
+    jobs: 0,
+    cost: 0,
+    cpu: 0,
+    ram: 0,
+    disk: 0,
+    net: 0,
+  };
+}
+
 function overallStatus(nodes: MeshNode[]) {
   const up = nodes.filter((n) => n.status === 'up').length;
   if (up === nodes.length) return { label: 'Mesh Healthy', color: 'text-emerald-600' };
@@ -99,9 +72,68 @@ function overallStatus(nodes: MeshNode[]) {
 }
 
 export default function StatusPage() {
+  const [nodes, setNodes] = useState<MeshNode[]>([]);
+  const [activeJobs, setActiveJobs] = useState<ApiJob[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [nodesRes, tasksRes] = await Promise.all([
+          fetch('/api/v1/nodes', {
+            // TODO: replace dev stub token with Clerk session JWT.
+            headers: { Authorization: 'Bearer test' },
+          }),
+          fetch('/api/v1/tasks?limit=50', {
+            // TODO: replace dev stub token with Clerk session JWT.
+            headers: { Authorization: 'Bearer test' },
+          }),
+        ]);
+
+        if (!nodesRes.ok) throw new Error(`Nodes fetch failed: ${nodesRes.status}`);
+        if (!tasksRes.ok) throw new Error(`Tasks fetch failed: ${tasksRes.status}`);
+
+        const nodesBody = (await nodesRes.json()) as { data: ApiNode[] };
+        const tasksBody = (await tasksRes.json()) as { data: ApiJob[] };
+
+        setNodes(nodesBody.data.map(mapNode));
+        setActiveJobs(tasksBody.data.filter((job) => job.status === 'running'));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load status');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void load();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-sm text-[var(--text-muted)]">Loading status…</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   const status = overallStatus(nodes);
-  const totalJobs = nodes.reduce((sum, n) => sum + n.jobs, 0);
+  const totalJobs = activeJobs.length;
   const queueDepth = queueData[queueData.length - 1].pending;
+  const onlineCount = nodes.filter((n) => n.status === 'up').length;
 
   return (
     <div className="space-y-6">
@@ -116,7 +148,7 @@ export default function StatusPage() {
             {status.label}
           </span>
           <span className="text-xs text-[var(--text-muted)]">
-            {nodes.filter((n) => n.status === 'up').length}/{nodes.length} nodes online
+            {onlineCount}/{nodes.length} nodes online
           </span>
         </div>
       </PageHeader>
@@ -152,21 +184,23 @@ export default function StatusPage() {
                 className="flex items-center gap-3 rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] p-3"
               >
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-[var(--text-primary)]">{job.name}</p>
-                  <p className="text-xs capitalize text-[var(--text-muted)]">{job.model}</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">
+                    {typeof job.input?.prompt === 'string' ? job.input.prompt : job.type}
+                  </p>
+                  <p className="text-xs capitalize text-[var(--text-muted)]">
+                    {typeof job.input?.model === 'string' ? job.input.model : 'kimi'}
+                  </p>
                 </div>
                 <TierBadge tier={job.tier as 0 | 1 | 2} />
                 <div className="w-24">
                   <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-surface-raised)]">
                     <div
                       className="h-full rounded-full bg-[var(--accent-primary)]"
-                      style={{ width: `${job.progress}%` }}
+                      style={{ width: '0%' }}
                     />
                   </div>
                 </div>
-                <span className="w-8 text-right text-xs text-[var(--text-secondary)]">
-                  {job.progress}%
-                </span>
+                <span className="w-8 text-right text-xs text-[var(--text-secondary)]">0%</span>
               </div>
             ))}
           </div>

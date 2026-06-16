@@ -6,6 +6,7 @@ import { auditRoutes } from './routes/audit';
 import { haltRoutes } from './routes/halt';
 import { healthRoutes } from './routes/health';
 import { knowledgeRoutes } from './routes/knowledge';
+import { nodeRoutes } from './routes/nodes';
 import { sessionRoutes } from './routes/sessions';
 import { taskRoutes } from './routes/tasks';
 import { getTemporalConnection } from './temporal/client';
@@ -33,6 +34,7 @@ async function main() {
 
   app.register(sessionRoutes, { prefix: '/v1/sessions' });
   app.register(taskRoutes, { prefix: '/v1/tasks' });
+  app.register(nodeRoutes, { prefix: '/v1/nodes' });
   app.register(auditRoutes, { prefix: '/v1/audit' });
   app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
   app.register(haltRoutes, { prefix: '/v1/halt' });

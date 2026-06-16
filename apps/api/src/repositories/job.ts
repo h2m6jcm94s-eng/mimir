@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { desc, eq, lt, sql } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import type { TenantContext } from '../db/tenant-context';
 
@@ -7,6 +7,16 @@ export interface CreateJobInput {
   type: string;
   tier: number;
   input: unknown;
+}
+
+export interface ListJobsInput {
+  limit: number;
+  cursor?: string;
+}
+
+export interface ListJobsOutput {
+  data: (typeof schema.job.$inferSelect)[];
+  nextCursor?: string;
 }
 
 export async function createJob(ctx: TenantContext, input: CreateJobInput) {
@@ -68,4 +78,22 @@ export async function findJobByIdempotency(ctx: TenantContext, idempotencyKey: s
     .from(schema.job)
     .where(eq(schema.job.idempotencyKey, idempotencyKey));
   return found;
+}
+
+export async function listJobs(ctx: TenantContext, input: ListJobsInput): Promise<ListJobsOutput> {
+  const cursorFilter = input.cursor ? lt(schema.job.id, input.cursor) : undefined;
+
+  const rows = await ctx.tenantScopedDb
+    .select()
+    .from(schema.job)
+    .where(cursorFilter)
+    .orderBy(desc(schema.job.createdAt), desc(schema.job.id))
+    .limit(input.limit + 1);
+
+  const hasMore = rows.length > input.limit;
+  const data = hasMore ? rows.slice(0, -1) : rows;
+  const last = data[data.length - 1];
+  const nextCursor = hasMore && last ? last.id : undefined;
+
+  return { data, nextCursor };
 }
