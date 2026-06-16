@@ -64,11 +64,15 @@ export async function build(input: TaskRunInput): Promise<BuildResult> {
 
   // TODO: wire real build step (sandboxed command, model call, etc.)
   const router = new ModelRouter();
+  const { provider, model, ...restPayload } = input.payload;
   const modelInput = {
-    prompt: (input.payload.prompt as string) ?? '',
-    payload: input.tier === 2 ? (scrubbedPayload as Record<string, unknown>) : input.payload,
+    prompt: (restPayload.prompt as string) ?? '',
+    payload: input.tier === 2 ? (scrubbedPayload as Record<string, unknown>) : restPayload,
   };
-  const modelOutput = await router.invoke(input.tier as 0 | 1 | 2, modelInput);
+  const modelOutput = await router.invoke(input.tier as 0 | 1 | 2, modelInput, {
+    provider: provider as string | undefined,
+    model: model as string | undefined,
+  });
 
   const result: BuildResult = {
     success: true,

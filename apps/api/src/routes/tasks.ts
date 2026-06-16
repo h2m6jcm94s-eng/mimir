@@ -1,3 +1,4 @@
+import { ProviderId } from '@mimir/shared-types';
 import { Client, Connection } from '@temporalio/client';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -19,6 +20,8 @@ const createTaskSchema = z.object({
   prompt: z.string().min(1),
   payload: z.record(z.unknown()).default({}),
   attachments: z.array(attachmentSchema).default([]),
+  provider: ProviderId.optional(),
+  model: z.string().optional(),
 });
 
 const classifier = new ClassificationGateway();
@@ -83,7 +86,12 @@ export async function taskRoutes(app: FastifyInstance) {
           idempotencyKey: body.idempotencyKey,
           type: body.type,
           tier: classification.tier,
-          payload: { prompt: body.prompt, ...body.payload },
+          payload: {
+            prompt: body.prompt,
+            ...(body.provider && { provider: body.provider }),
+            ...(body.model && { model: body.model }),
+            ...body.payload,
+          },
         },
       ],
     });

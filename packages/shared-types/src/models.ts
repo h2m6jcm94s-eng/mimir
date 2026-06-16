@@ -73,3 +73,35 @@ export const ReviewResult = z.object({
   patch: z.array(JsonPatchOperation).optional(),
 });
 export type ReviewResult = z.infer<typeof ReviewResult>;
+
+export const ProviderId = z.enum(['local', 'openai', 'anthropic', 'kimi', 'qwen', 'ollama']);
+export type ProviderId = z.infer<typeof ProviderId>;
+
+export const ModelInput = z.object({
+  prompt: z.string(),
+  payload: z.record(z.unknown()).default({}),
+  model: z.string().optional(),
+});
+export type ModelInput = z.infer<typeof ModelInput>;
+
+export const ModelOutput = z.object({
+  text: z.string(),
+  model: z.string(),
+  provider: ProviderId,
+  tier: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+});
+export type ModelOutput = z.infer<typeof ModelOutput>;
+
+export const ModelProviderEntry = z.object({
+  provider: ProviderId,
+  model: z.string().optional(),
+  priority: z.number().int().min(0).default(0),
+});
+export type ModelProviderEntry = z.infer<typeof ModelProviderEntry>;
+
+export const ModelProviderConfig = z.object({
+  0: z.array(ModelProviderEntry).default([{ provider: 'local' }]),
+  1: z.array(ModelProviderEntry).default([{ provider: 'openai' }]),
+  2: z.array(ModelProviderEntry).default([{ provider: 'openai' }]),
+});
+export type ModelProviderConfig = z.infer<typeof ModelProviderConfig>;

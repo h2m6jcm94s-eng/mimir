@@ -1,13 +1,10 @@
-export interface ModelInput {
-  prompt: string;
-  payload: Record<string, unknown>;
-}
+import type { ModelInput, ModelOutput } from '@mimir/shared-types';
+import type { AppConfig } from '../../config';
+import { loadConfig } from '../../config';
+import { LocalProvider } from './providers/local';
+import { ProviderRegistry } from './registry';
 
-export interface ModelOutput {
-  text: string;
-  model: string;
-  tier: 0 | 1 | 2;
-}
+export type { ModelInput, ModelOutput } from '@mimir/shared-types';
 
 export interface ModelAdapter {
   readonly name: string;
@@ -15,58 +12,39 @@ export interface ModelAdapter {
   invoke(input: ModelInput): Promise<ModelOutput>;
 }
 
-class LocalAdapter implements ModelAdapter {
-  readonly name = 'local';
-  readonly tier = 0 as const;
-
-  async invoke(input: ModelInput): Promise<ModelOutput> {
-    return {
-      text: `[local] processed: ${input.prompt}`,
-      model: this.name,
-      tier: this.tier,
-    };
-  }
+export interface ModelRouterOptions {
+  provider?: string;
+  model?: string;
 }
-
-class SelfHostedAdapter implements ModelAdapter {
-  readonly name = 'self-hosted';
-  readonly tier = 1 as const;
-
-  async invoke(input: ModelInput): Promise<ModelOutput> {
-    return {
-      text: `[self-hosted] processed: ${input.prompt}`,
-      model: this.name,
-      tier: this.tier,
-    };
-  }
-}
-
-class CloudAdapter implements ModelAdapter {
-  readonly name = 'cloud';
-  readonly tier = 2 as const;
-
-  async invoke(input: ModelInput): Promise<ModelOutput> {
-    return {
-      text: `[cloud] processed: ${input.prompt}`,
-      model: this.name,
-      tier: this.tier,
-    };
-  }
-}
-
-const adapters: Record<number, ModelAdapter> = {
-  0: new LocalAdapter(),
-  1: new SelfHostedAdapter(),
-  2: new CloudAdapter(),
-};
 
 export class ModelRouter {
-  route(tier: 0 | 1 | 2): ModelAdapter {
-    return adapters[tier] ?? adapters[0];
+  private registry: ProviderRegistry;
+  private fallback = new LocalProvider();
+
+  constructor(config?: AppConfig) {
+    this.registry = new ProviderRegistry((config ?? loadConfig()).modelProviders);
   }
 
-  async invoke(tier: 0 | 1 | 2, input: ModelInput): Promise<ModelOutput> {
-    const adapter = this.route(tier);
-    return adapter.invoke(input);
+  route(tier: 0 | 1 | 2, providerId?: string): ModelAdapter {
+    const provider = this.registry.find(tier, providerId) ?? this.fallback;
+    return {
+      name: provider.id,
+      tier,
+      invoke: (input) =>
+        provider.invoke(input, { tier, model: providerId ? undefined : undefined }),
+    };
+  }
+
+  async invoke(
+    tier: 0 | 1 | 2,
+    input: ModelInput,
+    options?: ModelRouterOptions
+  ): Promise<ModelOutput> {
+    const provider = this.registry.find(tier, options?.provider) ?? this.fallback;
+    return provider.invoke(input, { tier, model: options?.model });
+  }
+
+  status() {
+    return this.registry.getStatus();
   }
 }
