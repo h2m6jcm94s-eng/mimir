@@ -3,6 +3,7 @@ import { loadConfig } from './config';
 import { redis } from './db/redis';
 import { authMiddleware, registerAuth } from './middleware/auth';
 import { auditRoutes } from './routes/audit';
+import { haltRoutes } from './routes/halt';
 import { healthRoutes } from './routes/health';
 import { knowledgeRoutes } from './routes/knowledge';
 import { sessionRoutes } from './routes/sessions';
@@ -34,6 +35,7 @@ async function main() {
   app.register(taskRoutes, { prefix: '/v1/tasks' });
   app.register(auditRoutes, { prefix: '/v1/audit' });
   app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
+  app.register(haltRoutes, { prefix: '/v1/halt' });
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error(error);

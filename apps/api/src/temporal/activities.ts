@@ -13,6 +13,7 @@ import { applyPatch as applyJsonPatch } from '../services/patch/json-patch';
 import { ApplyRegistry } from '../services/apply/registry';
 import { ReviewerRouter } from '../services/reviewers/router';
 import { scrubForTier } from '../services/scrubber/scrubber';
+import { throwIfHalted } from '../services/halt/state';
 import type { TaskRunInput } from './workflows';
 
 export interface BuildResult {
@@ -49,6 +50,7 @@ interface JobCheckpoint {
 }
 
 export async function build(input: TaskRunInput): Promise<BuildResult> {
+  await throwIfHalted();
   return withTenantTransaction(input.tenantId, async (ctx) => {
     const job = await getJob(ctx, input.jobId);
     const existing = (job?.checkpoint as JobCheckpoint | undefined) ?? {};
@@ -117,6 +119,7 @@ export async function review(
   buildResult: BuildResult,
   iteration: number
 ): Promise<ReviewResult> {
+  await throwIfHalted();
   return withTenantTransaction(input.tenantId, async (ctx) => {
     const job = await getJob(ctx, input.jobId);
     const existing = (job?.checkpoint as JobCheckpoint | undefined) ?? {};
@@ -165,6 +168,7 @@ export async function applyPatch(
   review: ReviewResult,
   iteration: number
 ): Promise<BuildResult> {
+  await throwIfHalted();
   return withTenantTransaction(input.tenantId, async (ctx) => {
     const job = await getJob(ctx, input.jobId);
     const existing = (job?.checkpoint as JobCheckpoint | undefined) ?? {};
@@ -219,6 +223,7 @@ export async function apply(
   finalDraft: BuildResult,
   reviewResult: ReviewResult
 ): Promise<ApplyResult> {
+  await throwIfHalted();
   return withTenantTransaction(input.tenantId, async (ctx) => {
     const job = await getJob(ctx, input.jobId);
     const existing = (job?.checkpoint as JobCheckpoint | undefined) ?? {};

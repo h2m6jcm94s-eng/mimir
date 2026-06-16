@@ -12,6 +12,8 @@ export const Scopes = {
   KNOWLEDGE_READ: 'knowledge:read',
   CONNECTORS_ADMIN: 'connectors:admin',
   COST_READ: 'cost:read',
+  HALT_READ: 'halt:read',
+  HALT_WRITE: 'halt:write',
 } as const;
 
 const ROLE_SCOPES: Record<string, string[]> = {
@@ -27,6 +29,7 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.KNOWLEDGE_WRITE,
     Scopes.KNOWLEDGE_READ,
     Scopes.COST_READ,
+    Scopes.HALT_READ,
   ],
   viewer: [
     Scopes.CHAT_READ,
@@ -34,6 +37,7 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.APPROVALS_READ,
     Scopes.KNOWLEDGE_READ,
     Scopes.COST_READ,
+    Scopes.HALT_READ,
   ],
 };
 
