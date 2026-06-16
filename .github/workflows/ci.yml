@@ -39,6 +39,9 @@ jobs:
       - name: Build shared-types
         run: pnpm --filter @mimir/shared-types build
 
+      - name: Generate OpenAPI spec
+        run: pnpm --filter @mimir/api generate:openapi
+
       - name: Generate contracts
         run: pnpm --filter @mimir/contracts generate
 
