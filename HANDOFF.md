@@ -1,7 +1,7 @@
 # Mimir — Session Handoff
 
 **Purpose:** everything needed to resume work on Mimir in a fresh session without re‑deriving context.
-**Date:** 2026‑06‑10 · **Owner:** devayan (`devayandewri@gmail.com`)
+**Date:** 2026‑06‑16 · **Owner:** devayan (`devayandewri@gmail.com`)
 
 ---
 
@@ -107,23 +107,19 @@ dogfood 30 days (0 critical) → prove → sell.** Gates **G1–G9** are binary.
 
 ## 8. Current status & next steps
 
-**Status:** docs complete (README 407 lines; ROADMAP 1,448 lines, all 31 sections, fully cited). No
-code, no GitHub repo yet. User wants the ROADMAP deepened further (toward 5,000+ lines) with **real
-detail, not filler**.
+**Status:** Repo scaffolded, CI green, branch `feat/review-loop` pushed to GitHub. Implemented and
+committed: provider registry (Kimi/Groq/OpenAI/Qwen/Anthropic/Ollama), runtime Postgres RLS tenant
+isolation, Clerk JWT auth + auto-provisioning, real LLM reviewer + apply registry, model circuit
+breakers/failover/cost ceiling, foundational RAG ingest/search (pgvector), console→API→Temporal→Kimi
+Playwright e2e. All unit tests pass; integration/e2e tests pass when Postgres/Temporal are running.
 
 **Immediate next steps (pick up here):**
-1. **Deepen ROADMAP sections** (in this order, in portions): §6 full DDL + RLS policies → §7 full
-   request/response examples per resource → §14 full per‑screen component/state specs → §15 full
-   per‑connector auth/scope/endpoint/test → §22 more test cases per issue.
-2. **Scaffold Milestone 0** (the repo rails) as the first small PRs: monorepo skeleton, root +
-   nested `AGENTS.md`/`CLAUDE.md`, `CONTRIBUTING/SECURITY/CODE_OF_CONDUCT/CHANGELOG`, `.github/`
-   (issue templates incl. `decision.md`, PR template, CODEOWNERS, labeler), CI workflows
-   (`ci/codeql/dependency-review/security/web/e2e/release`, **no Dependabot**), Husky+lint‑staged,
-   branch‑protection ruleset, ADR 0001, Makefile + docker‑compose (Postgres/Redis/Temporal).
-3. **Create the GitHub repo** under `h2m6jcm94s-eng` (org `mimir-mesh`) when ready
-   (`gh repo create`).
-4. Optionally hand the **front‑end design brief** (in the plan file / earlier in chat) to a design
-   agent to generate the web app scaffold.
+1. **F-026 Emergency halt + auto circuit-breaker** (P0): global halt state, API endpoints,
+   wired `HaltButton`, halt checks before model/apply activities, tests.
+2. **F-022 Web pages** (status topology, tasks list with real data) and/or **F-018 GitHub connector**.
+3. Continue down ROADMAP §23 features table in priority order (P0 first), testing each feature with
+   real keys (Kimi preferred, Groq/OpenAI rarely) before moving on.
+4. Keep commits small and push `feat/review-loop` after each feature batch.
 
 ---
 
