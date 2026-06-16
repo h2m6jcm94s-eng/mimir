@@ -34,7 +34,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Python dependencies
-        run: uv sync
+        run: uv sync --all-packages
 
       - name: Build shared-types
         run: pnpm --filter @mimir/shared-types build
@@ -58,7 +58,7 @@ jobs:
       - name: Test
         run: |
           pnpm test
-          uv run pytest services
+          uv run pytest services || { code=$?; [ $code -eq 5 ] && exit 0 || exit $code; }
 
       - name: Build
         run: pnpm build

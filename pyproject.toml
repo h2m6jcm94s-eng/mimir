@@ -7,6 +7,13 @@ dependencies = []
 
 [tool.uv.sources]
 
+[dependency-groups]
+dev = [
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "pytest>=8.0.0",
+]
+
 [tool.uv.workspace]
 members = ["services/*"]
 
