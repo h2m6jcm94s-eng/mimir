@@ -4,3 +4,4 @@ export * from './nodes';
 export * from './sessions';
 export * from './jobs';
 export * from './audit';
+export * from './knowledge';

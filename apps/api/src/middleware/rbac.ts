@@ -8,6 +8,8 @@ export const Scopes = {
   APPROVALS_WRITE: 'approvals:write',
   APPROVALS_READ: 'approvals:read',
   AUDIT_READ: 'audit:read',
+  KNOWLEDGE_WRITE: 'knowledge:write',
+  KNOWLEDGE_READ: 'knowledge:read',
   CONNECTORS_ADMIN: 'connectors:admin',
   COST_READ: 'cost:read',
 } as const;
@@ -22,9 +24,17 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.JOBS_READ,
     Scopes.APPROVALS_WRITE,
     Scopes.APPROVALS_READ,
+    Scopes.KNOWLEDGE_WRITE,
+    Scopes.KNOWLEDGE_READ,
     Scopes.COST_READ,
   ],
-  viewer: [Scopes.CHAT_READ, Scopes.JOBS_READ, Scopes.APPROVALS_READ, Scopes.COST_READ],
+  viewer: [
+    Scopes.CHAT_READ,
+    Scopes.JOBS_READ,
+    Scopes.APPROVALS_READ,
+    Scopes.KNOWLEDGE_READ,
+    Scopes.COST_READ,
+  ],
 };
 
 export function requireScope(scope: string) {

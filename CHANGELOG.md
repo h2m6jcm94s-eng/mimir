@@ -17,3 +17,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Python uv workspace with agent, RAG, and shared workers.
 - Nested `AGENTS.md` for `apps/api`, `apps/web`, `services/`, `infra/`.
 - M1 brain core completed: Drizzle schema with tenant/user/node/session/message tables, RLS migration, tenant-context wrapper, config/secrets abstraction, structured logging, Clerk auth + RBAC middleware, sessions/messages CRUD, LibSQL replica client, web Clerk login + app shell with HALT/cost chip/offline banner.
+- F-015 foundational RAG knowledge base: pgvector support, `knowledge_item`/`embedding` schema with tenant RLS, ingest/search repositories, `POST /v1/knowledge` and `GET /v1/knowledge/search` endpoints, deterministic fake 768-dim embeddings, and unit/integration tests.

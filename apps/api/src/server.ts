@@ -4,6 +4,7 @@ import { redis } from './db/redis';
 import { authMiddleware, registerAuth } from './middleware/auth';
 import { auditRoutes } from './routes/audit';
 import { healthRoutes } from './routes/health';
+import { knowledgeRoutes } from './routes/knowledge';
 import { sessionRoutes } from './routes/sessions';
 import { taskRoutes } from './routes/tasks';
 import { getTemporalConnection } from './temporal/client';
@@ -32,6 +33,7 @@ async function main() {
   app.register(sessionRoutes, { prefix: '/v1/sessions' });
   app.register(taskRoutes, { prefix: '/v1/tasks' });
   app.register(auditRoutes, { prefix: '/v1/audit' });
+  app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error(error);
