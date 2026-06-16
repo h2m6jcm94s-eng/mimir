@@ -10,6 +10,7 @@ build/
 .next/
 out/
 *.tsbuildinfo
+.turbo/
 
 # Environment
 .env
@@ -47,7 +48,7 @@ playwright-report/
 test-results/
 
 # Temporal
-temporal/
+/temporal/
 
 # Local reference clones (never commit external runtimes)
 .hermes/

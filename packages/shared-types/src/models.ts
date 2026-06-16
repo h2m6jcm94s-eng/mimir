@@ -47,4 +47,29 @@ export const Job = z.object({
 });
 export type Job = z.infer<typeof Job>;
 
+export const ReviewVerdict = z.enum(['approve', 'revise', 'escalate']);
+export type ReviewVerdict = z.infer<typeof ReviewVerdict>;
 
+export const ReviewFinding = z.object({
+  claim: z.string(),
+  issue: z.string(),
+  suggestion: z.string(),
+});
+export type ReviewFinding = z.infer<typeof ReviewFinding>;
+
+export const JsonPatchOperation = z.object({
+  op: z.enum(['add', 'remove', 'replace', 'move', 'copy', 'test']),
+  path: z.string(),
+  value: z.unknown().optional(),
+  from: z.string().optional(),
+});
+export type JsonPatchOperation = z.infer<typeof JsonPatchOperation>;
+
+export const ReviewResult = z.object({
+  verdict: ReviewVerdict,
+  approved: z.boolean(),
+  reason: z.string(),
+  findings: z.array(ReviewFinding).default([]),
+  patch: z.array(JsonPatchOperation).optional(),
+});
+export type ReviewResult = z.infer<typeof ReviewResult>;

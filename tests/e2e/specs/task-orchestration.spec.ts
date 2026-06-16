@@ -1,3 +1,4 @@
+import type { APIRequestContext } from '@playwright/test';
 import { apiRequestHeaders, expect, test } from '../fixtures/base';
 
 /**
@@ -13,16 +14,19 @@ import { apiRequestHeaders, expect, test } from '../fixtures/base';
  * - Idempotency: the same idempotency key returns the existing job.
  */
 test.describe('Task orchestration', () => {
-  test('runs a task through build, review, and apply', async ({ apiRequest }) => {
-    const idempotencyKey = `e2e-task-${Date.now()}`;
-
+  async function createTask(
+    apiRequest: APIRequestContext,
+    idempotencyKey: string,
+    type: string,
+    prompt = 'e2e task'
+  ) {
     const createResponse = await apiRequest.post('/v1/tasks', {
       headers: apiRequestHeaders(),
       data: {
         idempotencyKey,
-        type: 'echo',
-        prompt: 'say hello from e2e',
-        payload: { message: 'hello from e2e' },
+        type,
+        prompt,
+        payload: {},
       },
     });
 
@@ -34,12 +38,13 @@ test.describe('Task orchestration', () => {
       status: 'queued',
     });
 
-    const jobId = createBody.jobId;
+    return createBody.jobId as string;
+  }
 
-    // Poll until the workflow reaches a terminal state.
+  async function pollJob(apiRequest: APIRequestContext, jobId: string) {
     let status = 'queued';
     let body: Record<string, unknown> = {};
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 60; i++) {
       const getResponse = await apiRequest.get(`/v1/tasks/${jobId}`, {
         headers: apiRequestHeaders(),
       });
@@ -49,10 +54,42 @@ test.describe('Task orchestration', () => {
       if (status === 'done' || status === 'failed') break;
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
+    return { status, body };
+  }
+
+  test('runs a task through build, review, and apply', async ({ apiRequest }) => {
+    const idempotencyKey = `e2e-task-${Date.now()}`;
+    const jobId = await createTask(apiRequest, idempotencyKey, 'echo');
+    const { status, body } = await pollJob(apiRequest, jobId);
 
     expect(status).toBe('done');
     expect(body.result).toMatchObject({ appliedAt: expect.any(String) });
     expect(body.checkpoint).toMatchObject({ apply: { result: { applied: true } } });
+  });
+
+  test('applies a reviewer patch and finishes within the loop', async ({ apiRequest }) => {
+    const idempotencyKey = `e2e-revise-${Date.now()}`;
+    const jobId = await createTask(apiRequest, idempotencyKey, 'revise-once');
+    const { status, body } = await pollJob(apiRequest, jobId);
+
+    expect(status).toBe('done');
+    expect(body.checkpoint).toMatchObject({
+      patches: expect.any(Array),
+      apply: { result: { applied: true } },
+    });
+    expect((body.checkpoint as Record<string, unknown>).patches).toHaveLength(1);
+  });
+
+  test('escalates when the review loop detects a cycle', async ({ apiRequest }) => {
+    const idempotencyKey = `e2e-cycle-${Date.now()}`;
+    const jobId = await createTask(apiRequest, idempotencyKey, 'cycle');
+    const { status, body } = await pollJob(apiRequest, jobId);
+
+    expect(['needs_attention', 'failed']).toContain(status);
+    expect(body.checkpoint).toMatchObject({
+      reviews: expect.any(Array),
+      patches: expect.any(Array),
+    });
   });
 
   test('returns the existing job for a duplicate idempotency key', async ({ apiRequest }) => {
