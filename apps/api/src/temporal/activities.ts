@@ -10,6 +10,7 @@ import { getJob, updateJobStatus } from '../repositories/job';
 import { hashObject } from '../services/diff/ast-diff';
 import { ModelRouter } from '../services/models/router';
 import { applyPatch as applyJsonPatch } from '../services/patch/json-patch';
+import { ApplyRegistry } from '../services/apply/registry';
 import { ReviewerRouter } from '../services/reviewers/router';
 import { scrubForTier } from '../services/scrubber/scrubber';
 import type { TaskRunInput } from './workflows';
@@ -198,6 +199,8 @@ export async function applyPatch(
   });
 }
 
+const applyRegistry = new ApplyRegistry();
+
 export async function apply(
   input: TaskRunInput,
   finalDraft: BuildResult,
@@ -215,12 +218,7 @@ export async function apply(
       checkpoint: { ...existing, step: 'apply', startedAt: new Date().toISOString() },
     });
 
-    // TODO: wire real apply step (idempotent mutation, file write, API call, etc.)
-    const result: ApplyResult = {
-      applied: reviewResult.approved,
-      reason: reviewResult.approved ? 'applied successfully' : 'not applied',
-      output: { appliedAt: new Date().toISOString(), draftHash: hashObject(finalDraft.artifacts) },
-    };
+    const result = await applyRegistry.handle(input.type, input, finalDraft, reviewResult);
 
     await updateJobStatus(ctx, input.jobId, result.applied ? 'done' : 'failed', {
       result: result.output,

@@ -4,6 +4,7 @@ import type {
   ReviewFinding,
   ReviewResult,
 } from '@mimir/shared-types';
+import { ModelReviewer } from './model-reviewer';
 
 export interface ReviewerDraft {
   success: boolean;
@@ -111,15 +112,31 @@ class CloudReviewer implements ReviewerAdapter {
   }
 }
 
-const adapters: Record<number, ReviewerAdapter> = {
-  0: new LocalReviewer(),
-  1: new SelfHostedReviewer(),
-  2: new CloudReviewer(),
-};
+export interface ReviewerRouterOptions {
+  provider?: string;
+  model?: string;
+}
 
 export class ReviewerRouter {
+  private adapters: Record<number, ReviewerAdapter>;
+
+  constructor(options?: ReviewerRouterOptions) {
+    const provider = options?.provider ?? process.env.REVIEWER_PROVIDER;
+    const model = options?.model ?? process.env.REVIEWER_MODEL;
+
+    this.adapters = {
+      0: new LocalReviewer(),
+      1: provider
+        ? new ModelReviewer(1 as ClassificationTier, { provider, model })
+        : new SelfHostedReviewer(),
+      2: provider
+        ? new ModelReviewer(2 as ClassificationTier, { provider, model })
+        : new CloudReviewer(),
+    };
+  }
+
   route(tier: ClassificationTier): ReviewerAdapter {
-    return adapters[tier] ?? adapters[0];
+    return this.adapters[tier] ?? this.adapters[0];
   }
 
   async review(input: ReviewerInput): Promise<ReviewResult> {

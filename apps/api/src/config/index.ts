@@ -35,8 +35,8 @@ function loadModelProviderConfig(): ModelProviderConfig {
   if (raw[0].length === 0 && raw[1].length === 0 && raw[2].length === 0) {
     return ModelProviderConfig.parse({
       0: [{ provider: 'local' }],
-      1: [{ provider: 'openai' }],
-      2: [{ provider: 'openai' }],
+      1: [{ provider: 'openai' }, { provider: 'kimi' }, { provider: 'groq' }],
+      2: [{ provider: 'openai' }, { provider: 'kimi' }, { provider: 'groq' }],
     });
   }
 
