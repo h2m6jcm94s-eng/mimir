@@ -54,16 +54,21 @@ export class OpenAICompatibleProvider implements ModelProvider {
     }
 
     const model = options.model ?? input.model ?? this.fallbackModel();
+    const requestBody: Record<string, unknown> = {
+      model,
+      messages: [{ role: 'user', content: input.prompt }],
+    };
+    if (options.maxTokens !== undefined) {
+      requestBody.max_tokens = options.maxTokens;
+    }
+
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: 'user', content: input.prompt }],
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -73,6 +78,11 @@ export class OpenAICompatibleProvider implements ModelProvider {
 
     const data = (await response.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
+      usage?: {
+        prompt_tokens?: number;
+        completion_tokens?: number;
+        total_tokens?: number;
+      };
       error?: { message?: string };
     };
 
@@ -81,11 +91,17 @@ export class OpenAICompatibleProvider implements ModelProvider {
     }
 
     const text = data.choices?.[0]?.message?.content ?? '';
+    const usage = data.usage && {
+      promptTokens: data.usage.prompt_tokens ?? 0,
+      completionTokens: data.usage.completion_tokens ?? 0,
+      totalTokens: data.usage.total_tokens ?? 0,
+    };
     return {
       text,
       model,
       provider: this.id,
       tier: options.tier,
+      usage,
     };
   }
 

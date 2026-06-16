@@ -3,6 +3,7 @@ import type { ModelInput, ModelOutput } from '@mimir/shared-types';
 export interface ProviderInvokeOptions {
   tier: 0 | 1 | 2;
   model?: string;
+  maxTokens?: number;
 }
 
 export interface ModelProvider {

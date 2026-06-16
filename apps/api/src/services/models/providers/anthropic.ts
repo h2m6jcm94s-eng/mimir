@@ -1,4 +1,5 @@
 import type { ModelInput, ModelOutput, ProviderId } from '@mimir/shared-types';
+import { computeCostUsd } from '../pricing';
 import type { ModelProvider, ProviderInvokeOptions } from './types';
 import { getEnv } from './types';
 
@@ -59,7 +60,7 @@ export class AnthropicMessagesProvider implements ModelProvider {
       },
       body: JSON.stringify({
         model,
-        max_tokens: 1024,
+        max_tokens: options.maxTokens ?? 1024,
         messages: [{ role: 'user', content: input.prompt }],
       }),
     });
@@ -71,6 +72,10 @@ export class AnthropicMessagesProvider implements ModelProvider {
 
     const data = (await response.json()) as {
       content?: Array<{ type?: string; text?: string }>;
+      usage?: {
+        input_tokens?: number;
+        output_tokens?: number;
+      };
       error?: { message?: string };
     };
 
@@ -79,11 +84,24 @@ export class AnthropicMessagesProvider implements ModelProvider {
     }
 
     const text = data.content?.find((c) => c.type === 'text')?.text ?? '';
+    const promptTokens = data.usage?.input_tokens ?? 0;
+    const completionTokens = data.usage?.output_tokens ?? 0;
+    const totalTokens = promptTokens + completionTokens;
+    const usage = data.usage
+      ? {
+          promptTokens,
+          completionTokens,
+          totalTokens,
+        }
+      : undefined;
+    const costUsd = usage ? computeCostUsd(model, promptTokens, completionTokens) : undefined;
     return {
       text,
       model,
       provider: this.id,
       tier: options.tier,
+      usage,
+      costUsd,
     };
   }
 }

@@ -6,7 +6,7 @@ import type {
 export type { JsonPatchOperation, ReviewResult } from '@mimir/shared-types';
 import { withTenantTransaction } from '../db/tenant-context';
 import { createAuditEvent } from '../repositories/audit';
-import { getJob, updateJobStatus } from '../repositories/job';
+import { addJobCost, getJob, updateJobStatus } from '../repositories/job';
 import { hashObject } from '../services/diff/ast-diff';
 import { ModelRouter } from '../services/models/router';
 import { applyPatch as applyJsonPatch } from '../services/patch/json-patch';
@@ -65,7 +65,7 @@ export async function build(input: TaskRunInput): Promise<BuildResult> {
 
     // TODO: wire real build step (sandboxed command, model call, etc.)
     const router = new ModelRouter();
-    const { provider, model, ...restPayload } = input.payload;
+    const { provider, model, maxTokens, maxCostUsd, ...restPayload } = input.payload;
     const modelInput = {
       prompt: (restPayload.prompt as string) ?? '',
       payload: input.tier === 2 ? (scrubbedPayload as Record<string, unknown>) : restPayload,
@@ -73,7 +73,20 @@ export async function build(input: TaskRunInput): Promise<BuildResult> {
     const modelOutput = await router.invoke(input.tier as 0 | 1 | 2, modelInput, {
       provider: provider as string | undefined,
       model: model as string | undefined,
+      maxTokens: maxTokens as number | undefined,
     });
+
+    const callCostUsd = modelOutput.costUsd ?? 0;
+    if (callCostUsd > 0) {
+      const updatedJob = await addJobCost(ctx, input.jobId, callCostUsd);
+      const totalCostUsd = updatedJob?.costUsd ?? (job?.costUsd ?? 0) + callCostUsd;
+      const budget = maxCostUsd as number | undefined;
+      if (budget !== undefined && totalCostUsd > budget) {
+        throw new Error(
+          `Job cost ceiling exceeded: ${totalCostUsd} micro-USD spent vs ${budget} micro-USD budget`
+        );
+      }
+    }
 
     const result: BuildResult = {
       success: true,

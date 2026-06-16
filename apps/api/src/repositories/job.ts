@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import type { TenantContext } from '../db/tenant-context';
 
@@ -35,6 +35,18 @@ export async function updateJobStatus(
     .set({
       status,
       ...update,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.job.id, jobId))
+    .returning();
+  return updated;
+}
+
+export async function addJobCost(ctx: TenantContext, jobId: string, deltaUsd: number) {
+  const [updated] = await ctx.tenantScopedDb
+    .update(schema.job)
+    .set({
+      costUsd: sql`${schema.job.costUsd} + ${deltaUsd}`,
       updatedAt: new Date(),
     })
     .where(eq(schema.job.id, jobId))

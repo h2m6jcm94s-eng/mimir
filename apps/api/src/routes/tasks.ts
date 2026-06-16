@@ -22,6 +22,8 @@ const createTaskSchema = z.object({
   attachments: z.array(attachmentSchema).default([]),
   provider: ProviderId.optional(),
   model: z.string().optional(),
+  maxTokens: z.number().int().min(1).optional(),
+  maxCostUsd: z.number().int().min(0).optional(),
 });
 
 const classifier = new ClassificationGateway();
@@ -95,6 +97,8 @@ export async function taskRoutes(app: FastifyInstance) {
             prompt: body.prompt,
             ...(body.provider && { provider: body.provider }),
             ...(body.model && { model: body.model }),
+            ...(body.maxTokens !== undefined && { maxTokens: body.maxTokens }),
+            ...(body.maxCostUsd !== undefined && { maxCostUsd: body.maxCostUsd }),
             ...body.payload,
           },
         },

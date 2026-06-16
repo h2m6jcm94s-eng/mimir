@@ -85,6 +85,13 @@ export const ProviderId = z.enum([
 ]);
 export type ProviderId = z.infer<typeof ProviderId>;
 
+export const ModelUsage = z.object({
+  promptTokens: z.number().int().min(0),
+  completionTokens: z.number().int().min(0),
+  totalTokens: z.number().int().min(0),
+});
+export type ModelUsage = z.infer<typeof ModelUsage>;
+
 export const ModelInput = z.object({
   prompt: z.string(),
   payload: z.record(z.unknown()).default({}),
@@ -97,6 +104,8 @@ export const ModelOutput = z.object({
   model: z.string(),
   provider: ProviderId,
   tier: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+  usage: ModelUsage.optional(),
+  costUsd: z.number().int().min(0).optional(),
 });
 export type ModelOutput = z.infer<typeof ModelOutput>;
 

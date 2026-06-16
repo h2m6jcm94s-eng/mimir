@@ -124,4 +124,110 @@ describe('ModelRouter', () => {
     expect(output.provider).toBe('anthropic');
     expect(output.text).toBe('Claude response');
   });
+
+  it('fails over to the next provider when the first provider fails', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        text: async () => 'openai error',
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          content: [{ type: 'text', text: 'Claude failover response' }],
+        }),
+      });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const router = new ModelRouter(
+      makeConfig({
+        2: [
+          { provider: 'openai', priority: 0 },
+          { provider: 'anthropic', priority: 1 },
+        ],
+      })
+    );
+    const output = await router.invoke(2, { prompt: 'hello', payload: {} });
+
+    expect(output.provider).toBe('anthropic');
+    expect(output.text).toBe('Claude failover response');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips a provider whose circuit breaker is open', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('openai')) {
+        return { ok: false, status: 500, text: async () => 'openai error' };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          content: [{ type: 'text', text: 'Claude response' }],
+        }),
+      };
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const router = new ModelRouter(
+      makeConfig({
+        2: [
+          { provider: 'openai', priority: 0 },
+          { provider: 'anthropic', priority: 1 },
+        ],
+      })
+    );
+
+    // Fail OpenAI three times (default threshold) while Anthropic succeeds.
+    for (let i = 0; i < 3; i++) {
+      const output = await router.invoke(2, { prompt: `attempt ${i}`, payload: {} });
+      expect(output.provider).toBe('anthropic');
+    }
+
+    fetchMock.mockClear();
+    fetchMock.mockImplementation(async (url: string) => {
+      expect(url).not.toContain('openai');
+      return {
+        ok: true,
+        json: async () => ({
+          content: [{ type: 'text', text: 'Claude response after breaker open' }],
+        }),
+      };
+    });
+
+    const output = await router.invoke(2, { prompt: 'hello', payload: {} });
+
+    expect(output.provider).toBe('anthropic');
+    expect(output.text).toBe('Claude response after breaker open');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const requestUrl = (fetchMock as Mock).mock.calls[0][0] as string;
+    expect(requestUrl).toContain('anthropic');
+  });
+
+  it('throws an aggregate error when all providers fail', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: async () => 'provider error',
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+    const router = new ModelRouter(
+      makeConfig({
+        2: [
+          { provider: 'openai', priority: 0 },
+          { provider: 'anthropic', priority: 1 },
+        ],
+      })
+    );
+
+    await expect(router.invoke(2, { prompt: 'hello', payload: {} })).rejects.toThrow(
+      'All model providers failed for tier 2'
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });
