@@ -4,7 +4,9 @@ This file governs the repository it lives in and all subdirectories.
 
 ## What we are building
 
-Mimir is a privacy-tiered AI orchestration mesh: one always-on brain that owns your memory and coordinates a fleet of nodes (laptop, desktop, optional cloud, phone) while keeping sensitive data on hardware you control.
+Mimir is the AI built to help humans: a privacy-tiered AI orchestration mesh and universal companion that can be a friend, researcher, coder, marketer, financial advisor, HR partner, CEO coach, creative collaborator, and lifelong assistant — all inside one always-on brain. It owns your memory and coordinates a fleet of nodes (laptop, desktop, optional cloud, phone) while keeping sensitive data on hardware you control.
+
+**North star:** one helpful presence that grows with every person it serves, wearing whatever hat they need, without ever selling them out.
 
 ## How to make changes
 

@@ -29,9 +29,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - F-017 governance-as-code MVP: tenant-scoped `policy` and `approval` tables with RLS; YAML/JSON policy engine supporting `allow`/`deny`/`require_approval` rules on `action`, `tier`, `kind`, and `dailySpendUsd`; `PUT /v1/governance/policy` and `GET /v1/approvals` + approve/deny endpoints; policy gates wired into `POST /v1/tasks` and GitHub `openPr`; web governance and approvals pages integrated with live API; unit and integration tests.
 - F-022/F-023/F-024 web app screens: console, live status topology, tasks kanban, approvals with PIN gate, knowledge ingest and share requests, memory/time-machine viewer, governance/audit policy editor, cost dashboard, and settings.
 - F-026 emergency halt: Redis-backed halt state, `/v1/halt` routes, and circuit-breaker fail-soft behavior.
-- F-027 cost-governance foundation: per-call model pricing, daily spend governor (`AUTO_HALT_DAILY_USD`), and per-job cost tracking.
+- F-027 cost-governance MVP: tenant-scoped `budget` table with RLS, daily/monthly limits, throttle threshold, and enabled flag; `BudgetService` status/forecast/action gating with `BudgetExceededError`/`BudgetThrottledError`; `GET/PUT /v1/budget`, `/v1/budget/forecast`, and `/v1/budget/spend` endpoints; pre-flight checks wired into `POST /v1/tasks`, GitHub `openPr`, and Temporal `build` activity; web cost dashboard and status widget wired to live endpoints; `AUTO_HALT_DAILY_USD` retained as a global fallback when no tenant budget is configured; unit and integration tests.
+- Connector generic write framework: extended `connector_kind` enum and shared `ConnectorKind` with `telegram`, `gmail`, `slack`, and `airtable`; introduced `ConnectorWriteRegistry` with per-action input schemas, customizable approval messages, and Temporal apply handlers; refactored `github.openPr` to use the generic write path; `POST /v1/connectors/:kind/actions/:action` now dispatches read and write actions generically; unit and integration tests updated.
+- Messaging & social connectors: added `telegram`, `whatsapp`, `instagram`, `facebook`, and `pinterest` to the `connector_kind` enum; shared Zod input schemas; Telegram Bot API client; shared Meta Graph API client for WhatsApp/Instagram/Facebook; Pinterest REST API client; read actions (`getChat`, `getBusinessProfile`, `listMedia`, `getMedia`, `listPages`, `listPosts`, `listBoards`, `listPins`) and approval-gated write actions (`sendMessage`, `publishMedia`, `publishPost`, `createPin`) with connector-specific approval messages; wired into registry, routes, Temporal apply handlers, and web connectors page; unit and integration tests.
+
+### Fixed
+
+- Added missing `REPORTS_READ` scope to `Scopes` in `apps/api/src/middleware/rbac.ts`, resolving a runtime undefined reference for `member`/`viewer` roles.
+- Enabled Kimi and Groq provider integration tests to run without real API keys by falling back to a local HTTP mock server; real keys still hit live endpoints when present. Made `AnthropicMessagesProvider` support configurable `supportedTiers` so the Kimi Code path can serve tier 1.
 
 ### Changed
+
+- Reframed `README.md`, `AGENTS.md`, and `ROADMAP.md` around Mimir's human‑first mission: a universal companion that can be a friend, researcher, coder, marketer, financial advisor, HR partner, CEO coach, and lifelong assistant, while preserving the privacy‑tiered mesh architecture. Added companion, finance, marketing, HR, CEO/operator, and daily-life human feature rows (F‑063–F‑082) to the roadmap, plus human‑first feature themes.
 
 - **Auth:** replaced Clerk with self-hosted Supertokens (Session + EmailPassword recipes) running in Docker alongside Postgres/Redis/Temporal.
 - **Identity model:** introduced `user_account`, `external_identity`, `organization`, and refactored `app_user` to represent tenant membership with a per-tenant role (`owner`, `admin`, `manager`, `member`, `viewer`).

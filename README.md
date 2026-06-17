@@ -2,9 +2,11 @@
 
 # 🧠 Mimir
 
-### Many private minds, one well of wisdom.
+### One mind. Many hats. Always yours.
 
-**A privacy‑tiered AI orchestration mesh that turns your own devices (plus optional cloud) into a single, trustworthy "brain" you drive from a chat box or a UI — simple enough for a kid, deep enough for an engineer.**
+**Mimir is the AI built to help humans.** A private, always‑on companion that can be your friend,
+researcher, coder, marketer, financial advisor, HR partner, CEO coach, creative collaborator, and
+lifelong assistant — all inside a single, trustworthy brain you control.
 
 `status: pre‑alpha (Milestone 0)` · `license: TBD (open‑core)` · `stack: TypeScript + Python + Temporal` · `docs: this README + ROADMAP.md`
 
@@ -14,28 +16,52 @@
 
 ## Table of contents
 
-1. [TL;DR](#tldr)
-2. [The problem Mimir exists to solve](#the-problem-mimir-exists-to-solve)
-3. [What Mimir is](#what-mimir-is)
-4. [Who it's for](#who-its-for)
-5. [The two promises](#the-two-promises)
-6. [Core concepts & glossary](#core-concepts--glossary)
-7. [Privacy tiers](#privacy-tiers)
-8. [Architecture at a glance](#architecture-at-a-glance)
-9. [Feature tour](#feature-tour)
-10. [The stack (and why)](#the-stack-and-why)
-11. [Repository layout](#repository-layout)
-12. [Quickstart](#quickstart)
-13. [Using Mimir: prompts *and* UI](#using-mimir-prompts-and-ui)
-14. [Connectors](#connectors)
-15. [Surfaces & access points](#surfaces--access-points)
-16. [How Mimir compares](#how-mimir-compares)
-16. [Security & privacy posture](#security--privacy-posture)
-17. [Project status & roadmap](#project-status--roadmap)
-18. [Contributing](#contributing)
-19. [FAQ](#faq)
-20. [A note on the name](#a-note-on-the-name)
-21. [License & acknowledgements](#license--acknowledgements)
+1. [Manifesto](#manifesto)
+2. [TL;DR](#tldr)
+3. [The problem Mimir exists to solve](#the-problem-mimir-exists-to-solve)
+4. [What Mimir is](#what-mimir-is)
+5. [Who it's for](#who-its-for)
+6. [The three promises](#the-three-promises)
+7. [Core concepts & glossary](#core-concepts--glossary)
+8. [Privacy tiers](#privacy-tiers)
+9. [Architecture at a glance](#architecture-at-a-glance)
+10. [Feature tour](#feature-tour)
+11. [The stack (and why)](#the-stack-and-why)
+12. [Repository layout](#repository-layout)
+13. [Quickstart](#quickstart)
+14. [Using Mimir: prompts *and* UI](#using-mimir-prompts-and-ui)
+15. [Connectors](#connectors)
+16. [Surfaces & access points](#surfaces--access-points)
+17. [How Mimir compares](#how-mimir-compares)
+18. [Security & privacy posture](#security--privacy-posture)
+19. [Project status & roadmap](#project-status--roadmap)
+20. [Contributing](#contributing)
+21. [FAQ](#faq)
+22. [A note on the name](#a-note-on-the-name)
+23. [License & acknowledgements](#license--acknowledgements)
+24. [Handoff: for the next builder](#handoff-for-the-next-builder)
+
+---
+
+## Manifesto
+
+AI was built to **help people**. Not to replace them. Not to fragment their lives across a hundred
+chatbots. Not to lock their memories inside someone else's cloud.
+
+Mimir exists to be **one helpful presence** that is always with you:
+
+- It **listens** like a friend.
+- It **researches** like a tireless analyst.
+- It **codes** like a patient pair-programmer.
+- It **plans** like a Chief of Staff.
+- It **remembers** like a perfect notebook.
+- It **advises** like a mentor, a marketer, a CFO, and a CEO — but only when you ask.
+
+And it does all of this from **hardware you control**, with a privacy promise you can actually verify,
+an audit trail you can read, and a personality that stays **yours**.
+
+> **Mimir is not a product category. It is a relationship:** a lifelong assistant that grows with you,
+> keeps your secrets secret, and makes you more capable in every part of your life.
 
 ---
 
@@ -43,10 +69,11 @@
 
 Mimir is **one always‑on "brain"** that holds your memory and orchestrates work across a mesh of
 nodes you control — your laptop, a desktop worker, an optional ephemeral cloud worker, and your
-phone — while keeping sensitive data on **hardware you own**. You talk to it like a chat assistant
-or click through a friendly UI; under the hood it routes every request to the right model and the
-right machine based on **how private the data is**, never sends sensitive data off your tier, and
-**cites its sources instead of hallucinating**.
+phone — while keeping sensitive data on **hardware you own**.
+
+You talk to it like a chat assistant or click through a friendly UI; under the hood it routes every
+request to the right model and the right machine based on **how private the data is**, never sends
+sensitive data off your tier, and **cites its sources instead of hallucinating**.
 
 Mimir is a **self‑contained system** with its own orchestration and execution engine. It is
 **inspired by** the agent‑runtime research that produced projects like Hermes (Nous) — especially
@@ -63,9 +90,13 @@ systems‑engineering, not the LLM (see `ROADMAP.md` §2 + Sources).
 
 ## The problem Mimir exists to solve
 
-Building one agent in a demo is easy. Running a *fleet* of them reliably, privately, affordably,
-and accountably is where everyone falls over. The documented failure modes, repeatedly, are:
+Today's AI is **scattered**. You have one chatbot for code, another for writing, another for search,
+another for finance, and none of them remember what the others did. Your data lives in a dozen
+silos, and the most useful AIs ask you to ship your thoughts to their cloud before they will help.
 
+The documented failure modes, repeatedly, are:
+
+- **Fragmented help** — every task needs a different tool; nothing holds the full picture of *you*.
 - **Orchestration complexity** — coordinating multiple agents, shared state, and tool calls without
   loops, conflicts, or lost work.
 - **Reliability & observability** — agents that "work, then mysteriously don't," with cryptic logs
@@ -74,8 +105,8 @@ and accountably is where everyone falls over. The documented failure modes, repe
   (a real, documented incident: ~$47K over 11 days before anyone saw the bill).
 - **Governance & compliance friction** — no audit trail, no policy enforcement, no data‑residency
   story; security review kills the project before it ships.
-- **Privacy/jurisdiction** — sending proprietary code and documents to whatever model is cheapest,
-  with no classification or routing.
+- **Privacy/jurisdiction** — sending proprietary code, personal journals, and medical notes to
+  whatever model is cheapest, with no classification or routing.
 
 Mimir is built **architecturally around these failure modes** — durable orchestration, deterministic
 limits, sandboxed execution, a cryptographic audit trail, privacy‑tiered routing, and cost
@@ -90,13 +121,15 @@ governance — rather than hoping the next model release makes them go away.
 
 ## What Mimir is
 
-In Norse myth, **Mímir** is the wisest being — keeper of the **Well of Wisdom** at the roots of
+In Norse myth, **Mimir** is the wisest being — keeper of the **Well of Wisdom** at the roots of
 Yggdrasil — and after he is beheaded, Odin preserves his head and **consults it for counsel**.
 That is the product in one image: **a preserved mind you query for grounded knowledge**, fed by a
 well of memory, served by a fleet of nodes acting as one.
 
 Concretely, Mimir is:
 
+- **A companion** — always there, patient, personal. It remembers your context, your goals, your
+  preferences, and your boundaries.
 - **A brain** — an always‑on orchestrator on your most trusted machine that owns the authoritative
   memory and decides *what runs where*.
 - **A mesh** — your desktop (woken on demand), an optional air‑gapped cloud worker, and your phone,
@@ -116,13 +149,31 @@ and model adapters, then wraps them with privacy tiers, audit, cost governance, 
 UI. We **improve the engine where it needs oil and rebuild parts when Mimir's requirements demand
 it** — there is no hidden Hermes runtime underneath.
 
+### The many hats of Mimir
+
+Mimir is designed to switch roles without switching systems:
+
+| Hat | What Mimir does |
+|---|---|
+| **Friend & companion** | Checks in, remembers how your day went, helps you think through decisions, listens without judging. |
+| **Personal researcher** | Reads the web, your docs, PDFs, and spreadsheets, then gives you a cited brief — not a guess. |
+| **Coder & engineer** | Writes, reviews, debugs, and explains code; opens PRs; runs tests; learns your codebase. |
+| **Marketer & creator** | Drafts copy, plans campaigns, analyzes engagement, builds content calendars. |
+| **Financial advisor** | Tracks spend, monitors revenue connectors, builds budgets, forecasts cash flow, flags anomalies. |
+| **CEO / operator** | Summarizes status, tracks OKRs, drafts strategy, routes tasks, runs meetings prep. |
+| **HR & people partner** | Helps draft feedback, plan 1:1s, organize hiring pipelines, remember team context. |
+| **Lifelong learner** | Explains any topic at your level, builds study plans, quizzes you, connects ideas across sources. |
+
+The same brain wears every hat. The same memory. The same privacy rules. The same you.
+
 ---
 
 ## Who it's for
 
 | Persona | What they get |
 |---|---|
-| **The solo power user** ("a powerful computer in my back pocket") | One brain that remembers everything, runs heavy jobs on your desktop on demand, and answers from your own data — controllable from your phone. |
+| **The individual** ("a powerful mind in my pocket") | One companion that remembers everything, helps with work and life, and keeps private thoughts on your own hardware. |
+| **The creator / founder** | A researcher, writer, coder, marketer, and CFO rolled into one — controllable from your phone at 2 a.m. |
 | **The small team** | A shared, governed brain with cost ceilings, an audit trail, and connectors to the tools they already use (GitHub, mail, docs, chat). |
 | **The enterprise (later)** | Multi‑tenant isolation, SSO/SCIM, policy‑as‑code governance, data residency, and an immutable audit trail — built on the same core, not a fork. |
 
@@ -132,21 +183,21 @@ it** — there is no hidden Hermes runtime underneath.
 
 ---
 
-## The two promises
+## The three promises
 
 These define Mimir and are **hard constraints on every feature**.
 
-### 1) Kid‑simple → expert‑complex
+### 1) Human‑first in every role
 
-Every capability works from **both a UI and a plain‑English prompt**, and the experience scales
-with you:
+Mimir helps *people*, not personas. Whether you are sad, stuck, curious, ambitious, or exhausted,
+the same system meets you where you are:
 
 - **Kid mode (default):** one input box, smart defaults, plain language. *"Make me a summary of this
   folder"* → it does the right thing, shows the result, done.
 - **Power mode (progressive):** reveal the cutlist of steps, swap models, set budgets, edit the
   policy, branch the memory, wire a connector, inspect the audit trail.
 
-> *As simple as you want; as complex as you want.* A 10‑year‑old can use the front door; a staff
+> *As simple as you want; as capable as you need.* A 10‑year‑old can ask for homework help; a staff
 > engineer can open every panel.
 
 ### 2) RAG‑first, never hallucinate
@@ -158,10 +209,16 @@ brainstorming), never where a citation is expected.
 
 ```
 You:   What did we decide about the cache key format last week?
-Mimir: Tenant-prefixed keys — `tenant:{id}:{resource}` — decided in ADR-0007 (2026-06-18).
+Mimir: Tenant-prefixed keys — tenant:{id}:{resource} — decided in ADR-0007 (2026-06-18).
        📎 Sources: docs/adr/0007-cache-keys.md · memory/session-2026-06-18#msg-42
        (If this weren't in my sources, I'd tell you I don't know.)
 ```
+
+### 3) Yours, not theirs
+
+Your memory, your models, your rules. Sensitive data stays on hardware you control. You can audit
+_every_ decision. You can unplug the cloud and keep working. You can take Mimir with you when you
+change jobs, devices, or providers.
 
 ---
 
@@ -179,9 +236,11 @@ Mimir: Tenant-prefixed keys — `tenant:{id}:{resource}` — decided in ADR-0007
 | **Classification gateway** | Routes each request to the right model/node by data sensitivity. |
 | **Routine** | A scheduled or triggered agent job. |
 | **Connector** | An integration (GitHub, mail, Airtable, chat apps, …) with its own auth + privacy tier. |
+| **Skill** | A reusable capability Mimir can execute (research, write, code, analyze, create, plan). |
 | **Time‑machine** | Branch/rewind/restore of the memory to any past checkpoint. |
 | **Knowledge share** | Admin‑approved cross‑tenant exchange of RAG knowledge; preserves privacy tier and stays hash‑chain audited. |
 | **Fencing epoch** | Monotonic token that guarantees only one valid writer during failover (no split‑brain). |
+
 
 ---
 
@@ -342,29 +401,19 @@ Deep architecture: `ROADMAP.md` §3, §5.1, §6–§14.
 | **Media generation & speech** | Image/video generation, text‑to‑speech, speech‑to‑text — routed by Mimir's tier and budget rules. |
 | **Emergency HALT** | Always‑one‑tap kill switch (and auto circuit‑breaker on runaway cost/spawn). |
 
----
+### Human‑centric feature patterns
 
-## Surfaces & access points
+Beyond the raw features, Mimir is organized around **what people actually want to do**:
 
-These are **Mimir's own access points**. They are thin, governance-aware clients that always route
-through the Mimir brain before any work is executed by Mimir's engine.
-
-| Surface | What it's for |
+| I want to… | Mimir's pattern |
 |---|---|
-| **Web PWA** | The full dual UI — kid-simple default, expert panels on demand. |
-| **CLI** | Scriptable, terminal-first control for power users and CI. |
-| **Browser extension** | Capture pages, screenshots, and selected text as references; trigger actions from any tab. |
-| **Telegram bot** | Free chat UI on your phone — approvals, status, voice notes, quick queries. |
-| **Electron app** | A dedicated desktop chat client with deep OS integration and screen awareness. |
-| **API** | `/v1/*` REST/SSE for custom integrations and other agents. |
-
-No matter which surface you use, the path is the same:
-
-```
-You → Mimir surface → Mimir brain (classify, route, audit, approve, budget) → Mimir execution engine → result → Mimir brain → You
-```
-
-All surfaces share the same brain, memory, and governance — the device in your pocket has the same authority model as the node in the data center.
+| **Talk things through** | Companion mode — open chat, voice note, or quick query from any surface. |
+| **Understand something** | Research mode — gather, summarize, compare, and cite sources across the web and your files. |
+| **Make something** | Create mode — write, code, design, draft, render, with iterative review. |
+| **Decide something** | Advisor mode — lay out options, trade‑offs, risks, and recommendations with evidence. |
+| **Run something** | Operator mode — schedule, delegate, track, approve, and report on work across nodes. |
+| **Remember something** | Memory mode — search, rewind, branch, and connect every past thought and decision. |
+| **Trust the answer** | Citation mode — every factual claim is linked to a source or explicitly flagged as inference. |
 
 ---
 
@@ -425,20 +474,27 @@ pnpm dev                     # api + web (http://localhost:3000)
 
 Then open `http://localhost:3000`, sign up / sign in (Supertokens self‑hosted), and say hello to your brain.
 
+
 ---
 
 ## Using Mimir: prompts *and* UI
 
-Everything is dual‑surface. Examples:
+Everything is dual‑surface. The same power is available in plain English or a friendly click-through
+UI — because Mimir is built for humans first.
 
 | You want to… | Prompt | UI |
 |---|---|---|
 | Summarize a folder of docs | *"Summarize everything in /docs and cite sources."* | Knowledge → select folder → **Summarize** |
 | Run a heavy job on the desktop | *"Render this on the desktop and ping me when done."* | Tasks → New → target **Desktop** |
-| Approve a risky action | reply *"approve 7‑A4F"* in chat | Approvals → tap **Approve** (PIN) |
-| Check spend | *"What did I spend today?"* | Cost widget (always visible) |
+| Plan your week | *"Plan my week around these goals and my calendar."* | Tasks → Routines → **Weekly planning** |
+| Get emotional support / talk through a decision | *"I need to think out loud about a career move."* | Console → **Companion mode** |
+| Debug code | *"Why is this function returning null?"* (paste code) | Knowledge → paste → **Explain / Fix** |
+| Draft marketing copy | *"Write a launch thread for our new feature."* | Create → **Campaign draft** |
+| Check your budget / burn | *"What did I spend today?"* | Cost widget (always visible) |
+| Analyze revenue | *"Build a revenue report from Stripe for last month."* | Connectors → Stripe → **Sales report** |
 | Rewind memory | *"What did I know last Tuesday?"* | Memory → Time‑machine → pick checkpoint |
 | Share knowledge across meshes | *"Ask Finance to share the expense policy with Sales."* | Knowledge → Shared → request / approve / revoke |
+| Approve a risky action | reply *"approve 7‑A4F"* in chat | Approvals → tap **Approve** (PIN) |
 
 ---
 
@@ -456,6 +512,31 @@ explicit approval.
 
 ---
 
+## Surfaces & access points
+
+These are **Mimir's own access points**. They are thin, governance-aware clients that always route
+through the Mimir brain before any work is executed by Mimir's engine.
+
+| Surface | What it's for |
+|---|---|
+| **Web PWA** | The full dual UI — kid-simple default, expert panels on demand. |
+| **CLI** | Scriptable, terminal-first control for power users and CI. |
+| **Browser extension** | Capture pages, screenshots, and selected text as references; trigger actions from any tab. |
+| **Telegram bot** | Free chat UI on your phone — approvals, status, voice notes, quick queries. |
+| **Electron app** | A dedicated desktop chat client with deep OS integration and screen awareness. |
+| **Wearable / voice** | Quick ambient queries and reminders without pulling out a screen. |
+| **API** | `/v1/*` REST/SSE for custom integrations and other agents. |
+
+No matter which surface you use, the path is the same:
+
+```
+You → Mimir surface → Mimir brain (classify, route, audit, approve, budget) → Mimir execution engine → result → Mimir brain → You
+```
+
+All surfaces share the same brain, memory, and governance — the device in your pocket has the same authority model as the node in the data center.
+
+---
+
 ## How Mimir compares
 
 *(Stars/figures are cited in `ROADMAP.md` Sources; point‑in‑time.)*
@@ -469,9 +550,11 @@ explicit approval.
 | Immutable audit (hash‑chain + replay) | logs | basic | basic | logs | ✅ |
 | RAG‑first / cite‑or‑abstain default | opt‑in | opt‑in | opt‑in | opt‑in | ✅ default |
 | Kid‑simple → expert UI | dev‑only | dev‑only | dev‑only | visual | ✅ both |
+| Human‑centric companion model | ❌ | ❌ | ❌ | ❌ | ✅ core |
 
-Our wedge is **"instantly deterministic, production‑safe DX"** — we target developers hitting
-production walls with the above. (Strategy + the brutal honest caveats: `ROADMAP.md` §8.)
+Our wedge is **"instantly deterministic, production‑safe DX for a universal AI companion"** — we
+target developers and power users hitting production walls with the above, while keeping the
+human‑help mission front and center. (Strategy + the brutal honest caveats: `ROADMAP.md` §8.)
 
 ---
 
@@ -504,9 +587,12 @@ gate — is in **[`ROADMAP.md`](./ROADMAP.md)**.
 - Foundational RAG knowledge base with pgvector and cross-mesh knowledge sharing.
 - Immutable hash-chain audit.
 - GitHub connector with tier-tagged read actions and review-gated `openPr`.
+- Messaging & social connectors: Telegram, WhatsApp, Instagram, Facebook, Pinterest.
+- Generic connector write framework with approval-gated actions.
 - Emergency halt and cost-governance foundation.
 - Web app screens for console, status, tasks, approvals, knowledge, memory/time-machine, governance,
-  cost, and settings.
+  cost, connectors, and settings.
+- Model router with failover, circuit breaking, and Kimi/Groq/OpenAI/Anthropic/Qwen/Ollama adapters.
 
 See `CHANGELOG.md` for details and `ROADMAP.md` §23 for the full feature status table.
 
@@ -523,41 +609,55 @@ We model our process on the best in open source: Google's eng‑practices (small
 AIP (API design), FastAPI/Pydantic (typed + tested), Supabase/Astro (contributor docs), and
 Temporal/Prefect (durable orchestration).
 
+
 ---
 
 ## FAQ
 
-**Is my data sent to the cloud?** Only Tier‑2 (public/non‑sensitive) work touches the optional cloud
-worker, which is air‑gapped and wiped after each job. Sensitive data stays on Tier 0/1.
+**Is Mimir just for developers?**  
+No. Mimir is built so a developer can open every panel, but a non‑technical person can ask for help
+with homework, budgeting, writing, research, or life decisions the same way they would text a friend.
 
-**Do I need all the machines?** No. Mimir runs on a single laptop; desktop/cloud/phone are optional
-nodes you add when you want more.
+**Is my data sent to the cloud?**  
+Only Tier‑2 (public/non‑sensitive) work touches the optional cloud worker, which is air‑gapped and
+wiped after each job. Sensitive data stays on Tier 0/1.
 
-**Will it hallucinate?** For "reference the data" tasks it cites sources or says it doesn't know.
-That's a core principle, not a setting.
+**Do I need all the machines?**  
+No. Mimir runs on a single laptop; desktop/cloud/phone are optional nodes you add when you want more.
 
-**Is it production‑ready?** Not yet — pre‑alpha. We are deliberately **hardening and dogfooding
-before** making reliability claims (see `ROADMAP.md` §8).
+**Will it hallucinate?**  
+For "reference the data" tasks it cites sources or says it doesn't know. That's a core principle,
+not a setting.
 
-**Why two models?** A workhorse to build fast/cheap, a reviewer to keep quality high — plus a local
-model so you're never fully offline.
+**Is it production‑ready?**  
+Not yet — pre‑alpha. We are deliberately **hardening and dogfooding before** making reliability
+claims (see `ROADMAP.md` §8).
 
-**What exactly does Hermes do and what does Mimir do?**
+**Why two models?**  
+A workhorse to build fast/cheap, a reviewer to keep quality high — plus a local model so you're never
+fully offline.
+
+**Can Mimir really be a friend?**  
+Mimir is not sentient. It is designed to be *reliable, patient, and helpful* — a conversational
+interface that remembers context and supports you. The relationship is real in the same way a great
+notebook, mentor, or tool can become part of your workflow.
+
+**What exactly does Hermes do and what does Mimir do?**  
 Hermes (Nous) is an **inspiration and reference** for Mimir's execution engine. Mimir implements its
 own model adapters, tool registry, skill runtime, connector gateway, sandboxing, cron/routines,
 subagent delegation, and media generation/speech modules. Hermes showed what a broad agent surface
 should look like; Mimir builds a privacy‑tiered, governed, multi‑node version of that surface from
 the ground up. **Mimir is both the bridge and the engine room.**
 
-**Does Mimir reimplement connectors, models, or skills?**
+**Does Mimir reimplement connectors, models, or skills?**  
 Yes, where Mimir's requirements demand it. Mimir's engine is self‑contained. We borrow *ideas* from
 Hermes and similar runtimes, but the code that runs inside Mimir is Mimir's own, so that privacy
 tiers, audit, cost control, and tenant isolation can be enforced at every layer.
 
-**Can I use Hermes directly with Mimir?**
+**Can I use Hermes directly with Mimir?**  
 No. Hermes is not a runtime dependency of Mimir. Mimir is a standalone product.
 
-**Why does Mimir have its own chat UI?**
+**Why does Mimir have its own chat UI?**  
 Mimir's chat UI is a governance‑aware product surface: every message is classified, audited,
 budgeted, and routed through Mimir's tier rules before Mimir's own engine executes anything. The
 same is true for the CLI, browser extension, Electron app, Telegram bot, and API.
@@ -570,7 +670,7 @@ same is true for the CLI, browser extension, Electron app, Telegram bot, and API
 5. Mimir's own execution engine runs the model/tool/connector/skill/subagent.
 6. The result returns through Mimir, is logged, and is delivered back to the surface.
 
-**Are Mimir's connectors different from Hermes's connectors?**
+**Are Mimir's connectors different from Hermes's connectors?**  
 The designs are related because Hermes is a reference, but the code is different. Mimir implements
 its own connector engines and adds tier declarations, credential vaulting, per-user approval gating,
 audit logging, and a unified discovery UI. A connector that is "Tier 2 only" in Mimir is enforced by
@@ -590,6 +690,8 @@ observability TSDB); org/scope/domain are differentiated accordingly.
 When reading this codebase, assume this boundary unless a file explicitly says otherwise:
 **Mimir owns the engine room and the bridge. Hermes is a respected ancestor, not a hidden engine.**
 
+---
+
 ## License & acknowledgements
 
 License: **TBD** (open‑core direction — see `ROADMAP.md` §Commercialization). Built on the shoulders
@@ -601,3 +703,29 @@ and the agent‑ecosystem research that shaped this plan (cited in `ROADMAP.md` 
 **Mimir** — *consult the well.*
 
 </div>
+
+---
+
+## Handoff: for the next builder
+
+If you are the next agent, contributor, or maintainer picking up Mimir, internalize this before you
+open a file:
+
+1. **Mimir is a human‑first universal companion.** Every feature should help a real person do
+   something meaningful — not just orchestrate models. Ask: *"Would this help a friend, a founder, a
+   parent, or a tired engineer?"*
+2. **Privacy tiers are sacred.** T0 never leaves the user's hardware. T1 stays on the LAN. T2 is
+   ship‑and‑wipe. A request's tier never widens. This is enforced in code, not in docs.
+3. **Dual surface by default.** Anything a power user can do in JSON or CLI must also be reachable
+   through a friendly UI prompt — and vice‑versa.
+4. **Cite or abstain.** If Mimir references data, it must show sources or say it doesn't know.
+   Hallucination is a bug, not a feature toggle.
+5. **One brain, many hats.** Skills, connectors, memory, and governance are shared infrastructure.
+   New roles (marketer, CFO, HR, coder, companion) are compositions of the same primitives, not
+   separate products.
+6. **Small, green, reviewed PRs.** We move fast through stacked small changes. No mega‑PRs. No red
+   CI. Update `CHANGELOG.md` and the relevant `AGENTS.md` when scope or conventions change.
+7. **Mimir owns the engine room.** We borrow ideas from Hermes and the agent ecosystem, but the
+   runtime is ours so that privacy, audit, cost, and tenant isolation can be enforced at every layer.
+
+Start with `AGENTS.md`, then `ROADMAP.md`, then the code. Welcome to the mesh.

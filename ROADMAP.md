@@ -47,10 +47,12 @@
 
 ## 1. Vision & non‑negotiable principles
 
-**Vision.** Mimir is a **privacy‑tiered AI orchestration mesh**: one always‑on "brain" that owns
-your memory and coordinates a fleet of nodes (laptop, desktop, optional cloud, phone) as a single
-trustworthy mind — controllable from a chat prompt or a friendly UI, grounded in your own data, and
-never leaking sensitive information off the hardware you control.
+**Vision.** Mimir is the AI built to help humans: a **privacy‑tiered AI orchestration mesh** and
+universal companion that can be a friend, researcher, coder, marketer, financial advisor, HR
+partner, CEO coach, creative collaborator, and lifelong assistant — all inside one always‑on
+"brain." It owns your memory and coordinates a fleet of nodes (laptop, desktop, optional cloud,
+phone) as a single trustworthy mind — controllable from a chat prompt or a friendly UI, grounded in
+your own data, and never leaking sensitive information off the hardware you control.
 
 **Why it exists.** ~**88% of AI‑agent projects fail before production** [wide03]; Gartner expects
 **40%+ cancelled by 2027** [sec02]. The causes are **systems‑engineering** — orchestration,
@@ -68,7 +70,10 @@ reviews]. Mimir is engineered around those failure modes.
    **data‑classification gateway** enforces routing; sensitive data never leaves T0/T1.
 4. **Determinism over vibes.** Durable workflows (Temporal), idempotency keys, bounded retries,
    circuit breakers, and hard cost ceilings — so behavior is predictable and debuggable.
-5. **Harden before you sell.** We never make a reliability/governance claim we haven't **survived
+5. **Universal companion / one brain, many hats.** The same mesh serves a homework helper, a
+   coding partner, a financial advisor, a marketing assistant, an HR partner, and a CEO coach — by
+   composing shared skills, memory, connectors, and governance, not by building separate products.
+6. **Harden before you sell.** We never make a reliability/governance claim we haven't **survived
    ourselves** (30‑day dogfood, zero critical incidents) — see §25/§24.
 
 ### Design tenets (how we build)
@@ -130,6 +135,7 @@ Full detail in `hermesh_validation.agent.final.md`. Headlines:
 
 | Persona | Goal | Pain today | Mimir value | Tier |
 |---|---|---|---|---|
+| **Alex — everyday human** | "An AI that actually gets me" | Fragmented apps; lonely chatbots; no memory; privacy fears | One companion for life, work, learning, and creativity that remembers and keeps secrets | Free |
 | **Devi — solo power user** | "A supercomputer in my pocket" | Context scattered; cloud privacy worries; cost surprises | One private brain, heavy jobs on demand, cited answers, phone control | Free |
 | **Tara — tech lead, 8‑person team** | Ship agent features without 3am pages | Flaky agents, no audit, runaway bills | Durable orchestration, cost ceilings, audit, connectors | Pro |
 | **Omar — platform eng, regulated mid‑market** | Govern AI across teams | No tenancy/RBAC/residency story | Multi‑tenant, policy‑as‑code, immutable audit, residency | Ent |
@@ -161,6 +167,49 @@ on approve, send; on timeout, **queue for review (never silent deny)**; everythi
 **UC‑6 — "What did we decide last week?" (RAG + time‑machine).**
 Prompt retrieves the ADR + the session message, cites both; user can **rewind** memory to that
 checkpoint to see full context.
+
+**UC‑7 — "Help me feel less overwhelmed" (companion mode).**
+Prompt: *"I have too much going on — can you help me untangle it?"* → Mimir listens, asks gentle
+clarifying questions, surfaces recent calendar/tasks/memory, and co-creates a manageable plan — all
+Tier 0, never leaving the laptop.
+
+**UC‑8 — "Build my monthly budget and flag weird spend" (personal finance).**
+Prompt: *"Look at my transactions and tell me where money is leaking."* → connectors pull bank/card
+CSV or Stripe/Paddle revenue (Tier 2 for public data; Tier 0 for personal files) → categorized
+report with anomalies cited and visualized.
+
+**UC‑9 — "Plan and write this week's marketing content" (creator/marketer).**
+Prompt: *"Draft a launch thread, two LinkedIn posts, and an email from our roadmap."* → Mimir
+researches the product updates from memory, writes in the brand voice, schedules posts, and queues
+approval for publish actions.
+
+**UC‑10 — "Prep my 1:1s and draft growth feedback" (HR/people partner).**
+Prompt: *"Help me prepare 1:1s for my team with notes from last month."* → Mimir pulls recent
+session memory, project updates, and goal progress → private prep doc with suggested talking points
+and draft feedback, all tenant-isolated.
+
+**UC‑11 — "What's the health of the business?" (CEO/operator).**
+Prompt: *"Give me a CEO dashboard: burn, revenue, active tasks, risks, and next week's priorities."*
+→ Mimir aggregates cost, connector revenue, task status, audit risks, and calendar into a single
+cited briefing with drill-down links.
+
+### 3.3 Human‑first feature themes
+
+These themes guide feature invention. A capability is "Mimir‑shaped" when it helps a real person in
+everyday life while staying private, cited, and dual‑surface.
+
+| Theme | What it means | Example prompts |
+|---|---|---|
+| **Companion** | Be present, remember, check in, listen. | *"How am I doing this week?"* · *"Remind me to call Mom."* |
+| **Memory** | Hold the user's life context and surface it when useful. | *"What was that restaurant I loved in Lisbon?"* · *"Resurface my ideas about climate tech."* |
+| **Learning** | Teach anything at the user's level, with patience and structure. | *"Explain quantum computing like I'm 12."* · *"Build me a Python study plan."* |
+| **Health & wellbeing** | Support sleep, nutrition, fitness, and mental health without judging. | *"Plan dinners for the week."* · *"I slept badly — what might help?"* |
+| **Life admin** | Remove overhead: renewals, maintenance, travel, schedules. | *"What expires this month?"* · *"Plan a weekend trip to the mountains."* |
+| **Relationships** | Help the user be more thoughtful with people they care about. | *"What should I ask Sarah about?"* · *"Gift ideas for Dad."* |
+| **Communication** | Draft, triage, and follow up across channels. | *"Draft a kind no to this invite."* · *"Summarize my unread email."* |
+| **Creativity & legacy** | Capture ideas, stories, and creative work for the long term. | *"Help me write the story of how my grandparents met."* |
+| **Accessibility** | Lower barriers for users with different abilities or contexts. | *"Read this page aloud."* · *"Simplify this legal letter."* |
+| **Decision support** | Lay out options, trade‑offs, and values — but let the human decide. | *"Should I take this job?"* · *"What are the risks of this move?"* |
 
 ---
 
@@ -1853,7 +1902,7 @@ Airtable base when M6 lands (F‑020).
 | F‑024 | Web: governance/audit, cost, settings | Pro | P1 | 🟦 | web | 2027‑01 | M5/M7 |
 | F‑025 | 4‑channel delivery + notification tiers + dedup | Free | P1 | ⬜ | gateway | 2027‑01 | M8 |
 | F‑026 | Emergency halt + auto circuit‑breaker | Free | P0 | ✅ | web/api | 2026‑12 | M5/M8 |
-| F‑027 | Cost governance: budgets + auto‑throttle + forecast | Pro | P0 | 🟦 | api | 2027‑02 | M9 |
+| F‑027 | Cost governance: budgets + auto‑throttle + forecast | Pro | P0 | ✅ | api | 2026‑06 | M5/M9 |
 | F‑028 | Observability: metrics/traces/logs (tier‑redacted) | Pro | P1 | ⬜ | infra | 2027‑02 | M9 |
 | F‑029 | SSO/SAML/SCIM (enterprise access) | Ent | P2 | ⬜ | api | 2027‑03 | post‑M10 |
 | F‑030 | Backups/DR (3‑2‑1) + restore tests | Pro | P0 | ⬜ | infra | 2026‑10 | M3 |
@@ -1884,6 +1933,32 @@ Airtable base when M6 lands (F‑020).
 | F‑054 | Agent‑to‑agent negotiation | Pro | P3 | ⬜ | api | 2027‑Q3 | post‑M10 |
 | F‑055 | Usage insights / time‑saved dashboard | Pro | P2 | ⬜ | web | 2027‑Q1 | M9 |
 | F‑056 | Local webserver per node + mesh discovery | Free | P0 | ⬜ | api/infra | 2026‑10 | M3 |
+| F‑057 | Companion mode: emotional context, long‑term personal memory, proactive check‑ins | Free | P1 | 🟦 | api | 2026‑11 | M4 |
+| F‑058 | Personal finance assistant: bank/CSV ingestion, budgeting, spend anomaly detection | Free | P1 | ⬜ | api | 2026‑12 | M6 |
+| F‑059 | Marketing/creator assistant: content calendar, brand‑voice drafting, campaign analytics | Pro | P1 | ⬜ | api/web | 2027‑01 | M6 |
+| F‑060 | HR/people partner: 1:1 prep, feedback drafting, hiring pipeline memory | Pro | P2 | ⬜ | api | 2027‑01 | M7 |
+| F‑061 | CEO/operator dashboard: burn, revenue, task health, risk rollup, decision briefings | Pro | P0 | 🟦 | api/web | 2026‑12 | M5/M6 |
+| F‑062 | Document bonding & record unification: cross‑connector entity resolution (customer, vendor, project) | Pro | P1 | 🟦 | api | 2026‑12 | M6 |
+| F‑063 | Daily briefing & morning companion | Free | P1 | ⬜ | api/web | 2027‑Q1 | M7 |
+| F‑064 | Emotional check‑in & private mood journal | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
+| F‑065 | Relationship memory (birthdays, preferences, conversation follow‑ups) | Free | P2 | ⬜ | api | 2027‑Q1 | M7 |
+| F‑066 | Nutrition & meal planner with grocery list | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
+| F‑067 | Fitness & workout coach with progress tracking | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
+| F‑068 | Life admin tracker (home, car, insurance, renewals, warranties) | Free | P2 | ⬜ | api | 2027‑Q1 | M7 |
+| F‑069 | Travel planner & itinerary assistant | Free | P2 | ⬜ | api/web | 2027‑Q2 | M8 |
+| F‑070 | Adaptive tutor & learning paths | Free | P1 | ⬜ | api/web | 2027‑Q1 | M7 |
+| F‑071 | Second brain / idea capture with bidirectional links | Free | P1 | ⬜ | api/web | 2026‑12 | M6 |
+| F‑072 | Meeting prep & automated follow‑up drafts | Pro | P1 | ⬜ | api | 2027‑Q1 | M7 |
+| F‑073 | Inbox Zero assistant (triage, draft replies, priorities) | Pro | P1 | ⬜ | api | 2027‑Q1 | M7 |
+| F‑074 | Conversational memory search across all chats | Free | P1 | 🟦 | api | 2026‑11 | M4 |
+| F‑075 | Proactive contextual suggestions (opt‑in) | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
+| F‑076 | Voice‑first hands‑free companion mode | Free | P2 | ⬜ | gateway | 2027‑Q2 | M8 |
+| F‑077 | Life documentation & legacy memory (stories, recipes, memoirs) | Free | P2 | ⬜ | api/web | 2027‑Q3 | post‑M10 |
+| F‑078 | Accessibility assistant (read aloud, describe images, simplify text) | Free | P1 | ⬜ | web | 2027‑Q1 | M7 |
+| F‑079 | Values & decision journal with outcome tracking | Pro | P2 | ⬜ | api | 2027‑Q2 | M8 |
+| F‑080 | Screen‑time & digital wellbeing coach | Free | P2 | ⬜ | web | 2027‑Q2 | M8 |
+| F‑081 | Difficult conversation coach (role‑play, drafts, de‑escalation) | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
+| F‑082 | Family mesh / household coordination | Free | P2 | ⬜ | api | 2027‑Q3 | post‑M10 |
 
 ---
 
@@ -1934,7 +2009,8 @@ lives or dies by the gates — not by conviction.**
 
 ### 25.1 Positioning & wedge
 
-- **One‑liner:** *"Instantly deterministic, production‑safe agent execution — local‑first, with
+- **Mission one‑liner:** *"The AI that is always with you — one mind, many hats, always yours."*
+- **Go‑to‑market one‑liner:** *"Instantly deterministic, production‑safe agent execution — local‑first, with
   bounded cost and a cryptographic audit trail."*
 - **Wedge (distribution):** target **Mastra/LangChain users hitting production walls** (reliability,
   cost surprises). Content: *"I built my agent in Mastra — now I'm terrified to deploy it."* Meet
@@ -2010,6 +2086,7 @@ customers loses ~$25–28K/mo (normal seed) → needs 18–24mo runway. [validat
 | Immutable audit (chain+replay) | logs | basic | basic | logs | ✅ |
 | RAG cite‑or‑abstain default | opt‑in | opt‑in | opt‑in | opt‑in | ✅ default |
 | Multi‑tenancy/SSO | Ent | Ent | Ent license | Ent (license blocks SaaS) | ✅ architected |
+| Human‑centric companion model | ❌ | ❌ | ❌ | ❌ | ✅ core |
 | OSS license | MIT | MIT | Apache | **modified Apache (anti‑SaaS)** | Apache‑2.0 (clean) |
 
 ### 25.8 Revenue model (illustrative, [sec05])
