@@ -35,6 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - F-038 agent hierarchy / role registry: tenant-scoped `agent_role` schema/migration with built-in defaults (`main`, `planner`, `reviewer`, `coder`, `researcher`, `memory`, `executor`, `fallback`); `AgentRoleRegistry` resolves role + tier + capabilities to a provider/model without hard-coding any vendor; `GET/POST/PATCH/DELETE /v1/agents/roles` and `POST /v1/agents/resolve` endpoints; integration tests.
 - F-074 conversational memory search: keyword search across session messages via `GET /v1/sessions/search?query=...&limit=...`; returns matching messages with their sessions; integration test.
 - F-061 ceo/operator dashboard: `GET /v1/reports/ceo` aggregates task health (status counts + recent failures), burn (daily spend vs budget), risk (halt state + failure counts), and decisions (pending approvals); integration test.
+- Wire agent roles into Temporal `build` activity: a task payload can now include `role` (e.g. `coder`, `researcher`, `memory`) and the activity resolves it via `AgentRoleRegistry` before calling the model router, making sub-agent delegation model-agnostic.
 
 ### Fixed
 

@@ -11,6 +11,7 @@ import { BudgetService } from '../services/cost/budget';
 import { hashObject } from '../services/diff/ast-diff';
 import { ModelRouter } from '../services/models/router';
 import { applyPatch as applyJsonPatch } from '../services/patch/json-patch';
+import { agentRoleRegistry } from '../services/agents/registry';
 import { ApplyRegistry } from '../services/apply/registry';
 import { connectorWriteRegistry } from '../services/connectors/write-registry';
 import '../services/connectors/facebook/handlers';
@@ -77,15 +78,28 @@ export async function build(input: TaskRunInput): Promise<BuildResult> {
     const scrubbedPayload = input.tier === 2 ? scrubForTier(input.payload, input.tier) : undefined;
 
     // TODO: wire real build step (sandboxed command, model call, etc.)
+    let provider = input.payload.provider as string | undefined;
+    let model = input.payload.model as string | undefined;
+
+    const role = input.payload.role as string | undefined;
+    if (role) {
+      const resolved = await agentRoleRegistry.resolve(ctx, {
+        kind: role as 'main' | 'planner' | 'reviewer' | 'coder' | 'researcher' | 'memory' | 'executor' | 'fallback',
+        tier: input.tier as 0 | 1 | 2,
+      });
+      provider = provider ?? resolved.provider;
+      model = model ?? resolved.model;
+    }
+
     const router = new ModelRouter();
-    const { provider, model, maxTokens, maxCostUsd, ...restPayload } = input.payload;
+    const { maxTokens, maxCostUsd, ...restPayload } = input.payload;
     const modelInput = {
       prompt: (restPayload.prompt as string) ?? '',
       payload: input.tier === 2 ? (scrubbedPayload as Record<string, unknown>) : restPayload,
     };
     const modelOutput = await router.invoke(input.tier as 0 | 1 | 2, modelInput, {
-      provider: provider as string | undefined,
-      model: model as string | undefined,
+      provider,
+      model,
       maxTokens: maxTokens as number | undefined,
     });
 
