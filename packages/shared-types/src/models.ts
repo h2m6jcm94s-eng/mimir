@@ -41,6 +41,8 @@ export const Job = z.object({
   status: JobStatus,
   targetNode: z.string().uuid().optional(),
   epoch: z.number().int().default(0),
+  input: z.record(z.unknown()).nullable().optional(),
+  result: z.record(z.unknown()).nullable().optional(),
   checkpoint: z.record(z.unknown()).default({}),
   costUsd: z.number().default(0),
   priority: z.number().int().default(0),

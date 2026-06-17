@@ -4,35 +4,16 @@ import { ModelBadge } from '@/components/ui/ModelBadge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { TierBadge } from '@/components/ui/TierBadge';
 import { cn } from '@/lib/utils';
+import type { Job } from '@mimir/shared-types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, MoreHorizontal, Play, Plus, RefreshCw } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
-type Status = 'Queued' | 'Running' | 'Blocked' | 'Needs Attention' | 'Done';
+type TaskStatus = 'Queued' | 'Running' | 'Blocked' | 'Needs Attention' | 'Done' | 'Failed';
 
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  blastRadius: string;
-  status: Status;
-  tier: 0 | 1 | 2;
-  model: 'kimi' | 'claude' | 'ollama';
-  cost: number;
-}
+const columns: TaskStatus[] = ['Queued', 'Running', 'Blocked', 'Needs Attention', 'Done', 'Failed'];
 
-interface ApiJob {
-  id: string;
-  type: string;
-  status: 'queued' | 'running' | 'blocked' | 'needs_attention' | 'done' | 'failed';
-  tier: number;
-  input?: Record<string, unknown> | null;
-  costUsd: number;
-}
-
-const columns: Status[] = ['Queued', 'Running', 'Blocked', 'Needs Attention', 'Done'];
-
-const columnMeta: Record<Status, { color: string; border: string; icon: typeof Play }> = {
+const columnMeta: Record<TaskStatus, { color: string; border: string; icon: typeof Play }> = {
   Queued: { color: 'bg-blue-500/10 text-blue-600', border: 'border-blue-500/20', icon: Play },
   Running: {
     color: 'bg-[var(--accent-teal)]/10 text-[var(--accent-teal)]',
@@ -54,52 +35,98 @@ const columnMeta: Record<Status, { color: string; border: string; icon: typeof P
     border: 'border-[var(--text-muted)]/20',
     icon: Play,
   },
+  Failed: {
+    color: 'bg-red-500/10 text-red-600',
+    border: 'border-red-500/20',
+    icon: AlertTriangle,
+  },
 };
 
-const statusMap: Record<ApiJob['status'], Status | null> = {
+const statusMap: Record<Job['status'], TaskStatus> = {
   queued: 'Queued',
   running: 'Running',
   blocked: 'Blocked',
   needs_attention: 'Needs Attention',
   done: 'Done',
-  failed: 'Blocked',
+  failed: 'Failed',
 };
 
-function classifyModel(input: ApiJob['input']): Task['model'] {
-  if (typeof input?.model === 'string') {
-    const m = input.model.toLowerCase();
-    if (m.includes('claude')) return 'claude';
-    if (m.includes('ollama')) return 'ollama';
-  }
-  const checkpoint = input?.checkpoint;
-  if (typeof checkpoint === 'object' && checkpoint && 'classification' in checkpoint) {
-    const classification = checkpoint.classification as Record<string, unknown> | undefined;
-    const provider = classification?.provider;
-    if (provider === 'anthropic') return 'claude';
-    if (provider === 'ollama') return 'ollama';
-  }
-  return 'kimi';
+const reverseStatusMap: Record<TaskStatus, Job['status']> = {
+  Queued: 'queued',
+  Running: 'running',
+  Blocked: 'blocked',
+  'Needs Attention': 'needs_attention',
+  Done: 'done',
+  Failed: 'failed',
+};
+
+function deriveModel(input: Record<string, unknown> | null | undefined): string {
+  const payload = (input?.payload as Record<string, unknown> | undefined) ?? input;
+  return (
+    (payload?.model as string | undefined) ?? (payload?.provider as string | undefined) ?? 'local'
+  );
 }
 
-function mapJobToTask(job: ApiJob): Task {
-  const status = statusMap[job.status] ?? 'Queued';
-  const prompt = typeof job.input?.prompt === 'string' ? job.input.prompt : undefined;
+function deriveBlastRadius(job: Job): string {
+  const input = (job.input ?? {}) as Record<string, unknown>;
+  const attachments = Array.isArray(input.attachments) ? input.attachments.length : 0;
+  return `${attachments} attachment${attachments === 1 ? '' : 's'} · ${job.type}`;
+}
+
+function mapJobToTask(job: Job): Task {
+  const input = (job.input ?? {}) as Record<string, unknown>;
   return {
     id: job.id,
     title: job.type || `Task ${job.id.slice(0, 6)}`,
-    description: prompt ?? 'No description provided.',
-    blastRadius: '1 task · 0 services affected',
-    status,
-    tier: (job.tier as 0 | 1 | 2) ?? 0,
-    model: classifyModel(job.input),
+    description: (input.prompt as string) ?? 'No description provided.',
+    blastRadius: deriveBlastRadius(job),
+    status: statusMap[job.status],
+    tier: job.tier,
+    model: deriveModel(input),
     cost: (job.costUsd ?? 0) / 1_000_000,
+    retryCount: job.retryCount ?? 0,
+    maxRetries: job.maxRetries ?? 3,
   };
+}
+
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  blastRadius: string;
+  status: TaskStatus;
+  tier: 0 | 1 | 2;
+  model: string;
+  cost: number;
+  retryCount: number;
+  maxRetries: number;
+}
+
+async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...options,
+    credentials: 'include',
+    headers: {
+      ...(options?.headers ?? {}),
+      ...(options?.body && { 'content-type': 'application/json' }),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`${res.status}: ${text}`);
+  }
+  return res.json() as Promise<T>;
 }
 
 function TaskCard({
   task,
   onStatusChange,
-}: { task: Task; onStatusChange: (id: string, status: Status) => void }) {
+  onRetry,
+}: {
+  task: Task;
+  onStatusChange: (id: string, status: TaskStatus) => void;
+  onRetry: (id: string) => void;
+}) {
   const meta = columnMeta[task.status];
   const Icon = meta.icon;
 
@@ -147,20 +174,32 @@ function TaskCard({
 
       <div className="mt-3 flex items-center justify-between border-t border-[var(--border-subtle-solid)] pt-2">
         <span className="text-xs text-[var(--text-muted)]">${task.cost.toFixed(3)}</span>
-        <label className="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary)]">
-          Move
-          <select
-            value={task.status}
-            onChange={(e) => onStatusChange(task.id, e.target.value as Status)}
-            className="rounded border border-[var(--border-subtle-solid)] bg-[var(--bg-input)] px-1.5 py-0.5 text-[10px] outline-none focus:border-[var(--border-focus)]"
-          >
-            {columns.map((col) => (
-              <option key={col} value={col}>
-                {col}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="flex items-center gap-2">
+          {task.status === 'Failed' && task.retryCount < task.maxRetries && (
+            <button
+              type="button"
+              onClick={() => onRetry(task.id)}
+              className="inline-flex items-center gap-1 rounded bg-[var(--bg-surface-raised)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--accent-primary)] hover:text-white"
+            >
+              <RefreshCw className="h-3 w-3" />
+              Retry
+            </button>
+          )}
+          <label className="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary)]">
+            Move
+            <select
+              value={task.status}
+              onChange={(e) => onStatusChange(task.id, e.target.value as TaskStatus)}
+              className="rounded border border-[var(--border-subtle-solid)] bg-[var(--bg-input)] px-1.5 py-0.5 text-[10px] outline-none focus:border-[var(--border-focus)]"
+            >
+              {columns.map((col) => (
+                <option key={col} value={col}>
+                  {col}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
     </motion.div>
   );
@@ -168,33 +207,59 @@ function TaskCard({
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await fetch('/api/v1/tasks?limit=100', {
-          // TODO: replace dev stub token with Clerk session JWT.
-          headers: { Authorization: 'Bearer test' },
-        });
-        if (!res.ok) throw new Error(`Tasks fetch failed: ${res.status}`);
-        const body = (await res.json()) as { data: ApiJob[] };
-        setTasks(body.data.map(mapJobToTask));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load tasks');
-      } finally {
-        setLoading(false);
-      }
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [listBody, countsBody] = await Promise.all([
+        fetchJson<{ data: Job[] }>('/api/v1/tasks?limit=100'),
+        fetchJson<{ counts: Record<string, number> }>('/api/v1/tasks/counts'),
+      ]);
+      setTasks(listBody.data.map(mapJobToTask));
+      setCounts(countsBody.counts);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load tasks');
+    } finally {
+      setLoading(false);
     }
-
-    void load();
   }, []);
 
-  function handleStatusChange(id: string, status: Status) {
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function handleStatusChange(id: string, status: TaskStatus) {
+    const previous = tasks.find((t) => t.id === id);
+    if (!previous || previous.status === status) return;
+
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
+
+    try {
+      await fetchJson(`/api/v1/tasks/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: reverseStatusMap[status] }),
+      });
+      const countsBody = await fetchJson<{ counts: Record<string, number> }>(
+        '/api/v1/tasks/counts'
+      );
+      setCounts(countsBody.counts);
+    } catch (err) {
+      setTasks((prev) => prev.map((t) => (t.id === id ? previous : t)));
+      setError(err instanceof Error ? err.message : 'Failed to update status');
+    }
+  }
+
+  async function handleRetry(id: string) {
+    try {
+      await fetchJson(`/api/v1/tasks/${id}/retry`, { method: 'POST' });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to retry task');
+    }
   }
 
   if (loading) {
@@ -230,7 +295,7 @@ export default function TasksPage() {
         </button>
       </PageHeader>
 
-      <div className="grid gap-4 lg:grid-cols-5">
+      <div className="grid gap-4 lg:grid-cols-6">
         {columns.map((col) => {
           const colTasks = tasks.filter((t) => t.status === col);
           const meta = columnMeta[col];
@@ -246,14 +311,24 @@ export default function TasksPage() {
                   <h3 className="text-sm font-semibold text-[var(--text-primary)]">{col}</h3>
                 </div>
                 <span className="rounded-full bg-[var(--bg-primary)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
-                  {colTasks.length}
+                  {counts[reverseStatusMap[col]] ?? 0}
                 </span>
               </div>
 
               <AnimatePresence mode="popLayout">
                 <div className="flex-1 space-y-2">
+                  {colTasks.length === 0 && (
+                    <div className="rounded-lg border border-dashed border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] px-2 py-4 text-center text-[10px] text-[var(--text-muted)]">
+                      No {col.toLowerCase()} tasks
+                    </div>
+                  )}
                   {colTasks.map((task) => (
-                    <TaskCard key={task.id} task={task} onStatusChange={handleStatusChange} />
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onStatusChange={handleStatusChange}
+                      onRetry={handleRetry}
+                    />
                   ))}
                 </div>
               </AnimatePresence>

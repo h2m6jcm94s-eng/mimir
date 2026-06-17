@@ -38,6 +38,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Wire agent roles into Temporal `build` activity: a task payload can now include `role` (e.g. `coder`, `researcher`, `memory`) and the activity resolves it via `AgentRoleRegistry` before calling the model router, making sub-agent delegation model-agnostic.
 - F-007 durable job queue foundation: `job` table extended with `priority`, `retry_count`, `max_retries`, `started_at`, `finished_at`, `error_code`, `error_message`; added `idx_job_tenant_status`; `GET /v1/tasks` now supports `status` and `type` filters; added `GET /v1/tasks/counts` and `PATCH /v1/tasks/:id/status` with transition validation and audit logging.
 - F-007 cancel/retry: `POST /v1/tasks/:id/cancel` terminates the running Temporal workflow and marks the job `failed` with `error_code: cancelled`; `POST /v1/tasks/:id/retry` re-queues a failed/needs-attention job and restarts its workflow while enforcing `max_retries`; workflow/run IDs are persisted on the job row.
+- F-022 tasks kanban wired to real API: board now uses `@mimir/shared-types` `Job`, fetches live jobs and counts, adds a `Failed` column, wires status moves to `PATCH /v1/tasks/:id/status` with optimistic rollback, adds retry buttons for failed jobs, derives blast radius from attachments/type, and adds per-column empty states.
 
 ### Fixed
 
