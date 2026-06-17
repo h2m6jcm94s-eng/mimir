@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { withTenantTransaction } from '../db/tenant-context';
 import { Scopes, requireScope } from '../middleware/rbac';
 import { protectedRouteConfig } from '../middleware/route-config';
+import { createApproval } from '../repositories/approval';
 import { createAuditEvent } from '../repositories/audit';
 import {
   createConnector,
@@ -16,9 +17,10 @@ import {
   findConnectorByKind,
   listConnectors,
 } from '../repositories/connector';
-import { createJob, findJobByIdempotency } from '../repositories/job';
+import { createJob, findJobByIdempotency, updateJobStatus } from '../repositories/job';
 import { ClassificationGateway } from '../services/classification/gateway';
 import { connectorRegistry } from '../services/connectors/registry';
+import { evaluateTenantPolicy } from '../services/governance/engine';
 
 const temporalHost = process.env.TEMPORAL_HOST || 'localhost:7233';
 const taskQueue = process.env.TEMPORAL_TASK_QUEUE || 'mimir-task-queue';
@@ -122,49 +124,110 @@ export async function connectorRoutes(app: FastifyInstance) {
     const input = GitHubOpenPrInput.parse(rawInput);
     const classifier = new ClassificationGateway();
 
-    const { job, classification } = await withTenantTransaction(tenantId, async (ctx) => {
-      const connector = await findConnectorByKind(ctx, 'github');
-      if (!connector) {
-        throw new Error('GitHub connector not configured');
+    const { job, classification, decision, approvalId } = await withTenantTransaction(
+      tenantId,
+      async (ctx) => {
+        const connector = await findConnectorByKind(ctx, 'github');
+        if (!connector) {
+          throw new Error('GitHub connector not configured');
+        }
+
+        const classification =
+          requestTier !== undefined
+            ? {
+                tier: requestTier as 0 | 1 | 2,
+                confidence: 1,
+                reason: 'Tier provided by client',
+                fallback: false,
+                policyVersion: 'explicit',
+              }
+            : classifier.classify({
+                prompt: [input.title, input.body].join(' '),
+                attachments: [],
+                retrievedContext: [],
+              });
+
+        if (classification.tier < connector.tier) {
+          throw new Error(
+            `TIER_VIOLATION: PR tier ${classification.tier} is more private than connector tier ${connector.tier}`
+          );
+        }
+
+        const decision = await evaluateTenantPolicy(ctx, {
+          action: 'github.openPr',
+          tier: classification.tier,
+        });
+
+        await createAuditEvent(ctx, {
+          actor: userId,
+          action: 'policy_decision',
+          tier: classification.tier,
+          payload: {
+            decision,
+            action: 'github.openPr',
+          } as unknown as Record<string, unknown>,
+        });
+
+        if (decision.effect === 'deny') {
+          return { job: null, classification, decision, approvalId: null };
+        }
+
+        const job = await createJob(ctx, {
+          idempotencyKey: `github-open-pr-${Date.now()}`,
+          type: 'github.openPr',
+          tier: classification.tier,
+          input: { prompt: input.title, payload: input },
+        });
+
+        if (decision.effect === 'require_approval') {
+          await updateJobStatus(ctx, job.id, 'blocked');
+          const approval = await createApproval(ctx, {
+            jobId: job.id,
+            requestedBy: userId,
+            reason: decision.reason,
+          });
+          await createAuditEvent(ctx, {
+            actor: userId,
+            action: 'approval_requested',
+            tier: classification.tier,
+            payload: { approvalId: approval.id, jobId: job.id },
+          });
+          return { job, classification, decision, approvalId: approval.id };
+        }
+
+        await createAuditEvent(ctx, {
+          actor: userId,
+          action: 'classification_decision',
+          tier: classification.tier,
+          payload: classification as unknown as Record<string, unknown>,
+        });
+
+        return { job, classification, decision, approvalId: null };
       }
+    );
 
-      const classification =
-        requestTier !== undefined
-          ? {
-              tier: requestTier as 0 | 1 | 2,
-              confidence: 1,
-              reason: 'Tier provided by client',
-              fallback: false,
-              policyVersion: 'explicit',
-            }
-          : classifier.classify({
-              prompt: [input.title, input.body].join(' '),
-              attachments: [],
-              retrievedContext: [],
-            });
-
-      if (classification.tier < connector.tier) {
-        throw new Error(
-          `TIER_VIOLATION: PR tier ${classification.tier} is more private than connector tier ${connector.tier}`
-        );
-      }
-
-      const job = await createJob(ctx, {
-        idempotencyKey: `github-open-pr-${Date.now()}`,
-        type: 'github.openPr',
-        tier: classification.tier,
-        input: { prompt: input.title, payload: input },
+    if (decision.effect === 'deny') {
+      return reply.status(403).send({
+        error: {
+          code: 'POLICY_VIOLATION',
+          message: decision.reason || 'Policy denied this action',
+        },
       });
+    }
 
-      await createAuditEvent(ctx, {
-        actor: userId,
-        action: 'classification_decision',
-        tier: classification.tier,
-        payload: classification as unknown as Record<string, unknown>,
+    if (decision.effect === 'require_approval' && job) {
+      return reply.status(202).send({
+        jobId: job.id,
+        status: job.status,
+        approvalId,
       });
+    }
 
-      return { job, classification };
-    });
+    if (!job) {
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Job not created' },
+      });
+    }
 
     const connection = await Connection.connect({ address: temporalHost });
     const client = new Client({ connection });

@@ -80,6 +80,9 @@ importers:
       supertokens-node:
         specifier: ^21.1.0
         version: 21.1.2
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
       zod:
         specifier: ^3.23.0
         version: 3.25.76

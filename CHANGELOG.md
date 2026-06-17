@@ -26,6 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - F-009 workhorse→reviewer loop: iterative review workflow with up to 3 cycles, stable-hash draft cycle detection, RFC‑6902 JSON-patch application, and apply registry for side effects.
 - F-010 resilience: model circuit breaker with fail-soft, idempotency-key deduplication on job creation, and checkpointed Temporal activities.
 - F-017 immutable audit foundation: `audit_event` table with `prev_hash`/`hash` chain, `/v1/audit` verification endpoint, and tamper-evident replay.
+- F-017 governance-as-code MVP: tenant-scoped `policy` and `approval` tables with RLS; YAML/JSON policy engine supporting `allow`/`deny`/`require_approval` rules on `action`, `tier`, `kind`, and `dailySpendUsd`; `PUT /v1/governance/policy` and `GET /v1/approvals` + approve/deny endpoints; policy gates wired into `POST /v1/tasks` and GitHub `openPr`; web governance and approvals pages integrated with live API; unit and integration tests.
 - F-022/F-023/F-024 web app screens: console, live status topology, tasks kanban, approvals with PIN gate, knowledge ingest and share requests, memory/time-machine viewer, governance/audit policy editor, cost dashboard, and settings.
 - F-026 emergency halt: Redis-backed halt state, `/v1/halt` routes, and circuit-breaker fail-soft behavior.
 - F-027 cost-governance foundation: per-call model pricing, daily spend governor (`AUTO_HALT_DAILY_USD`), and per-job cost tracking.

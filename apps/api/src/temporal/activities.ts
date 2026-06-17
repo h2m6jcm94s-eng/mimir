@@ -13,6 +13,7 @@ import { ModelRouter } from '../services/models/router';
 import { applyPatch as applyJsonPatch } from '../services/patch/json-patch';
 import { ApplyRegistry } from '../services/apply/registry';
 import { githubOpenPrHandler } from '../services/connectors/github/apply';
+import { evaluateTenantPolicy } from '../services/governance/engine';
 import { ReviewerRouter } from '../services/reviewers/router';
 import { scrubForTier } from '../services/scrubber/scrubber';
 import { throwIfHalted } from '../services/halt/state';
@@ -239,6 +240,26 @@ export async function apply(
     await updateJobStatus(ctx, input.jobId, 'running', {
       checkpoint: { ...existing, step: 'apply', startedAt: new Date().toISOString() },
     });
+
+    const preApplyDecision = await evaluateTenantPolicy(ctx, {
+      action: input.type,
+      tier: input.tier,
+    });
+
+    if (preApplyDecision.effect === 'deny') {
+      const reason = preApplyDecision.reason || 'Policy denied at apply time';
+      await updateJobStatus(ctx, input.jobId, 'failed', {
+        result: { error: 'POLICY_VIOLATION', reason },
+        checkpoint: { ...existing, apply: { result: { applied: false, reason, output: {} }, finishedAt: new Date().toISOString() } },
+      });
+      await createAuditEvent(ctx, {
+        actor: input.userId,
+        action: 'policy_violation',
+        tier: input.tier,
+        payload: { jobId: input.jobId, decision: preApplyDecision },
+      });
+      return { applied: false, reason, output: {} };
+    }
 
     const result = await applyRegistry.handle(ctx, input.type, input, finalDraft, reviewResult);
 

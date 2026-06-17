@@ -2,6 +2,7 @@ import { secrets } from '../../config/secrets';
 import type { TenantContext } from '../../db/tenant-context';
 import { createAuditEvent } from '../../repositories/audit';
 import { findConnectorByKind } from '../../repositories/connector';
+import { evaluateTenantPolicy } from '../governance/engine';
 import { ingestDocument } from '../knowledge/ingest';
 import { GitHubClient } from './github/client';
 
@@ -97,6 +98,19 @@ export class ConnectorRegistry {
       throw new Error(
         `TIER_VIOLATION: request tier ${actionCtx.requestTier} is more private than connector tier ${connector.tier}`
       );
+    }
+
+    const policyDecision = await evaluateTenantPolicy(ctx, {
+      action: `${actionCtx.kind}.${actionCtx.action}`,
+      kind: actionCtx.kind,
+      tier: actionCtx.requestTier,
+    });
+
+    if (policyDecision.effect === 'deny' || policyDecision.effect === 'require_approval') {
+      const reason =
+        policyDecision.reason ||
+        `Policy denied connector action ${actionCtx.kind}.${actionCtx.action}`;
+      throw new Error(`POLICY_VIOLATION: ${reason}`);
     }
 
     const handlers = handlersByKind[actionCtx.kind];

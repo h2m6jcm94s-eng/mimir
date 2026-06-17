@@ -5,62 +5,116 @@ import { TierBadge } from '@/components/ui/TierBadge';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, FileCode, GitCommit, Lock, Route, ShieldAlert, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-const defaultPolicy = `classification:
-  - pattern: "\\bpassword\\b|\\bsecret\\b"
-    tier: 0
-  - pattern: "\\bcredit card\\b"
-    tier: 0
-
-approval:
-  destructive:
-    tier: 2
-    requires_pin: true
+const demoPolicy = `rules:
+  - action: github.openPr
+    effect: require_approval
+    reason: opening a PR requires human approval
+  - action: '*'
+    effect: deny
+    when:
+      tier: 2
+      dailySpendUsd: '> 1.00'
+    reason: daily cloud spend limit exceeded
+  - action: '*'
+    effect: allow
 `;
 
-const auditEvents = [
-  {
-    id: 1,
-    time: '2026-06-16 10:28',
-    actor: 'system',
-    action: 'policy loaded',
-    tier: 0,
-    hash: 'a1b2c3',
-  },
-  {
-    id: 2,
-    time: '2026-06-16 10:29',
-    actor: 'user@local',
-    action: 'approved deployment',
-    tier: 2,
-    hash: 'd4e5f6',
-  },
-  {
-    id: 3,
-    time: '2026-06-16 10:30',
-    actor: 'system',
-    action: 'key rotation completed',
-    tier: 0,
-    hash: 'g7h8i9',
-  },
-];
+interface AuditEvent {
+  id: string;
+  ts: string;
+  actor: string;
+  action: string;
+  tier: number;
+  hash: string;
+}
 
 function validatePolicy(yaml: string) {
   try {
-    const hasClassification = /^classification:/m.test(yaml);
-    const hasApproval = /^approval:/m.test(yaml);
+    const hasRules = /^rules:/m.test(yaml);
     const noTabs = !/\t/.test(yaml);
-    return hasClassification && hasApproval && noTabs;
+    return hasRules && noTabs;
   } catch {
     return false;
   }
 }
 
+function formatTs(ts: string) {
+  try {
+    return new Date(ts).toLocaleString();
+  } catch {
+    return ts;
+  }
+}
+
 export default function GovernancePage() {
   const [tab, setTab] = useState<'policy' | 'audit' | 'flow'>('policy');
-  const [policy, setPolicy] = useState(defaultPolicy);
+  const [policy, setPolicy] = useState(demoPolicy);
+  const [policyName, setPolicyName] = useState('default');
+  const [loading, setLoading] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
+  const [auditVerified, setAuditVerified] = useState<boolean | null>(null);
   const valid = useMemo(() => validatePolicy(policy), [policy]);
+
+  useEffect(() => {
+    fetch('/api/v1/governance/policy', { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.data?.source) {
+          setPolicy(data.data.source);
+          setPolicyName(data.data.name ?? 'default');
+        }
+      })
+      .catch(() => {
+        // leave demo policy if API unavailable
+      });
+  }, []);
+
+  useEffect(() => {
+    if (tab !== 'audit') return;
+    fetch('/api/v1/audit?limit=50', { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.data) {
+          setAuditEvents(data.data as AuditEvent[]);
+          setAuditVerified(data.verified ?? null);
+        }
+      })
+      .catch(() => {
+        setAuditEvents([]);
+      });
+  }, [tab]);
+
+  async function savePolicy() {
+    if (!valid) return;
+    setLoading(true);
+    setSaveError(null);
+    setSaveSuccess(false);
+    try {
+      const res = await fetch('/api/v1/governance/policy', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: policyName, source: policy }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSaveError(data.error?.message || 'Failed to save policy');
+      } else {
+        setSaveSuccess(true);
+        if (data.data?.source) {
+          setPolicy(data.data.source);
+        }
+      }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Network error');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -117,7 +171,7 @@ export default function GovernancePage() {
             exit={{ opacity: 0, y: -8 }}
             className="space-y-4"
           >
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {valid ? (
                 <span
                   data-testid="policy-valid"
@@ -133,7 +187,40 @@ export default function GovernancePage() {
                   <X className="h-3 w-3" /> Invalid
                 </span>
               )}
+              {saveSuccess && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-success)]/10 px-2 py-0.5 text-xs font-medium text-[var(--accent-success)]">
+                  <Check className="h-3 w-3" /> Saved
+                </span>
+              )}
+              {saveError && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-danger)]/10 px-2 py-0.5 text-xs font-medium text-[var(--accent-danger)]">
+                  <X className="h-3 w-3" /> {saveError}
+                </span>
+              )}
             </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={policyName}
+                onChange={(e) => setPolicyName(e.target.value)}
+                className="h-9 rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-surface)] px-3 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+              />
+              <button
+                type="button"
+                disabled={!valid || loading}
+                onClick={savePolicy}
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
+                  !valid || loading
+                    ? 'cursor-not-allowed bg-[var(--bg-primary)] text-[var(--text-muted)]'
+                    : 'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90'
+                )}
+              >
+                {loading ? 'Saving…' : 'Save policy'}
+              </button>
+            </div>
+
             <textarea
               value={policy}
               onChange={(e) => setPolicy(e.target.value)}
@@ -152,12 +239,22 @@ export default function GovernancePage() {
           >
             <div className="flex items-center justify-between border-b border-[var(--border-subtle-solid)] p-4">
               <h3 className="text-sm font-semibold text-[var(--text-primary)]">Audit log</h3>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 rounded-lg bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface-raised)]"
-              >
-                <Lock className="h-3 w-3" /> Verify chain
-              </button>
+              <div className="flex items-center gap-2">
+                {auditVerified === true && (
+                  <span className="text-xs font-medium text-[var(--accent-success)]">Verified</span>
+                )}
+                {auditVerified === false && (
+                  <span className="text-xs font-medium text-[var(--accent-danger)]">
+                    Chain broken
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-lg bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface-raised)]"
+                >
+                  <Lock className="h-3 w-3" /> Verify chain
+                </button>
+              </div>
             </div>
             <table className="w-full text-left text-xs">
               <thead className="bg-[var(--bg-surface-raised)] text-[var(--text-muted)]">
@@ -172,7 +269,7 @@ export default function GovernancePage() {
               <tbody className="divide-y divide-[var(--border-subtle-solid)]">
                 {auditEvents.map((event) => (
                   <tr key={event.id}>
-                    <td className="px-4 py-3 text-[var(--text-secondary)]">{event.time}</td>
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">{formatTs(event.ts)}</td>
                     <td className="px-4 py-3 text-[var(--text-secondary)]">{event.actor}</td>
                     <td className="px-4 py-3 text-[var(--text-primary)]">{event.action}</td>
                     <td className="px-4 py-3">
@@ -181,6 +278,13 @@ export default function GovernancePage() {
                     <td className="px-4 py-3 font-mono text-[var(--text-muted)]">{event.hash}</td>
                   </tr>
                 ))}
+                {auditEvents.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-[var(--text-secondary)]">
+                      No audit events found.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </motion.div>
@@ -272,7 +376,7 @@ export default function GovernancePage() {
                 textAnchor="middle"
                 className="fill-[var(--accent-teal)] text-[10px] font-medium"
               >
-                Router
+                Policy
               </text>
               <text
                 x="370"
@@ -280,7 +384,7 @@ export default function GovernancePage() {
                 textAnchor="middle"
                 className="fill-[var(--text-muted)] text-[8px]"
               >
-                node + model
+                allow / deny / approve
               </text>
 
               <path
@@ -308,7 +412,7 @@ export default function GovernancePage() {
                 textAnchor="middle"
                 className="fill-[var(--accent-success)] text-[10px] font-medium"
               >
-                Local node
+                Execute
               </text>
 
               <rect
@@ -325,7 +429,7 @@ export default function GovernancePage() {
                 textAnchor="middle"
                 className="fill-[var(--accent-warning)] text-[10px] font-medium"
               >
-                Cloud node
+                Approval
               </text>
 
               <defs>

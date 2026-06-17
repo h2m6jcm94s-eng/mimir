@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { withTenantTransaction } from '../db/tenant-context';
 import { Scopes, requireScope } from '../middleware/rbac';
 import { protectedRouteConfig } from '../middleware/route-config';
+import { createApproval } from '../repositories/approval';
 import { createAuditEvent } from '../repositories/audit';
 import {
   createJob,
@@ -14,6 +15,7 @@ import {
   updateJobStatus,
 } from '../repositories/job';
 import { ClassificationGateway } from '../services/classification/gateway';
+import { evaluateTenantPolicy } from '../services/governance/engine';
 
 const attachmentSchema = z.object({
   name: z.string().min(1),
@@ -54,41 +56,119 @@ export async function taskRoutes(app: FastifyInstance) {
 
       const body = createTaskSchema.parse(request.body);
 
-      const { job, classification } = await withTenantTransaction(user.tenantId, async (ctx) => {
-        const existing = await findJobByIdempotency(ctx, body.idempotencyKey);
-        if (existing) {
-          return { job: existing, classification: null, idempotent: true };
+      const { job, classification, decision, approvalId, idempotent } = await withTenantTransaction(
+        user.tenantId,
+        async (ctx) => {
+          const existing = await findJobByIdempotency(ctx, body.idempotencyKey);
+          if (existing) {
+            return {
+              job: existing,
+              classification: null,
+              decision: null,
+              approvalId: null,
+              idempotent: true,
+            };
+          }
+
+          const classification = classifier.classify({
+            prompt: body.prompt,
+            attachments: body.attachments,
+            retrievedContext: [],
+          });
+
+          const decision = await evaluateTenantPolicy(ctx, {
+            action: body.type,
+            tier: classification.tier,
+          });
+
+          await createAuditEvent(ctx, {
+            actor: user.userId,
+            action: 'policy_decision',
+            tier: classification.tier,
+            payload: {
+              decision,
+              action: body.type,
+            } as unknown as Record<string, unknown>,
+          });
+
+          if (decision.effect === 'deny') {
+            return { job: null, classification, decision, approvalId: null, idempotent: false };
+          }
+
+          const job = await createJob(ctx, {
+            idempotencyKey: body.idempotencyKey,
+            type: body.type,
+            tier: classification.tier,
+            input: { prompt: body.prompt, payload: body.payload, attachments: body.attachments },
+          });
+
+          if (decision.effect === 'require_approval') {
+            const blockedJob = await updateJobStatus(ctx, job.id, 'blocked');
+            const approval = await createApproval(ctx, {
+              jobId: blockedJob.id,
+              requestedBy: user.userId,
+              reason: decision.reason,
+            });
+            await createAuditEvent(ctx, {
+              actor: user.userId,
+              action: 'approval_requested',
+              tier: classification.tier,
+              payload: { approvalId: approval.id, jobId: blockedJob.id },
+            });
+            return {
+              job: blockedJob,
+              classification,
+              decision,
+              approvalId: approval.id,
+              idempotent: false,
+            };
+          }
+
+          await updateJobStatus(ctx, job.id, 'queued', {
+            checkpoint: { classification },
+          });
+
+          await createAuditEvent(ctx, {
+            actor: user.userId,
+            action: 'classification_decision',
+            tier: classification.tier,
+            payload: classification as unknown as Record<string, unknown>,
+          });
+
+          return { job, classification, decision, approvalId: null, idempotent: false };
         }
+      );
 
-        const classification = classifier.classify({
-          prompt: body.prompt,
-          attachments: body.attachments,
-          retrievedContext: [],
+      if (decision?.effect === 'deny') {
+        return reply.status(403).send({
+          error: {
+            code: 'POLICY_VIOLATION',
+            message: decision.reason || 'Policy denied this action',
+          },
         });
+      }
 
-        const job = await createJob(ctx, {
-          idempotencyKey: body.idempotencyKey,
-          type: body.type,
-          tier: classification.tier,
-          input: { prompt: body.prompt, payload: body.payload, attachments: body.attachments },
+      if (decision?.effect === 'require_approval' && job) {
+        return reply.status(202).send({
+          jobId: job.id,
+          status: job.status,
+          approvalId,
         });
+      }
 
-        await updateJobStatus(ctx, job.id, 'queued', {
-          checkpoint: { classification },
-        });
-
-        await createAuditEvent(ctx, {
-          actor: user.userId,
-          action: 'classification_decision',
-          tier: classification.tier,
-          payload: classification as unknown as Record<string, unknown>,
-        });
-
-        return { job, classification, idempotent: false };
-      });
-
-      if (classification === null) {
+      if (idempotent) {
+        if (!job) {
+          return reply.status(500).send({
+            error: { code: 'INTERNAL_ERROR', message: 'Job not found' },
+          });
+        }
         return reply.status(200).send({ jobId: job.id, status: job.status, idempotent: true });
+      }
+
+      if (!job || !classification) {
+        return reply.status(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'Job not created' },
+        });
       }
 
       const connection = await Connection.connect({ address: temporalHost });
