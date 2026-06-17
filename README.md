@@ -208,7 +208,7 @@ versioned, and auditable.
    Desktop ─────▶  LAPTOP = BRAIN  ◀────── you, from anywhere (Tailscale, zero-trust ACLs)
    (Tier 1, WoL)     ┌──────────────────────────────────────────────────────────────┐
                      │  Mimir brain — governance, memory, orchestration, surfaces    │
-                     │  (Fastify + Temporal + Next.js + Clerk + RBAC)                │
+                     │  (Fastify + Temporal + Next.js + Supertokens + RBAC)          │
                      │  • memory: Postgres authoritative + LibSQL embedded replicas  │
                      │  • orchestration: Temporal workflows                          │
                      │  • classification gateway (T0/T1/T2 routing)                  │
@@ -371,7 +371,7 @@ Matches our proven `ai-video-editor` bar so we don't relearn lessons.
 
 | Layer | Choice | Why |
 |---|---|---|
-| Web | **Next.js 15** · TypeScript · Tailwind · **shadcn/ui** · **Clerk** · PWA | Modern DX, installable on phone, batteries‑included auth |
+| Web | **Next.js 15** · TypeScript · Tailwind · **shadcn/ui** · **Supertokens** · PWA | Modern DX, installable on phone, self‑hosted auth, orgs/teams |
 | API | **Fastify** · **Temporal** · **Drizzle** · Postgres · Redis | Fast, typed; Temporal = durable orchestration; Drizzle = typed SQL + migrations |
 | Workers | **Python** (uv workspace) | Best ecosystem for model/RAG/render work |
 | Shared truth | `@mimir/shared-types` (**Zod**) + `@mimir/contracts` (OpenAPI→client) | One source of truth; no schema drift between web/api |
@@ -415,11 +415,12 @@ cd mimir
 pnpm install                 # JS workspaces
 uv sync                      # Python workers
 cp .env.example .env         # fill in keys (or use the secrets vault)
-docker compose up -d         # Postgres, Redis, Temporal
+docker compose up -d         # Postgres, Redis, Temporal, Supertokens
+pnpm --filter @mimir/api db:migrate  # apply migrations as the mimir_app DB user
 pnpm dev                     # api + web (http://localhost:3000)
 ```
 
-Then open `http://localhost:3000`, sign in, and say hello to your brain.
+Then open `http://localhost:3000`, sign up / sign in (Supertokens self‑hosted), and say hello to your brain.
 
 ---
 

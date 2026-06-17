@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { setTokenVerifier } from '../middleware/auth';
 import { buildTestApp } from '../test-helpers/build-app';
 import { knowledgeRoutes } from './knowledge';
 
@@ -19,12 +18,7 @@ describe('knowledge routes', () => {
   });
 
   it.skipIf(!process.env.RUN_DB_TESTS)('ingests a document and searches by keyword', async () => {
-    const clerkId = `clerk_knowledge_user_${Date.now()}`;
-    setTokenVerifier(async (token: string) => {
-      if (!token) throw new Error('Missing token');
-      return { sub: clerkId };
-    });
-
+    const token = `knowledge_user_${Date.now()}`;
     const app = await buildTestApp(async (app) => {
       await app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
     });
@@ -32,7 +26,7 @@ describe('knowledge routes', () => {
     const ingestResponse = await app.inject({
       method: 'POST',
       url: '/v1/knowledge',
-      headers: { authorization: 'Bearer valid-token' },
+      headers: { authorization: `Bearer ${token}` },
       payload: {
         kind: 'doc',
         uri: 'file:///test.txt',
@@ -50,7 +44,7 @@ describe('knowledge routes', () => {
     const searchResponse = await app.inject({
       method: 'GET',
       url: '/v1/knowledge/search?q=PostgreSQL&limit=5',
-      headers: { authorization: 'Bearer valid-token' },
+      headers: { authorization: `Bearer ${token}` },
     });
 
     expect(searchResponse.statusCode).toBe(200);

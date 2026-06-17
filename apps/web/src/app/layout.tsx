@@ -1,4 +1,4 @@
-import { ClerkProvider } from '@clerk/nextjs';
+import { SupertokensInit } from '@/components/supertokens/SupertokensInit';
 import './globals.css';
 
 export const metadata = {
@@ -6,23 +6,12 @@ export const metadata = {
   description: 'Consult the well.',
 };
 
-const clerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-const isPlaywrightTest = process.env.PLAYWRIGHT_TEST === 'true';
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  if (isPlaywrightTest) {
-    return (
-      <html lang="en">
-        <body>{children}</body>
-      </html>
-    );
-  }
-
   return (
-    <ClerkProvider publishableKey={clerkPublishableKey}>
+    <SupertokensInit>
       <html lang="en">
         <body>{children}</body>
       </html>
-    </ClerkProvider>
+    </SupertokensInit>
   );
 }

@@ -9,6 +9,7 @@ services:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 5s
@@ -55,6 +56,23 @@ services:
     depends_on:
       temporal:
         condition: service_healthy
+
+  supertokens:
+    image: registry.supertokens.io/supertokens/supertokens-postgresql:9.3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRESQL_CONNECTION_URI: postgresql://postgres:postgres@postgres:5432/mimir
+      POSTGRESQL_TABLE_SCHEMA: supertokens
+      API_KEYS: ${SUPERTOKENS_API_KEY:-change-me-in-production}
+    ports:
+      - '3567:3567'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3567/hello']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

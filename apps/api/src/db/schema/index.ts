@@ -1,3 +1,4 @@
+export * from './user';
 export * from './tenancy';
 export * from './auth';
 export * from './nodes';

@@ -1,8 +1,8 @@
 # Mimir End-to-End Tests
 
 These tests simulate real users interacting with the Next.js app and the Fastify
-API. They run against the actual local stack: Postgres, Redis, Temporal, the
-API, the Temporal worker, and the web app.
+API. They run against the actual local stack: Postgres, Redis, Temporal,
+Supertokens, the API, the Temporal worker, and the web app.
 
 ## Run
 
@@ -29,6 +29,9 @@ pnpm test:e2e:ui
 
 ## Test mode
 
-When `PLAYWRIGHT_TEST=true`, the Next.js app bypasses Clerk so tests can behave
-like an already-authenticated user. The API still validates the test bearer
-`test` token, which resolves to a deterministic test tenant.
+When `PLAYWRIGHT_TEST=true`, the Next.js app bypasses Supertokens session checks
+so tests can behave like an already-authenticated user. The API still validates
+the test bearer token, which resolves to a deterministic test tenant.
+
+> Note: the e2e auth helpers will need to be updated to exercise real Supertokens
+> sign-up/sign-in flows once the Clerk bypass is fully removed.

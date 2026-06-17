@@ -12,7 +12,7 @@ export type Tenant = z.infer<typeof Tenant>;
 export const User = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid(),
-  clerkId: z.string(),
+  userAccountId: z.string().uuid(),
   role: UserRole,
   createdAt: z.string().datetime(),
 });
@@ -21,6 +21,7 @@ export type User = z.infer<typeof User>;
 export const Node = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid(),
+  ownerUserAccountId: z.string().uuid().optional(),
   kind: NodeKind,
   name: z.string(),
   tier: z.union([z.literal(0), z.literal(1), z.literal(2)]),

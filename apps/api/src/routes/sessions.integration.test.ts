@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { setTokenVerifier } from '../middleware/auth';
 import { buildTestApp } from '../test-helpers/build-app';
 import { sessionRoutes } from './sessions';
 
@@ -19,11 +18,6 @@ describe('sessions routes', () => {
   });
 
   it.skipIf(!process.env.RUN_DB_TESTS)('returns 201 with a valid bearer token', async () => {
-    setTokenVerifier(async (token: string) => {
-      if (!token) throw new Error('Missing token');
-      return { sub: `clerk_sessions_user_${Date.now()}` };
-    });
-
     const app = await buildTestApp(async (app) => {
       await app.register(sessionRoutes, { prefix: '/v1/sessions' });
     });
@@ -31,7 +25,7 @@ describe('sessions routes', () => {
     const response = await app.inject({
       method: 'POST',
       url: '/v1/sessions',
-      headers: { authorization: 'Bearer valid-token' },
+      headers: { authorization: `Bearer sessions_user_${Date.now()}` },
       payload: { source: 'web' },
     });
 

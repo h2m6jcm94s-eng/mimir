@@ -1,17 +1,14 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { type NextFetchEvent, NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const isProtectedRoute = createRouteMatcher(['/']);
-
-export default function middleware(req: NextRequest, event: NextFetchEvent) {
+export default function middleware(req: NextRequest, _event: NextFetchEvent) {
   if (process.env.PLAYWRIGHT_TEST === 'true') {
     return NextResponse.next();
   }
 
-  return clerkMiddleware((auth, request) => {
-    if (isProtectedRoute(request)) auth().protect();
-  })(req, event);
+  // Supertokens session cookies are verified by the API. This middleware only
+  // handles lightweight routing concerns; heavier checks live server-side.
+  return NextResponse.next();
 }
 
 export const config = {

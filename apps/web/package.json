@@ -12,7 +12,6 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@clerk/nextjs": "^5.0.0",
     "@mimir/contracts": "workspace:*",
     "@mimir/shared-types": "workspace:*",
     "@xyflow/react": "^12.11.0",
@@ -23,6 +22,7 @@
     "react": "^19.0.0-rc",
     "react-dom": "^19.0.0-rc",
     "recharts": "^3.8.1",
+    "supertokens-auth-react": "^0.48.0",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {

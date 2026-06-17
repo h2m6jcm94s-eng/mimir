@@ -116,8 +116,8 @@ const MODEL_TO_PROVIDER = {
 async function pollJob(jobId: string): Promise<string> {
   for (let attempt = 0; attempt < 30; attempt++) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    const res = await fetch(`/api/v1/tasks/${jobId}`, {
-      headers: { Authorization: 'Bearer test' },
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/tasks/${jobId}`, {
+      credentials: 'include',
     });
     if (!res.ok) continue;
     const job = (await res.json()) as {
@@ -174,12 +174,11 @@ export default function ConsolePage() {
 
     try {
       const provider = MODEL_TO_PROVIDER[model];
-      const res = await fetch('/api/v1/tasks', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/tasks`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          // Dev stub token. In production this is the Clerk session JWT.
-          Authorization: 'Bearer test',
         },
         body: JSON.stringify({
           idempotencyKey: `console-${Date.now()}`,

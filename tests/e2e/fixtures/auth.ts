@@ -3,9 +3,10 @@ import type { APIRequestContext, BrowserContext, Page } from '@playwright/test';
 /**
  * Test authentication helpers.
  *
- * The API accepts a bearer token of "test" in local/development environments.
- * The Next.js app bypasses Clerk middleware when PLAYWRIGHT_TEST is true,
- * so web tests can treat the app as already signed in.
+ * The API accepts any bearer token in local/development test environments and
+ * resolves it to a deterministic tenant. The Next.js app bypasses Supertokens
+ * session checks when PLAYWRIGHT_TEST is true, so web tests can treat the app
+ * as already signed in.
  */
 export const TEST_TOKEN = 'test';
 

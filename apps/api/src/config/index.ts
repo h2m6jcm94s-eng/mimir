@@ -1,12 +1,19 @@
 import { ModelProviderConfig } from '@mimir/shared-types';
 import type { ProviderId } from '@mimir/shared-types';
 
+export interface SupertokensConfig {
+  connectionUri: string;
+  apiKey: string;
+}
+
 export interface AppConfig {
   port: number;
   databaseUrl: string;
   redisUrl: string;
   temporalHost: string;
-  clerkSecretKey?: string;
+  supertokens: SupertokensConfig;
+  authDomain: string;
+  webAppDomain: string;
   logLevel: string;
   modelProviders: ModelProviderConfig;
 }
@@ -49,7 +56,12 @@ export function loadConfig(): AppConfig {
     databaseUrl: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/mimir',
     redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
     temporalHost: process.env.TEMPORAL_HOST || 'localhost:7233',
-    clerkSecretKey: process.env.CLERK_SECRET_KEY,
+    supertokens: {
+      connectionUri: process.env.SUPERTOKENS_CONNECTION_URI || 'http://localhost:3567',
+      apiKey: process.env.SUPERTOKENS_API_KEY || '',
+    },
+    authDomain: process.env.AUTH_DOMAIN || 'http://localhost:3001',
+    webAppDomain: process.env.WEB_APP_DOMAIN || 'http://localhost:3000',
     logLevel: process.env.LOG_LEVEL || 'info',
     modelProviders: loadModelProviderConfig(),
   };

@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const DEFAULT_DATABASE_URL = 'postgresql://mimir_app:mimir_app@localhost:5432/mimir';
+
 /**
  * Mimir end-to-end test configuration.
  *
@@ -42,14 +44,17 @@ export default defineConfig({
       timeout: 120_000,
       env: {
         NODE_ENV: 'test',
-        CLERK_SECRET_KEY: '',
         PORT: '3001',
-        DATABASE_URL:
-          process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/mimir',
+        DATABASE_URL: process.env.DATABASE_URL || DEFAULT_DATABASE_URL,
         REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
         TEMPORAL_HOST: process.env.TEMPORAL_HOST || 'localhost:7233',
         TEMPORAL_TASK_QUEUE: process.env.TEMPORAL_TASK_QUEUE || 'mimir-task-queue',
         LOG_LEVEL: 'warn',
+        SUPERTOKENS_CONNECTION_URI:
+          process.env.SUPERTOKENS_CONNECTION_URI || 'http://localhost:3567',
+        SUPERTOKENS_API_KEY: process.env.SUPERTOKENS_API_KEY || 'change-me-in-production',
+        AUTH_DOMAIN: process.env.AUTH_DOMAIN || 'http://localhost:3001',
+        WEB_APP_DOMAIN: process.env.WEB_APP_DOMAIN || 'http://localhost:3000',
         KIMI_API_KEY: process.env.KIMI_API_KEY || '',
         KIMI_BASE_URL: process.env.KIMI_BASE_URL || '',
         MODEL_PROVIDER_T0: process.env.MODEL_PROVIDER_T0 || 'kimi',
@@ -64,13 +69,16 @@ export default defineConfig({
       timeout: 120_000,
       env: {
         NODE_ENV: 'test',
-        CLERK_SECRET_KEY: '',
-        DATABASE_URL:
-          process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/mimir',
+        DATABASE_URL: process.env.DATABASE_URL || DEFAULT_DATABASE_URL,
         TEMPORAL_HOST: process.env.TEMPORAL_HOST || 'localhost:7233',
         TEMPORAL_TASK_QUEUE: process.env.TEMPORAL_TASK_QUEUE || 'mimir-task-queue',
         WORKER_HEALTH_PORT: '3002',
         LOG_LEVEL: 'warn',
+        SUPERTOKENS_CONNECTION_URI:
+          process.env.SUPERTOKENS_CONNECTION_URI || 'http://localhost:3567',
+        SUPERTOKENS_API_KEY: process.env.SUPERTOKENS_API_KEY || 'change-me-in-production',
+        AUTH_DOMAIN: process.env.AUTH_DOMAIN || 'http://localhost:3001',
+        WEB_APP_DOMAIN: process.env.WEB_APP_DOMAIN || 'http://localhost:3000',
         KIMI_API_KEY: process.env.KIMI_API_KEY || '',
         KIMI_BASE_URL: process.env.KIMI_BASE_URL || '',
         MODEL_PROVIDER_T0: process.env.MODEL_PROVIDER_T0 || 'kimi',
@@ -86,7 +94,7 @@ export default defineConfig({
       env: {
         PORT: '3000',
         NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_Y2xlcms',
+        NEXT_PUBLIC_WEB_URL: process.env.NEXT_PUBLIC_WEB_URL || 'http://localhost:3000',
         PLAYWRIGHT_TEST: 'true',
       },
     },

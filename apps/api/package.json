@@ -19,8 +19,8 @@
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
-    "@clerk/backend": "^3.7.1",
     "@fastify/cors": "^9.0.0",
+    "supertokens-node": "^21.1.0",
     "@fastify/env": "^4.3.0",
     "@fastify/redis": "^7.0.0",
     "@fastify/swagger": "^8.15.0",

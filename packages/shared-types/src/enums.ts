@@ -19,5 +19,5 @@ export const JobStatus = z.enum([
 ]);
 export type JobStatus = z.infer<typeof JobStatus>;
 
-export const UserRole = z.enum(['owner', 'admin', 'member', 'viewer']);
+export const UserRole = z.enum(['owner', 'admin', 'manager', 'member', 'viewer']);
 export type UserRole = z.infer<typeof UserRole>;

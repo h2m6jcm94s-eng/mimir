@@ -17,7 +17,6 @@ describe('halt routes', () => {
 
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
-    process.env.CLERK_SECRET_KEY = undefined;
 
     await registerAuth(app);
     await app.register(rateLimit, { max: 10_000, timeWindow: '1 minute' });
@@ -25,9 +24,11 @@ describe('halt routes', () => {
       if (request.url.startsWith('/v1/halt')) {
         request.user = {
           userId: 'user-1',
+          userAccountId: 'user-account-1',
           tenantId: 'tenant-1',
           role: 'owner',
-          clerkId: 'clerk_test',
+          externalId: 'supertokens_test',
+          email: 'supertokens_test@test.local',
         };
       }
     });

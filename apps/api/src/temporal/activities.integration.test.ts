@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeAll } from 'vitest';
+import { db } from '../db/client';
+import * as schema from '../db/schema';
 import { withTenantTransaction } from '../db/tenant-context';
 import { createJob, getJob } from '../repositories/job';
 import { applyPatch, build, review } from './activities';
@@ -17,6 +19,15 @@ async function createTestJob(idempotencyKey: string, type: string, tier: number)
 }
 
 describe('Temporal activities (integration)', () => {
+  beforeAll(async () => {
+    await withTenantTransaction(TEST_TENANT_ID, async (ctx) => {
+      await ctx.tenantScopedDb
+        .insert(schema.tenant)
+        .values({ id: TEST_TENANT_ID, name: 'Test tenant', plan: 'free' })
+        .onConflictDoNothing();
+    });
+  });
+
   it.skipIf(!process.env.RUN_DB_TESTS)(
     'build is idempotent when checkpoint already contains a build result',
     async () => {
@@ -74,35 +85,32 @@ describe('Temporal activities (integration)', () => {
     }
   );
 
-  it.skipIf(!process.env.RUN_DB_TESTS)(
-    'applyPatch updates the checkpoint with a new draft',
-    async () => {
-      const job = await createTestJob(`patch-test-${Date.now()}`, 'revise-once', 0);
+  it.skipIf(!process.env.RUN_DB_TESTS)('applyPatch updates the checkpoint with a new draft', async () => {
+    const job = await createTestJob(`patch-test-${Date.now()}`, 'revise-once', 0);
 
-      const input = {
-        tenantId: TEST_TENANT_ID,
-        userId: TEST_TENANT_ID,
-        jobId: job.id,
-        idempotencyKey: job.idempotencyKey,
-        type: job.type,
-        tier: job.tier,
-        payload: {},
-      };
+    const input = {
+      tenantId: TEST_TENANT_ID,
+      userId: TEST_TENANT_ID,
+      jobId: job.id,
+      idempotencyKey: job.idempotencyKey,
+      type: job.type,
+      tier: job.tier,
+      payload: {},
+    };
 
-      const buildResult = await build(input);
-      const reviewResult = await review(input, buildResult, 0);
-      if (!reviewResult.patch) {
-        throw new Error('Expected a patch for revise-once');
-      }
-
-      const patched = await applyPatch(input, buildResult, reviewResult, 0);
-      expect(patched.artifacts).toMatchObject({ revised: true });
-
-      const afterPatch = await withTenantTransaction(TEST_TENANT_ID, async (ctx) => {
-        return getJob(ctx, job.id);
-      });
-      const patches = (afterPatch?.checkpoint as { patches?: unknown[] }).patches;
-      expect(patches).toHaveLength(1);
+    const buildResult = await build(input);
+    const reviewResult = await review(input, buildResult, 0);
+    if (!reviewResult.patch) {
+      throw new Error('Expected a patch for revise-once');
     }
-  );
+
+    const patched = await applyPatch(input, buildResult, reviewResult, 0);
+    expect(patched.artifacts).toMatchObject({ revised: true });
+
+    const afterPatch = await withTenantTransaction(TEST_TENANT_ID, async (ctx) => {
+      return getJob(ctx, job.id);
+    });
+    const patches = (afterPatch?.checkpoint as { patches?: unknown[] }).patches;
+    expect(patches).toHaveLength(1);
+  });
 });

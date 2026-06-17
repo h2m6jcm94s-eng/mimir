@@ -64,6 +64,20 @@
       "when": 1781610242319,
       "tag": "0008_add_knowledge_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1781657955376,
+      "tag": "0009_supertokens_identity_part1",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781657969032,
+      "tag": "0010_supertokens_identity_part2",
+      "breakpoints": true
     }
   ]
 }

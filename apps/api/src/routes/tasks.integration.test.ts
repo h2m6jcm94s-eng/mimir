@@ -20,7 +20,8 @@ describe('tasks routes', () => {
   });
 
   it.skipIf(!process.env.RUN_DB_TESTS)('lists jobs for the tenant', async () => {
-    const user = await resolveAuthUser('test');
+    const externalId = `tasks_user_${Date.now()}`;
+    const user = await resolveAuthUser(externalId, `${externalId}@test.local`);
     const { job } = await withTenantTransaction(user.tenantId, async (ctx) => {
       const created = await createJob(ctx, {
         idempotencyKey: `tasks-list-test-${Date.now()}`,
@@ -38,7 +39,7 @@ describe('tasks routes', () => {
     const response = await app.inject({
       method: 'GET',
       url: '/v1/tasks?limit=10',
-      headers: { authorization: 'Bearer test' },
+      headers: { authorization: `Bearer ${externalId}` },
     });
 
     expect(response.statusCode).toBe(200);

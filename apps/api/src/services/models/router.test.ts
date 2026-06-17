@@ -12,6 +12,9 @@ function makeConfig(tierOverrides?: Partial<ModelProviderConfigType>): AppConfig
     databaseUrl: '',
     redisUrl: '',
     temporalHost: '',
+    supertokens: { connectionUri: '', apiKey: '' },
+    authDomain: '',
+    webAppDomain: '',
     logLevel: 'info',
     modelProviders: ModelProviderConfig.parse({
       0: [{ provider: 'local' }],

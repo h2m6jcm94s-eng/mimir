@@ -1,5 +1,9 @@
+import cors from '@fastify/cors';
 import Fastify from 'fastify';
 import rateLimit from 'fastify-rate-limit';
+import supertokens from 'supertokens-node';
+import { plugin as supertokensPlugin } from 'supertokens-node/framework/fastify';
+import { initSupertokens } from './auth/supertokens';
 import { loadConfig } from './config';
 import { redis } from './db/redis';
 import { authMiddleware, registerAuth } from './middleware/auth';
@@ -12,6 +16,7 @@ import { sessionRoutes } from './routes/sessions';
 import { taskRoutes } from './routes/tasks';
 import { getTemporalConnection } from './temporal/client';
 
+initSupertokens();
 const config = loadConfig();
 
 const app = Fastify({
@@ -21,6 +26,13 @@ const app = Fastify({
 });
 
 async function main() {
+  await app.register(cors, {
+    origin: config.webAppDomain,
+    allowedHeaders: ['Content-Type', 'Authorization', ...supertokens.getAllCORSHeaders()],
+    credentials: true,
+  });
+
+  await app.register(supertokensPlugin);
   await registerAuth(app);
 
   // Rate limit all routes (in-memory store; Redis store can be wired later).
