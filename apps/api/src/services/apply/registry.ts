@@ -1,3 +1,5 @@
+import type { TenantContext } from '../../db/tenant-context';
+
 export interface ApplyResult {
   applied: boolean;
   reason: string;
@@ -16,10 +18,17 @@ export interface ApplyReview {
 }
 
 export interface ApplyInput {
+  tenantId: string;
+  userId: string;
+  jobId: string;
+  idempotencyKey: string;
   type: string;
+  tier: number;
+  payload: Record<string, unknown>;
 }
 
 export type ApplyHandler = (
+  ctx: TenantContext,
   input: ApplyInput,
   draft: ApplyDraft,
   review: ApplyReview
@@ -38,6 +47,7 @@ export class ApplyRegistry {
   }
 
   async handle(
+    ctx: TenantContext,
     type: string,
     input: ApplyInput,
     draft: ApplyDraft,
@@ -47,11 +57,12 @@ export class ApplyRegistry {
     if (!handler) {
       throw new Error('No default apply handler registered');
     }
-    return handler(input, draft, review);
+    return handler(ctx, input, draft, review);
   }
 }
 
 export function defaultHandler(
+  _ctx: TenantContext,
   _input: ApplyInput,
   draft: ApplyDraft,
   review: ApplyReview
@@ -64,6 +75,7 @@ export function defaultHandler(
 }
 
 export function consoleOutputHandler(
+  _ctx: TenantContext,
   _input: ApplyInput,
   draft: ApplyDraft,
   review: ApplyReview

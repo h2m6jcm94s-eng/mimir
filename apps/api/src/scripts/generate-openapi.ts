@@ -4,6 +4,7 @@ import swagger from '@fastify/swagger';
 import Fastify from 'fastify';
 import { registerAuth } from '../middleware/auth';
 import { auditRoutes } from '../routes/audit';
+import { connectorRoutes } from '../routes/connectors';
 import { healthRoutes } from '../routes/health';
 import { sessionRoutes } from '../routes/sessions';
 import { taskRoutes } from '../routes/tasks';
@@ -36,6 +37,7 @@ async function main() {
   app.register(sessionRoutes, { prefix: '/v1/sessions' });
   app.register(taskRoutes, { prefix: '/v1/tasks' });
   app.register(auditRoutes, { prefix: '/v1/audit' });
+  app.register(connectorRoutes, { prefix: '/v1/connectors' });
 
   await app.ready();
 

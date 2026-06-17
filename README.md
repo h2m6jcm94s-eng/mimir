@@ -449,6 +449,11 @@ GitHub · Mail (Gmail / MS Graph) · Airtable · Contacts · Docs · Screenshots
 an embedded surface inside Mimir). Each connector declares the **privacy tier** its data is treated
 as. Detailed per‑connector specs: `ROADMAP.md` §Connectors.
 
+**Shipped:** **GitHub** (F‑018) is the first connector. It stores a fine‑grained PAT through the
+existing secret resolver, supports read actions (`listRepos`, `getIssue`, `getPullRequest`,
+`ingestFile`), and routes `openPr` through Mimir's review loop so a PR is only opened after
+explicit approval.
+
 ---
 
 ## How Mimir compares

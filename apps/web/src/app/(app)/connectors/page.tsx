@@ -16,7 +16,7 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type ConnectorStatus = 'connected' | 'disconnected' | 'error';
 type Category = 'All' | 'Communication' | 'Dev' | 'Productivity' | 'Design';
@@ -37,8 +37,7 @@ const initialConnectors: Connector[] = [
     name: 'Gmail',
     description: 'Read, draft, and send email on your behalf.',
     category: 'Communication',
-    status: 'connected',
-    lastSync: '2 min ago',
+    status: 'disconnected',
     icon: Mail,
   },
   {
@@ -46,8 +45,7 @@ const initialConnectors: Connector[] = [
     name: 'Slack',
     description: 'Post updates and retrieve channel summaries.',
     category: 'Communication',
-    status: 'connected',
-    lastSync: '15 min ago',
+    status: 'disconnected',
     icon: MessageSquare,
   },
   {
@@ -55,8 +53,7 @@ const initialConnectors: Connector[] = [
     name: 'GitHub',
     description: 'Review PRs, issues, and repository activity.',
     category: 'Dev',
-    status: 'connected',
-    lastSync: '1 hr ago',
+    status: 'disconnected',
     icon: Code,
   },
   {
@@ -72,8 +69,7 @@ const initialConnectors: Connector[] = [
     name: 'Linear',
     description: 'Track issues, cycles, and project updates.',
     category: 'Productivity',
-    status: 'error',
-    lastSync: 'failed 3 hr ago',
+    status: 'disconnected',
     icon: GitBranch,
   },
   {
@@ -104,6 +100,78 @@ export default function ConnectorsPage() {
   const [connectors, setConnectors] = useState<Connector[]>(initialConnectors);
   const [active, setActive] = useState<Category>('All');
   const [query, setQuery] = useState('');
+  const [githubAccount, setGithubAccount] = useState('');
+  const [githubAlias, setGithubAlias] = useState('github');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/v1/connectors', { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('fetch failed'))))
+      .then(
+        (data: { data: Array<{ kind: string; status: ConnectorStatus; lastSync?: string }> }) => {
+          const byKind = new Map(data.data.map((c) => [c.kind, c]));
+          setConnectors((prev) =>
+            prev.map((c) => {
+              const backend = byKind.get(c.id);
+              if (!backend) return c;
+              return { ...c, status: backend.status, lastSync: backend.lastSync ?? 'just now' };
+            })
+          );
+        }
+      )
+      .catch(() => {
+        // Leave mocked disconnected state if the API is unavailable.
+      });
+  }, []);
+
+  async function toggle(id: string) {
+    if (id !== 'github') {
+      setConnectors((prev) =>
+        prev.map((c) => {
+          if (c.id !== id) return c;
+          if (c.status === 'connected') {
+            return { ...c, status: 'disconnected', lastSync: undefined };
+          }
+          return { ...c, status: 'connected', lastSync: 'just now' };
+        })
+      );
+      return;
+    }
+
+    const existing = connectors.find((c) => c.id === 'github');
+    if (existing?.status === 'connected') {
+      setLoading(true);
+      await fetch('/api/v1/connectors/github', { method: 'DELETE', credentials: 'include' });
+      setLoading(false);
+      setConnectors((prev) =>
+        prev.map((c) =>
+          c.id === 'github' ? { ...c, status: 'disconnected', lastSync: undefined } : c
+        )
+      );
+      return;
+    }
+
+    setLoading(true);
+    const res = await fetch('/api/v1/connectors', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        kind: 'github',
+        account: githubAccount || undefined,
+        secretRef: githubAlias,
+        scopes: ['repo'],
+      }),
+    });
+    setLoading(false);
+    if (res.ok) {
+      setConnectors((prev) =>
+        prev.map((c) =>
+          c.id === 'github' ? { ...c, status: 'connected', lastSync: 'just now' } : c
+        )
+      );
+    }
+  }
 
   const filtered = useMemo(() => {
     return connectors.filter((c) => {
@@ -114,18 +182,6 @@ export default function ConnectorsPage() {
       return matchesCategory && matchesQuery;
     });
   }, [connectors, active, query]);
-
-  function toggle(id: string) {
-    setConnectors((prev) =>
-      prev.map((c) => {
-        if (c.id !== id) return c;
-        if (c.status === 'connected') {
-          return { ...c, status: 'disconnected', lastSync: undefined };
-        }
-        return { ...c, status: 'connected', lastSync: 'just now' };
-      })
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -169,6 +225,7 @@ export default function ConnectorsPage() {
         <AnimatePresence mode="popLayout">
           {filtered.map((connector) => {
             const Icon = connector.icon;
+            const isGithub = connector.id === 'github';
             return (
               <motion.div
                 key={connector.id}
@@ -201,6 +258,25 @@ export default function ConnectorsPage() {
                 </h3>
                 <p className="mt-1 text-xs text-[var(--text-secondary)]">{connector.description}</p>
 
+                {isGithub && connector.status !== 'connected' && (
+                  <div className="mt-3 space-y-2">
+                    <input
+                      type="text"
+                      placeholder="GitHub account (optional)"
+                      value={githubAccount}
+                      onChange={(e) => setGithubAccount(e.target.value)}
+                      className="h-8 w-full rounded-md border border-[var(--border-subtle-solid)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Secret alias (env var name)"
+                      value={githubAlias}
+                      onChange={(e) => setGithubAlias(e.target.value)}
+                      className="h-8 w-full rounded-md border border-[var(--border-subtle-solid)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+                    />
+                  </div>
+                )}
+
                 <div className="mt-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
                   {connector.status === 'connected' ? (
                     <>
@@ -224,6 +300,7 @@ export default function ConnectorsPage() {
                   <button
                     type="button"
                     data-testid="connector-toggle"
+                    disabled={loading}
                     onClick={() => toggle(connector.id)}
                     className={cn(
                       'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors',

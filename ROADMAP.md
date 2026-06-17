@@ -1834,17 +1834,17 @@ Airtable base when M6 lands (F‑020).
 | F‑005 | LibSQL embedded‑replica state store | Free | P0 | 🟦 | api | 2026‑08 | M1 |
 | F‑006 | Event bus + Temporal workflows | Free | P0 | ⬜ | api | 2026‑08 | M2 |
 | F‑007 | Durable job queue (kanban‑as‑queue) | Free | P0 | ⬜ | api | 2026‑08 | M2 |
-| F‑008 | Data‑classification gateway (tier routing) | Free | P0 | ⬜ | api | 2026‑09 | M2 |
+| F‑008 | Data‑classification gateway (tier routing) | Free | P0 | ✅ | api | 2026‑09 | M2 |
 | F‑009 | Workhorse→reviewer loop (AST‑diff + JSON‑patch) | Free | P0 | ⬜ | api | 2026‑09 | M2 |
 | F‑010 | Resilience: circuit breakers + idempotent replay | Free | P0 | ⬜ | api | 2026‑09 | M2/M3 |
 | F‑011 | Leader/fencing + read‑only transitions | Free | P1 | ⬜ | api | 2026‑10 | M3 |
 | F‑012 | gVisor sandbox + static‑analysis gate | Free | P0 | ⬜ | infra | 2026‑10/M10 | M3/M10 |
 | F‑013 | Tailscale ACLs + air‑gapped cloud worker | Free | P1 | ⬜ | infra | 2026‑10 | M3/M10 |
 | F‑014 | Secrets vault + ephemeral SSH CA + FDE/SQLCipher | Pro | P0 | ⬜ | infra | 2026‑10 | M3/M10 |
-| F‑015 | RAG knowledge base + screenshots‑as‑references | Free | P0 | ⬜ | api | 2026‑11 | M4 |
-| F‑016 | Graph‑native shared memory + time‑machine | Pro | P1 | ⬜ | api | 2026‑11 | M4 |
+| F‑015 | RAG knowledge base + screenshots‑as‑references | Free | P0 | ✅ | api | 2026‑11 | M4 |
+| F‑016 | Graph‑native shared memory + time‑machine | Pro | P1 | ✅ | api | 2026‑11 | M4 |
 | F‑017 | Governance‑as‑code (OPA) + immutable audit | Pro | P0 | ⬜ | api | 2026‑11 | M5 |
-| F‑018 | Connector: GitHub | Free | P0 | ⬜ | api | 2026‑12 | M6 |
+| F‑018 | Connector: GitHub | Free | P0 | ✅ | api | 2026‑12 | M6 |
 | F‑019 | Connector: Mail (Gmail / MS Graph) | Pro | P1 | ⬜ | api | 2026‑12 | M6 |
 | F‑020 | Connectors: Airtable, Contacts, Docs | Pro | P1 | ⬜ | api | 2027‑01 | M6 |
 | F‑021 | Chat surfaces: Telegram, Discord, Slack | Free | P1 | ⬜ | gateway | 2027‑01 | M6 |

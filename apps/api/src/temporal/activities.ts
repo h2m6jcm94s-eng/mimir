@@ -12,6 +12,7 @@ import { hashObject } from '../services/diff/ast-diff';
 import { ModelRouter } from '../services/models/router';
 import { applyPatch as applyJsonPatch } from '../services/patch/json-patch';
 import { ApplyRegistry } from '../services/apply/registry';
+import { githubOpenPrHandler } from '../services/connectors/github/apply';
 import { ReviewerRouter } from '../services/reviewers/router';
 import { scrubForTier } from '../services/scrubber/scrubber';
 import { throwIfHalted } from '../services/halt/state';
@@ -219,6 +220,7 @@ export async function applyPatch(
 }
 
 const applyRegistry = new ApplyRegistry();
+applyRegistry.register('github.openPr', githubOpenPrHandler);
 
 export async function apply(
   input: TaskRunInput,
@@ -238,7 +240,7 @@ export async function apply(
       checkpoint: { ...existing, step: 'apply', startedAt: new Date().toISOString() },
     });
 
-    const result = await applyRegistry.handle(input.type, input, finalDraft, reviewResult);
+    const result = await applyRegistry.handle(ctx, input.type, input, finalDraft, reviewResult);
 
     await updateJobStatus(ctx, input.jobId, result.applied ? 'done' : 'failed', {
       result: result.output,

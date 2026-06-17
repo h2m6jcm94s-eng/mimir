@@ -1,0 +1,138 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { withTenantTransaction } from '../db/tenant-context';
+import { resolveAuthUser } from '../middleware/auth';
+import { listAuditEvents } from '../repositories/audit';
+import { buildTestApp } from '../test-helpers/build-app';
+import { connectorRoutes } from './connectors';
+
+describe('connectors routes', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('returns 401 without an authorization header', async () => {
+    const app = await buildTestApp(async (app) => {
+      await app.register(connectorRoutes, { prefix: '/v1/connectors' });
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/connectors',
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it.skipIf(!process.env.RUN_DB_TESTS)(
+    'connects a GitHub connector and runs read actions',
+    async () => {
+      const token = `connector_user_${Date.now()}`;
+      const app = await buildTestApp(async (app) => {
+        await app.register(connectorRoutes, { prefix: '/v1/connectors' });
+      });
+
+      const user = await resolveAuthUser(token, `${token}@test.local`);
+      process.env[`MIMIR_SECRET_GITHUB_${user.tenantId}`] = 'test-token';
+
+      const connectResponse = await app.inject({
+        method: 'POST',
+        url: '/v1/connectors',
+        headers: { authorization: `Bearer ${token}` },
+        payload: {
+          kind: 'github',
+          account: 'acme',
+          secretRef: 'github',
+          scopes: ['repo'],
+          tier: 1,
+        },
+      });
+      expect(connectResponse.statusCode).toBe(201);
+      const connector = JSON.parse(connectResponse.body);
+      expect(connector.kind).toBe('github');
+      expect(connector.tier).toBe(1);
+
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => [{ id: 1, full_name: 'acme/repo' }],
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const actionResponse = await app.inject({
+        method: 'POST',
+        url: '/v1/connectors/github/actions/listRepos',
+        headers: { authorization: `Bearer ${token}` },
+        payload: { tier: 1, input: { perPage: 10 } },
+      });
+      expect(actionResponse.statusCode).toBe(200);
+      const actionBody = JSON.parse(actionResponse.body);
+      expect(actionBody.success).toBe(true);
+      expect(actionBody.result.repos).toEqual([{ id: 1, full_name: 'acme/repo' }]);
+
+      const violationResponse = await app.inject({
+        method: 'POST',
+        url: '/v1/connectors/github/actions/listRepos',
+        headers: { authorization: `Bearer ${token}` },
+        payload: { tier: 0, input: {} },
+      });
+      expect(violationResponse.statusCode).toBe(500);
+
+      const audit = await withTenantTransaction(user.tenantId, async (ctx) => {
+        return listAuditEvents(ctx, { limit: 10 });
+      });
+      const connectorAction = audit.data.find((e) => e.action === 'connector_action');
+      expect(connectorAction).toBeDefined();
+      expect(connectorAction?.tier).toBe(1);
+
+      const deleteResponse = await app.inject({
+        method: 'DELETE',
+        url: '/v1/connectors/github',
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(deleteResponse.statusCode).toBe(204);
+    }
+  );
+
+  it.skipIf(!process.env.RUN_DB_TESTS)('queues an openPr job', async () => {
+    const token = `connector_openpr_${Date.now()}`;
+    const app = await buildTestApp(async (app) => {
+      await app.register(connectorRoutes, { prefix: '/v1/connectors' });
+    });
+
+    const user = await resolveAuthUser(token, `${token}@test.local`);
+    process.env[`MIMIR_SECRET_GITHUB_${user.tenantId}`] = 'test-token';
+
+    await app.inject({
+      method: 'POST',
+      url: '/v1/connectors',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        kind: 'github',
+        secretRef: 'github',
+        scopes: ['repo'],
+        tier: 1,
+      },
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/connectors/github/actions/openPr',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        tier: 1,
+        input: {
+          owner: 'acme',
+          repo: 'app',
+          title: 'Fix bug',
+          body: 'Details',
+          head: 'feature',
+          base: 'main',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = JSON.parse(response.body);
+    expect(body.jobId).toBeDefined();
+    expect(body.workflowId).toBeDefined();
+  });
+});

@@ -8,6 +8,7 @@ import { loadConfig } from './config';
 import { redis } from './db/redis';
 import { authMiddleware, registerAuth } from './middleware/auth';
 import { auditRoutes } from './routes/audit';
+import { connectorRoutes } from './routes/connectors';
 import { haltRoutes } from './routes/halt';
 import { healthRoutes } from './routes/health';
 import { knowledgeRoutes } from './routes/knowledge';
@@ -56,6 +57,7 @@ async function main() {
   app.register(taskRoutes, { prefix: '/v1/tasks' });
   app.register(nodeRoutes, { prefix: '/v1/nodes' });
   app.register(auditRoutes, { prefix: '/v1/audit' });
+  app.register(connectorRoutes, { prefix: '/v1/connectors' });
   app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
   app.register(knowledgeShareRoutes, { prefix: '/v1/knowledge/shares' });
   app.register(haltRoutes, { prefix: '/v1/halt' });
