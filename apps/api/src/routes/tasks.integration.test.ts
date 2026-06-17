@@ -1,9 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { withTenantTransaction } from '../db/tenant-context';
 import { resolveAuthUser } from '../middleware/auth';
 import { createJob, updateJobStatus } from '../repositories/job';
 import { buildTestApp } from '../test-helpers/build-app';
 import { taskRoutes } from './tasks';
+
+vi.mock('../temporal/client', () => ({
+  startTaskWorkflow: vi.fn().mockResolvedValue({ workflowId: 'wf-test', runId: 'run-test' }),
+  terminateWorkflow: vi.fn().mockResolvedValue(undefined),
+}));
 
 describe('tasks routes', () => {
   it('returns 401 without an authorization header', async () => {
@@ -60,12 +65,6 @@ describe('tasks routes', () => {
         input: { prompt: 'running' },
       });
       await updateJobStatus(ctx, running.id, 'running');
-      const queued = await createJob(ctx, {
-        idempotencyKey: `tasks-filter-queued-${Date.now()}`,
-        type: 'other-task',
-        tier: 1,
-        input: { prompt: 'queued' },
-      });
       return { runningJob: running };
     });
 
@@ -157,5 +156,76 @@ describe('tasks routes', () => {
     });
 
     expect(invalidResponse.statusCode).toBe(409);
+  });
+
+  it.skipIf(!process.env.RUN_DB_TESTS)('cancels a queued job', async () => {
+    const externalId = `tasks_cancel_${Date.now()}`;
+    const user = await resolveAuthUser(externalId, `${externalId}@test.local`);
+    const { job } = await withTenantTransaction(user.tenantId, async (ctx) => {
+      const created = await createJob(ctx, {
+        idempotencyKey: `tasks-cancel-${Date.now()}`,
+        type: 'cancel-task',
+        tier: 1,
+        input: { prompt: 'cancel me' },
+      });
+      return { job: created };
+    });
+
+    const app = await buildTestApp(async (app) => {
+      await app.register(taskRoutes, { prefix: '/v1/tasks' });
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/v1/tasks/${job.id}/cancel`,
+      headers: { authorization: `Bearer ${externalId}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.status).toBe('failed');
+    expect(body.errorCode).toBe('cancelled');
+  });
+
+  it.skipIf(!process.env.RUN_DB_TESTS)('retries a failed job', async () => {
+    const externalId = `tasks_retry_${Date.now()}`;
+    const user = await resolveAuthUser(externalId, `${externalId}@test.local`);
+    const { job } = await withTenantTransaction(user.tenantId, async (ctx) => {
+      const created = await createJob(ctx, {
+        idempotencyKey: `tasks-retry-${Date.now()}`,
+        type: 'retry-task',
+        tier: 1,
+        input: { prompt: 'retry me' },
+      });
+      await updateJobStatus(ctx, created.id, 'failed', {
+        retryCount: 1,
+        errorCode: 'test_error',
+        errorMessage: 'test failure',
+      });
+      return { job: created };
+    });
+
+    const app = await buildTestApp(async (app) => {
+      await app.register(taskRoutes, { prefix: '/v1/tasks' });
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/v1/tasks/${job.id}/retry`,
+      headers: { authorization: `Bearer ${externalId}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.status).toBe('queued');
+
+    const refreshed = await app.inject({
+      method: 'GET',
+      url: `/v1/tasks/${job.id}`,
+      headers: { authorization: `Bearer ${externalId}` },
+    });
+    const refreshedBody = JSON.parse(refreshed.body);
+    expect(refreshedBody.retryCount).toBe(2);
+    expect(refreshedBody.errorCode).toBeNull();
   });
 });

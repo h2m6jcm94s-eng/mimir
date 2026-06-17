@@ -37,6 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - F-061 ceo/operator dashboard: `GET /v1/reports/ceo` aggregates task health (status counts + recent failures), burn (daily spend vs budget), risk (halt state + failure counts), and decisions (pending approvals); integration test.
 - Wire agent roles into Temporal `build` activity: a task payload can now include `role` (e.g. `coder`, `researcher`, `memory`) and the activity resolves it via `AgentRoleRegistry` before calling the model router, making sub-agent delegation model-agnostic.
 - F-007 durable job queue foundation: `job` table extended with `priority`, `retry_count`, `max_retries`, `started_at`, `finished_at`, `error_code`, `error_message`; added `idx_job_tenant_status`; `GET /v1/tasks` now supports `status` and `type` filters; added `GET /v1/tasks/counts` and `PATCH /v1/tasks/:id/status` with transition validation and audit logging.
+- F-007 cancel/retry: `POST /v1/tasks/:id/cancel` terminates the running Temporal workflow and marks the job `failed` with `error_code: cancelled`; `POST /v1/tasks/:id/retry` re-queues a failed/needs-attention job and restarts its workflow while enforcing `max_retries`; workflow/run IDs are persisted on the job row.
 
 ### Fixed
 

@@ -132,6 +132,20 @@ export async function getJob(ctx: TenantContext, jobId: string) {
   return found;
 }
 
+export async function setJobWorkflowIds(
+  ctx: TenantContext,
+  jobId: string,
+  workflowId: string,
+  runId: string
+) {
+  const [updated] = await ctx.tenantScopedDb
+    .update(schema.job)
+    .set({ workflowId, runId, updatedAt: new Date() })
+    .where(eq(schema.job.id, jobId))
+    .returning();
+  return updated;
+}
+
 export async function countJobsByStatus(
   ctx: TenantContext
 ): Promise<Record<(typeof schema.job.$inferSelect)['status'], number>> {

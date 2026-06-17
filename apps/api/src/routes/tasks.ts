@@ -6,7 +6,6 @@ import {
   TaskListQuery,
   UpdateJobStatusRequest,
 } from '@mimir/shared-types';
-import { Client, Connection } from '@temporalio/client';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { withTenantTransaction } from '../db/tenant-context';
@@ -20,11 +19,13 @@ import {
   findJobByIdempotency,
   getJob,
   listJobs,
+  setJobWorkflowIds,
   updateJobStatus,
 } from '../repositories/job';
 import { ClassificationGateway } from '../services/classification/gateway';
 import { BudgetExceededError, BudgetService, BudgetThrottledError } from '../services/cost/budget';
 import { evaluateTenantPolicy } from '../services/governance/engine';
+import { startTaskWorkflow, terminateWorkflow } from '../temporal/client';
 
 const attachmentSchema = z.object({
   name: z.string().min(1),
@@ -63,8 +64,8 @@ function isValidManualTransition(from: string, to: string): boolean {
 const classifier = new ClassificationGateway();
 const budgetService = new BudgetService();
 
-const temporalHost = process.env.TEMPORAL_HOST || 'localhost:7233';
-const taskQueue = process.env.TEMPORAL_TASK_QUEUE || 'mimir-task-queue';
+const cancellableStatuses = new Set<string>(['queued', 'running']);
+const retriableStatuses = new Set<string>(['failed', 'needs_attention']);
 
 export async function taskRoutes(app: FastifyInstance) {
   app.post(
@@ -222,38 +223,32 @@ export async function taskRoutes(app: FastifyInstance) {
         });
       }
 
-      const connection = await Connection.connect({ address: temporalHost });
-      const client = new Client({ connection });
-      const workflowId = `task-${job.id}`;
+      const { workflowId, runId } = await startTaskWorkflow({
+        tenantId: user.tenantId,
+        userId: user.userId,
+        jobId: job.id,
+        idempotencyKey: body.idempotencyKey,
+        type: body.type,
+        tier: classification.tier,
+        payload: {
+          prompt: body.prompt,
+          ...(body.provider && { provider: body.provider }),
+          ...(body.model && { model: body.model }),
+          ...(body.role && { role: body.role }),
+          ...(body.maxTokens !== undefined && { maxTokens: body.maxTokens }),
+          ...(body.maxCostUsd !== undefined && { maxCostUsd: body.maxCostUsd }),
+          ...body.payload,
+        },
+      });
 
-      const handle = await client.workflow.start('taskRunWorkflow', {
-        taskQueue,
-        workflowId,
-        args: [
-          {
-            tenantId: user.tenantId,
-            userId: user.userId,
-            jobId: job.id,
-            idempotencyKey: body.idempotencyKey,
-            type: body.type,
-            tier: classification.tier,
-            payload: {
-              prompt: body.prompt,
-              ...(body.provider && { provider: body.provider }),
-              ...(body.model && { model: body.model }),
-              ...(body.role && { role: body.role }),
-              ...(body.maxTokens !== undefined && { maxTokens: body.maxTokens }),
-              ...(body.maxCostUsd !== undefined && { maxCostUsd: body.maxCostUsd }),
-              ...body.payload,
-            },
-          },
-        ],
+      await withTenantTransaction(user.tenantId, async (ctx) => {
+        await setJobWorkflowIds(ctx, job.id, workflowId, runId);
       });
 
       return reply.status(201).send({
         jobId: job.id,
-        workflowId: handle.workflowId,
-        runId: handle.firstExecutionRunId,
+        workflowId,
+        runId,
         status: job.status,
       });
     }
@@ -357,6 +352,139 @@ export async function taskRoutes(app: FastifyInstance) {
       }
 
       return reply.send(result.updated);
+    }
+  );
+
+  app.post<{ Params: { jobId: string } }>(
+    '/:jobId/cancel',
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.JOBS_WRITE) },
+    async (request, reply) => {
+      const user = request.user;
+      if (!user)
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+
+      const { jobId } = request.params;
+
+      const result = await withTenantTransaction(user.tenantId, async (ctx) => {
+        const job = await getJob(ctx, jobId);
+        if (!job) return { notFound: true };
+
+        if (!cancellableStatuses.has(job.status)) {
+          return { notCancellable: true, status: job.status };
+        }
+
+        if (job.workflowId) {
+          await terminateWorkflow(job.workflowId);
+        }
+
+        const updated = await updateJobStatus(ctx, jobId, 'failed', {
+          errorCode: 'cancelled',
+          errorMessage: 'Cancelled by user',
+        });
+
+        await createAuditEvent(ctx, {
+          actor: user.userId,
+          action: 'job_cancelled',
+          tier: updated.tier,
+          payload: {
+            jobId: updated.id,
+            previousStatus: job.status,
+            workflowId: job.workflowId ?? null,
+          } as unknown as Record<string, unknown>,
+        });
+
+        return { updated };
+      });
+
+      if ('notFound' in result) {
+        return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Job not found' } });
+      }
+      if ('notCancellable' in result) {
+        return reply.status(409).send({
+          error: {
+            code: 'NOT_CANCELLABLE',
+            message: `Job is ${result.status} and cannot be cancelled`,
+          },
+        });
+      }
+
+      return reply.send(result.updated);
+    }
+  );
+
+  app.post<{ Params: { jobId: string } }>(
+    '/:jobId/retry',
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.JOBS_WRITE) },
+    async (request, reply) => {
+      const user = request.user;
+      if (!user)
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+
+      const { jobId } = request.params;
+
+      const result = await withTenantTransaction(user.tenantId, async (ctx) => {
+        const job = await getJob(ctx, jobId);
+        if (!job) return { notFound: true };
+
+        if (!retriableStatuses.has(job.status)) {
+          return { notRetriable: true, status: job.status };
+        }
+
+        if (job.retryCount >= job.maxRetries) {
+          return { retriesExhausted: true, retryCount: job.retryCount };
+        }
+
+        const updated = await updateJobStatus(ctx, jobId, 'queued', {
+          retryCount: job.retryCount + 1,
+          finishedAt: null,
+          errorCode: null,
+          errorMessage: null,
+        });
+
+        return { updated, input: job.input };
+      });
+
+      if ('notFound' in result) {
+        return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Job not found' } });
+      }
+      if ('notRetriable' in result) {
+        return reply.status(409).send({
+          error: {
+            code: 'NOT_RETRIABLE',
+            message: `Job is ${result.status} and cannot be retried`,
+          },
+        });
+      }
+      if ('retriesExhausted' in result) {
+        return reply.status(409).send({
+          error: {
+            code: 'RETRIES_EXHAUSTED',
+            message: `Maximum retry count (${result.retryCount}) reached`,
+          },
+        });
+      }
+
+      const input = result.input as Record<string, unknown> | undefined;
+      const { workflowId, runId } = await startTaskWorkflow({
+        tenantId: user.tenantId,
+        userId: user.userId,
+        jobId: result.updated.id,
+        idempotencyKey: result.updated.idempotencyKey,
+        type: result.updated.type,
+        tier: result.updated.tier,
+        payload: (input ?? {}) as Record<string, unknown>,
+      });
+
+      await withTenantTransaction(user.tenantId, async (ctx) => {
+        await setJobWorkflowIds(ctx, result.updated.id, workflowId, runId);
+      });
+
+      return reply.send({
+        jobId: result.updated.id,
+        workflowId,
+        runId,
+        status: result.updated.status,
+      });
     }
   );
 
