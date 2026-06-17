@@ -11,6 +11,7 @@ import { auditRoutes } from './routes/audit';
 import { haltRoutes } from './routes/halt';
 import { healthRoutes } from './routes/health';
 import { knowledgeRoutes } from './routes/knowledge';
+import { knowledgeShareRoutes } from './routes/knowledge-shares';
 import { nodeRoutes } from './routes/nodes';
 import { sessionRoutes } from './routes/sessions';
 import { taskRoutes } from './routes/tasks';
@@ -56,6 +57,7 @@ async function main() {
   app.register(nodeRoutes, { prefix: '/v1/nodes' });
   app.register(auditRoutes, { prefix: '/v1/audit' });
   app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
+  app.register(knowledgeShareRoutes, { prefix: '/v1/knowledge/shares' });
   app.register(haltRoutes, { prefix: '/v1/halt' });
 
   app.setErrorHandler((error, _request, reply) => {

@@ -1,9 +1,11 @@
+import { SearchKnowledgeWithSharesQuery } from '@mimir/shared-types';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { withTenantTransaction } from '../db/tenant-context';
 import { Scopes, requireScope } from '../middleware/rbac';
 import { protectedRouteConfig } from '../middleware/route-config';
 import { searchKnowledge } from '../repositories/knowledge';
+import { searchKnowledgeWithShares } from '../repositories/knowledge-share';
 import { ingestDocument } from '../services/knowledge/ingest';
 
 const ingestSchema = z.object({
@@ -14,10 +16,7 @@ const ingestSchema = z.object({
   meta: z.record(z.unknown()).optional(),
 });
 
-const searchSchema = z.object({
-  q: z.string().min(1),
-  limit: z.coerce.number().int().min(1).max(100).optional(),
-});
+const searchSchema = SearchKnowledgeWithSharesQuery;
 
 export async function knowledgeRoutes(app: FastifyInstance) {
   app.post(
@@ -55,6 +54,13 @@ export async function knowledgeRoutes(app: FastifyInstance) {
 
       const query = searchSchema.parse(request.query);
       const result = await withTenantTransaction(user.tenantId, async (ctx) => {
+        if (query.includeShared) {
+          return searchKnowledgeWithShares(ctx, {
+            query: query.q,
+            limit: query.limit,
+            tier: query.tier,
+          });
+        }
         return searchKnowledge(ctx, { query: query.q, limit: query.limit });
       });
 

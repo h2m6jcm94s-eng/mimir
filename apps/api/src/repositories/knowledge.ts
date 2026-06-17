@@ -74,6 +74,32 @@ export async function createEmbeddings(
   return rows;
 }
 
+export async function getKnowledgeItemById(
+  ctx: TenantContext,
+  id: string
+): Promise<typeof schema.knowledgeItem.$inferSelect | undefined> {
+  const [row] = await ctx.tenantScopedDb
+    .select()
+    .from(schema.knowledgeItem)
+    .where(and(eq(schema.knowledgeItem.id, id), eq(schema.knowledgeItem.tenantId, ctx.tenantId)));
+  return row;
+}
+
+export async function getEmbeddingsByKnowledgeItemId(
+  ctx: TenantContext,
+  knowledgeItemId: string
+): Promise<(typeof schema.embedding.$inferSelect)[]> {
+  return ctx.tenantScopedDb
+    .select()
+    .from(schema.embedding)
+    .where(
+      and(
+        eq(schema.embedding.knowledgeItemId, knowledgeItemId),
+        eq(schema.embedding.tenantId, ctx.tenantId)
+      )
+    );
+}
+
 export async function searchKnowledge(
   ctx: TenantContext,
   input: SearchKnowledgeInput

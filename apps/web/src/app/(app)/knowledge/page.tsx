@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { TierBadge } from '@/components/ui/TierBadge';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FileText, Image, Plus, Search, Upload, X } from 'lucide-react';
+import { FileText, Image, Plus, Search, Share2, Upload, X } from 'lucide-react';
 import { useState } from 'react';
 
 type KnowledgeKind = 'document' | 'screenshot';
@@ -196,10 +196,145 @@ function Lightbox({ item, onClose }: { item: KnowledgeItem | null; onClose: () =
   );
 }
 
+function RequestShareDialog({ onClose }: { onClose: () => void }) {
+  const [providerTenantId, setProviderTenantId] = useState('');
+  const [knowledgeItemId, setKnowledgeItemId] = useState('');
+  const [scope, setScope] = useState<'search' | 'read'>('search');
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/v1/knowledge/shares', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerTenantId, knowledgeItemId, scope }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error?.message || `HTTP ${res.status}`);
+      }
+      setMessage('Share request sent.');
+      setProviderTenantId('');
+      setKnowledgeItemId('');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Request failed');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <dialog
+      open
+      className="fixed inset-0 z-[100] m-0 flex h-screen w-screen items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+      onClick={onClose}
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-2xl bg-[var(--bg-surface)] p-5 shadow-xl"
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-[var(--text-primary)]">Request share</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded p-1 text-[var(--text-muted)] hover:bg-[var(--bg-surface-raised)]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">
+          Ask another mesh for access to a knowledge item.
+        </p>
+
+        <form onSubmit={submit} className="mt-4 space-y-3">
+          <div>
+            <label
+              htmlFor="providerTenantId"
+              className="block text-xs font-medium text-[var(--text-secondary)]"
+            >
+              Provider tenant ID
+            </label>
+            <input
+              id="providerTenantId"
+              required
+              value={providerTenantId}
+              onChange={(e) => setProviderTenantId(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-input)] px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)]"
+              placeholder="00000000-0000-0000-0000-000000000000"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="knowledgeItemId"
+              className="block text-xs font-medium text-[var(--text-secondary)]"
+            >
+              Knowledge item ID
+            </label>
+            <input
+              id="knowledgeItemId"
+              required
+              value={knowledgeItemId}
+              onChange={(e) => setKnowledgeItemId(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-input)] px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)]"
+              placeholder="00000000-0000-0000-0000-000000000000"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="scope"
+              className="block text-xs font-medium text-[var(--text-secondary)]"
+            >
+              Scope
+            </label>
+            <select
+              id="scope"
+              value={scope}
+              onChange={(e) => setScope(e.target.value as 'search' | 'read')}
+              className="mt-1 w-full rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-input)] px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)]"
+            >
+              <option value="search">Search only</option>
+              <option value="read">Read</option>
+            </select>
+          </div>
+
+          {message && (
+            <p
+              className={cn(
+                'text-xs',
+                message.startsWith('Share request') ? 'text-emerald-600' : 'text-rose-600'
+              )}
+            >
+              {message}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full rounded-lg bg-[var(--accent-primary)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--accent-primary)]/90 disabled:opacity-50"
+          >
+            {submitting ? 'Sending…' : 'Send request'}
+          </button>
+        </form>
+      </div>
+    </dialog>
+  );
+}
+
 export default function KnowledgePage() {
   const [active, setActive] = useState('all');
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<KnowledgeItem | null>(null);
+  const [requestShareOpen, setRequestShareOpen] = useState(false);
 
   const filtered = items
     .filter((i) => active === 'all' || i.kind === active)
@@ -216,16 +351,29 @@ export default function KnowledgePage() {
         title="Knowledge"
         description="Documents and screenshots that ground Mimir’s answers."
       >
-        <button
-          type="button"
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
-            'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90'
-          )}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Ingest
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setRequestShareOpen(true)}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
+              'bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-raised)]'
+            )}
+          >
+            <Share2 className="h-3.5 w-3.5" />
+            Request share
+          </button>
+          <button
+            type="button"
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
+              'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90'
+            )}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Ingest
+          </button>
+        </div>
       </PageHeader>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -283,6 +431,8 @@ export default function KnowledgePage() {
       <AnimatePresence>
         {selected && <Lightbox item={selected} onClose={() => setSelected(null)} />}
       </AnimatePresence>
+
+      {requestShareOpen && <RequestShareDialog onClose={() => setRequestShareOpen(false)} />}
     </div>
   );
 }

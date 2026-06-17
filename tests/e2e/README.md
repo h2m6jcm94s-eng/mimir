@@ -25,7 +25,7 @@ pnpm test:e2e:ui
   tenant before the first test.
 - `fixtures/` — custom `test` fixture with `apiRequest` rooted at the API base
   URL and auth helpers.
-- `specs/` — one spec per feature, written from a user's perspective.
+- `specs/` — one spec per feature, written from a user's perspective. Cross-mesh knowledge sharing is covered by API integration tests at `apps/api/src/routes/knowledge-shares.integration.test.ts`; end-to-end UI specs for the request/approve flow are planned.
 
 ## Test mode
 

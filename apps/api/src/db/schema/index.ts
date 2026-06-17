@@ -6,3 +6,4 @@ export * from './sessions';
 export * from './jobs';
 export * from './audit';
 export * from './knowledge';
+export * from './knowledge-share';

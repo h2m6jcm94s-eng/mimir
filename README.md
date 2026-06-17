@@ -180,6 +180,7 @@ Mimir: Tenant-prefixed keys — `tenant:{id}:{resource}` — decided in ADR-0007
 | **Routine** | A scheduled or triggered agent job. |
 | **Connector** | An integration (GitHub, mail, Airtable, chat apps, …) with its own auth + privacy tier. |
 | **Time‑machine** | Branch/rewind/restore of the memory to any past checkpoint. |
+| **Knowledge share** | Admin‑approved cross‑tenant exchange of RAG knowledge; preserves privacy tier and stays hash‑chain audited. |
 | **Fencing epoch** | Monotonic token that guarantees only one valid writer during failover (no split‑brain). |
 
 ---
@@ -216,6 +217,7 @@ versioned, and auditable.
                      │  • policy-as-code + immutable hash-chain audit                │
                      │  • cost governance + budget throttle                          │
                      │  • RBAC, multi-tenancy, sessions, approvals                   │
+                     │  • cross-mesh knowledge sharing with admin approval           │
                      └────────────────────────┬─────────────────────────────────────┘
                                               │ internal RPC
                                               ▼
@@ -331,6 +333,7 @@ Deep architecture: `ROADMAP.md` §3, §5.1, §6–§14.
 | **Approvals** | Humane tap‑to‑approve for risky actions: blast‑radius preview, tiered timeouts, PIN/biometric. |
 | **Reports** | Browse + **full‑text and semantic search**; 4‑channel delivery (toast / chat / web / email). |
 | **Knowledge / Docs** | Ingest docs & codebases for RAG; **screenshots‑as‑references** gallery for "look at my screen." |
+| **Knowledge sharing** | Request, approve, and revoke cross‑tenant knowledge shares; copied on approval, tier‑preserving, unified search. |
 | **Memory** | **Time‑machine** (branch/rewind) + an interactive **graph‑memory** viewer. |
 | **Governance / Audit** | Policy‑as‑code editor + a tamper‑evident **hash‑chain audit log** with temporal replay. |
 | **Cost / Budget** | Live burn‑rate, budgets, auto‑throttle; per‑task pre‑flight cost estimate. |
@@ -435,6 +438,7 @@ Everything is dual‑surface. Examples:
 | Approve a risky action | reply *"approve 7‑A4F"* in chat | Approvals → tap **Approve** (PIN) |
 | Check spend | *"What did I spend today?"* | Cost widget (always visible) |
 | Rewind memory | *"What did I know last Tuesday?"* | Memory → Time‑machine → pick checkpoint |
+| Share knowledge across meshes | *"Ask Finance to share the expense policy with Sales."* | Knowledge → Shared → request / approve / revoke |
 
 ---
 

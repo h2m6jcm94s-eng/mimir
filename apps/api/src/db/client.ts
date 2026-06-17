@@ -3,7 +3,7 @@ import postgres from 'postgres';
 import * as schema from './schema';
 
 const queryClient = postgres(
-  process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/mimir'
+  process.env.DATABASE_URL || 'postgresql://mimir_app:mimir_app@localhost:5432/mimir'
 );
 
 export const db = drizzle(queryClient, { schema, logger: process.env.NODE_ENV === 'development' });

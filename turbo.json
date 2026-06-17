@@ -18,7 +18,8 @@
       "outputs": ["*.tsbuildinfo"]
     },
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "env": ["RUN_DB_TESTS", "DATABASE_URL"]
     }
   }
 }

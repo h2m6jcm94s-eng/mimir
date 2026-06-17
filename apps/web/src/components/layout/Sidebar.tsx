@@ -15,6 +15,7 @@ import {
   Puzzle,
   Scale,
   Settings,
+  Share2,
   ShieldCheck,
   Wand2,
 } from 'lucide-react';
@@ -37,6 +38,7 @@ const pa = [{ href: '/briefings', label: 'Briefings', icon: Newspaper }];
 
 const secondary = [
   { href: '/knowledge', label: 'Knowledge', icon: Library },
+  { href: '/knowledge/requests', label: 'Shared', icon: Share2 },
   { href: '/memory', label: 'Memory', icon: BrainCircuit },
   { href: '/governance', label: 'Governance', icon: Scale },
   { href: '/cost', label: 'Cost', icon: CreditCard },

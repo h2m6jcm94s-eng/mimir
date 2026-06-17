@@ -24,7 +24,7 @@ describe('nodes routes', () => {
     const response = await app.inject({
       method: 'GET',
       url: '/v1/nodes',
-      headers: { authorization: 'Bearer test' },
+      headers: { authorization: `Bearer nodes_test_${Date.now()}` },
     });
 
     expect(response.statusCode).toBe(200);

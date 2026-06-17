@@ -53,7 +53,8 @@ function loadModelProviderConfig(): ModelProviderConfig {
 export function loadConfig(): AppConfig {
   return {
     port: Number(process.env.PORT) || 3001,
-    databaseUrl: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/mimir',
+    databaseUrl:
+      process.env.DATABASE_URL || 'postgresql://mimir_app:mimir_app@localhost:5432/mimir',
     redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
     temporalHost: process.env.TEMPORAL_HOST || 'localhost:7233',
     supertokens: {
