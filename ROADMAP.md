@@ -1683,7 +1683,7 @@ IDs map to the features table (§23).
 |---|---|---|---|
 | M2‑1 | Temporal wired (worker + client) (F‑006) | workflow executes; survives worker restart | integration: kill worker mid‑run → resumes |
 | M2‑2 | Durable job queue (kanban‑as‑queue) (F‑007) | jobs persisted; status transitions; survive reboot | integration: reboot → resume |
-| M2‑3 | **Classification gateway** + policy stub (F‑008) | request tagged T0/T1/T2 with confidence score; low‑confidence → conservative T0 fallback; every decision logged as an audit event; route chosen; decision logged | unit: classify cases; **T0 never routes to cloud**; property test: low‑confidence input never leaves T0/T1 |
+| M2‑3 | **Classification gateway** + policy stub (F‑008) ✅ | request tagged T0/T1/T2 with confidence score; low‑confidence → conservative T0 fallback; every decision logged as an audit event; route chosen; decision logged | unit: classify cases; **T0 never routes to cloud**; property test: low‑confidence input never leaves T0/T1 |
 | M2‑4 | Identifier scrubber (pre‑T2 dispatch) | hostnames/secrets/proprietary names stripped | unit: scrub fixtures |
 | M2‑5 | **Model routing layer** (workhorse · reviewer · local) | Mimir implements its own provider adapters + classified failover; tier‑aware model selection runs inside the engine (§5.1) | integration: tier→provider routing; primary down → Mimir fallback |
 | M2‑6 | **Review loop** (AST‑diff + JSON‑patch, max‑3 + cycle detect) (F‑009) | reviewer output defined as a Zod/Pydantic schema in `@mimir/shared‑types`; invalid reviewer output is rejected/retried/escalated; diff→review→apply; stops at 3 or on cycle; escalates | unit: cycle fixture; golden: patch schema; contract test: invalid reviewer output handled |

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { withTenantTransaction } from '../db/tenant-context';
 import { Scopes, requireScope } from '../middleware/rbac';
 import { protectedRouteConfig } from '../middleware/route-config';
+import { createAuditEvent } from '../repositories/audit';
 import { searchKnowledge } from '../repositories/knowledge';
 import { searchKnowledgeWithShares } from '../repositories/knowledge-share';
 import { ingestDocument } from '../services/knowledge/ingest';
@@ -30,13 +31,22 @@ export async function knowledgeRoutes(app: FastifyInstance) {
 
       const body = ingestSchema.parse(request.body);
       const result = await withTenantTransaction(user.tenantId, async (ctx) => {
-        return ingestDocument(ctx, {
+        const ingestResult = await ingestDocument(ctx, {
           kind: body.kind,
           uri: body.uri,
           content: body.content,
           tier: body.tier,
           meta: body.meta,
         });
+
+        await createAuditEvent(ctx, {
+          actor: user.userId,
+          action: 'classification_decision',
+          tier: ingestResult.tier,
+          payload: ingestResult.classification as unknown as Record<string, unknown>,
+        });
+
+        return ingestResult;
       });
 
       return reply.status(201).send(result);

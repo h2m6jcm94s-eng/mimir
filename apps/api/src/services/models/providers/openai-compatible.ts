@@ -27,6 +27,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
   readonly id: ProviderId;
   readonly name: string;
   readonly supportedTiers = [1, 2] as const;
+  readonly local = false;
   setupHint: string;
 
   constructor(id: 'openai' | 'kimi' | 'qwen' | 'groq', name: string) {

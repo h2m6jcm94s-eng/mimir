@@ -13,16 +13,24 @@ export interface ClassificationPolicy {
 }
 
 const DEFAULT_POLICY: ClassificationPolicy = {
-  version: '1.0',
+  version: '1.1',
   threshold: DEFAULT_CLASSIFICATION_THRESHOLD,
   rules: [
     {
       name: 'pii_or_secrets',
       tier: 0,
       patterns: [
-        /\b\d{3}-\d{2}-\d{4}\b/gi, // SSN-like
-        /password|secret|token|api[_-]?key|private[_-]?key/gi,
-        /ssn|social security|passport|credit card/gi,
+        // SSN-like
+        /\b\d{3}-\d{2}-\d{4}\b/gi,
+        // Credit-card-like (16 digits with optional separators)
+        /\b(?:\d[ -]*?){13,16}\b/gi,
+        // Secret keywords
+        /password|secret|token|api[_-]?key|private[_-]?key|passwd|pwd/gi,
+        // PII identifiers
+        /ssn|social security|passport|credit card|bank account|routing number/gi,
+        // Private key / credential file names and MIME types
+        /\.(pem|key|p12|pfx|env|keystore|jks)\b/gi,
+        /application\/x-pkcs12|application\/x-pem-file|application\/x-x509-ca-cert/gi,
       ],
       weight: 1.0,
     },
@@ -30,15 +38,27 @@ const DEFAULT_POLICY: ClassificationPolicy = {
       name: 'proprietary_code',
       tier: 0,
       patterns: [
-        /proprietary|confidential|internal only|do not share/gi,
-        /class \w+ extends|function \w+\(|def \w+\(/g,
+        /proprietary|confidential|internal only|do not share|classified/gi,
+        /class \w+ extends|function \w+\(|def \w+\(|const \w+\s*=\s*require\(/g,
       ],
       weight: 0.6,
     },
     {
+      name: 'local_compute',
+      tier: 1,
+      patterns: [
+        /\b(render|transcode|encode|compile|build|package|train\s+model|fine[_-]?tune)\b/gi,
+        /\brun\s+(this|it)\s+(on\s+my\s+desktop|on\s+the\s+desktop|locally|on\s+ollama)\b/gi,
+        /\bollama\b/gi,
+      ],
+      weight: 0.7,
+    },
+    {
       name: 'public_task',
       tier: 2,
-      patterns: [/summarize this public article|check the weather|public page|news/gi],
+      patterns: [
+        /\b(summarize this public article|check the weather|public page|news|wikipedia)\b/gi,
+      ],
       weight: 0.4,
     },
   ],
@@ -51,7 +71,7 @@ export class ClassificationGateway {
     const text = [
       request.prompt,
       ...request.retrievedContext,
-      ...request.attachments.map((a) => a.name),
+      ...request.attachments.map((a) => [a.name, a.contentType].join(' ')),
     ].join(' ');
 
     let score = 0;
@@ -76,12 +96,11 @@ export class ClassificationGateway {
     const confidence = Math.min(Math.max(score, 0.1), 1);
     const fallback = confidence < this.policy.threshold;
 
-    // Conservative fallback: when in doubt, route to the most private tier
-    // that is at least as restrictive as the assigned tier.
-    const finalTier = fallback ? Math.min(assignedTier, 0) : assignedTier;
+    // Conservative fallback: when in doubt, route to the most private tier.
+    const finalTier = fallback ? (Math.min(assignedTier, 0) as 0 | 1 | 2) : assignedTier;
 
     return {
-      tier: finalTier as 0 | 1 | 2,
+      tier: finalTier,
       confidence,
       reason: fallback
         ? `Low confidence (${confidence.toFixed(2)} < ${this.policy.threshold}); conservative T0 fallback. Matched: ${matchedRule || 'none'}`

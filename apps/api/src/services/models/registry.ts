@@ -46,18 +46,24 @@ export class ProviderRegistry {
     for (const tierKey of [0, 1, 2] as const) {
       const entries = config[tierKey];
       this.providers[tierKey] = entries
-        .map((entry) => this.buildProvider(entry))
+        .map((entry) => this.buildProvider(entry, tierKey))
         .filter((p): p is ModelProvider => p !== null);
     }
   }
 
-  private buildProvider(entry: ModelProviderEntry): ModelProvider | null {
+  private buildProvider(entry: ModelProviderEntry, tier: 0 | 1 | 2): ModelProvider | null {
     const factory = allProviders[entry.provider];
     if (!factory) {
       console.warn(`Unknown model provider "${entry.provider}" — skipping.`);
       return null;
     }
     const provider = factory();
+    if (!provider.supportedTiers.includes(tier)) {
+      console.warn(
+        `Provider "${provider.id}" does not support tier ${tier}; skipping for this tier.`
+      );
+      return null;
+    }
     if (entry.model) {
       // Allow per-entry model override by wrapping invoke.
       const baseInvoke = provider.invoke.bind(provider);

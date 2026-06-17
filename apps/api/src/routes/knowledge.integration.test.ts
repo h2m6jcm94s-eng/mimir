@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { withTenantTransaction } from '../db/tenant-context';
+import { resolveAuthUser } from '../middleware/auth';
+import { listAuditEvents } from '../repositories/audit';
 import { buildTestApp } from '../test-helpers/build-app';
 import { knowledgeRoutes } from './knowledge';
 
@@ -52,4 +55,70 @@ describe('knowledge routes', () => {
     expect(searchBody.data.length).toBeGreaterThan(0);
     expect(searchBody.data[0]?.text).toContain('PostgreSQL');
   });
+
+  it.skipIf(!process.env.RUN_DB_TESTS)(
+    'classifies an untagged document and audits the classification decision',
+    async () => {
+      const token = `knowledge_classification_${Date.now()}`;
+      const app = await buildTestApp(async (app) => {
+        await app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
+      });
+
+      const ingestResponse = await app.inject({
+        method: 'POST',
+        url: '/v1/knowledge',
+        headers: { authorization: `Bearer ${token}` },
+        payload: {
+          kind: 'doc',
+          content:
+            'This document is internal only and confidential. Do not share outside the company.',
+        },
+      });
+
+      expect(ingestResponse.statusCode).toBe(201);
+      const ingestBody = JSON.parse(ingestResponse.body);
+      expect(ingestBody.tier).toBe(0);
+
+      const user = await resolveAuthUser(token, `${token}@test.local`);
+      const audit = await withTenantTransaction(user.tenantId, async (ctx) => {
+        return listAuditEvents(ctx, { limit: 10 });
+      });
+      const decision = audit.data.find((e) => e.action === 'classification_decision');
+      expect(decision).toBeDefined();
+      expect(decision?.tier).toBe(0);
+    }
+  );
+
+  it.skipIf(!process.env.RUN_DB_TESTS)(
+    'accepts an explicit tier and audits it as a classification decision',
+    async () => {
+      const token = `knowledge_explicit_tier_${Date.now()}`;
+      const app = await buildTestApp(async (app) => {
+        await app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
+      });
+
+      const ingestResponse = await app.inject({
+        method: 'POST',
+        url: '/v1/knowledge',
+        headers: { authorization: `Bearer ${token}` },
+        payload: {
+          kind: 'doc',
+          content: 'Public Wikipedia article about the weather.',
+          tier: 2,
+        },
+      });
+
+      expect(ingestResponse.statusCode).toBe(201);
+      const ingestBody = JSON.parse(ingestResponse.body);
+      expect(ingestBody.tier).toBe(2);
+
+      const user = await resolveAuthUser(token, `${token}@test.local`);
+      const audit = await withTenantTransaction(user.tenantId, async (ctx) => {
+        return listAuditEvents(ctx, { limit: 10 });
+      });
+      const decision = audit.data.find((e) => e.action === 'classification_decision');
+      expect(decision).toBeDefined();
+      expect(decision?.tier).toBe(2);
+    }
+  );
 });

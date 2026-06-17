@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { withTenantTransaction } from '../db/tenant-context';
+import { resolveAuthUser } from '../middleware/auth';
+import { listAuditEvents } from '../repositories/audit';
 import { buildTestApp } from '../test-helpers/build-app';
 import { sessionRoutes } from './sessions';
 
@@ -34,4 +37,80 @@ describe('sessions routes', () => {
     expect(body.id).toBeDefined();
     expect(body.tenantId).toBeDefined();
   });
+
+  it.skipIf(!process.env.RUN_DB_TESTS)(
+    'classifies a message and audits the classification decision',
+    async () => {
+      const token = `sessions_classification_${Date.now()}`;
+      const app = await buildTestApp(async (app) => {
+        await app.register(sessionRoutes, { prefix: '/v1/sessions' });
+      });
+
+      const sessionResponse = await app.inject({
+        method: 'POST',
+        url: '/v1/sessions',
+        headers: { authorization: `Bearer ${token}` },
+        payload: { source: 'web' },
+      });
+      expect(sessionResponse.statusCode).toBe(201);
+      const session = JSON.parse(sessionResponse.body);
+
+      const messageResponse = await app.inject({
+        method: 'POST',
+        url: `/v1/sessions/${session.id}/messages`,
+        headers: { authorization: `Bearer ${token}` },
+        payload: {
+          role: 'user',
+          content: 'My password is secret123 and my ssn is 123-45-6789',
+        },
+      });
+      expect(messageResponse.statusCode).toBe(201);
+      const message = JSON.parse(messageResponse.body);
+      expect(message.tier).toBe(0);
+
+      const user = await resolveAuthUser(token, `${token}@test.local`);
+      const audit = await withTenantTransaction(user.tenantId, async (ctx) => {
+        return listAuditEvents(ctx, { limit: 10 });
+      });
+      const decision = audit.data.find((e) => e.action === 'classification_decision');
+      expect(decision).toBeDefined();
+      expect(decision?.tier).toBe(0);
+    }
+  );
+
+  it.skipIf(!process.env.RUN_DB_TESTS)(
+    'accepts an explicit tier and audits it as a classification decision',
+    async () => {
+      const token = `sessions_explicit_tier_${Date.now()}`;
+      const app = await buildTestApp(async (app) => {
+        await app.register(sessionRoutes, { prefix: '/v1/sessions' });
+      });
+
+      const sessionResponse = await app.inject({
+        method: 'POST',
+        url: '/v1/sessions',
+        headers: { authorization: `Bearer ${token}` },
+        payload: { source: 'web' },
+      });
+      const session = JSON.parse(sessionResponse.body);
+
+      const messageResponse = await app.inject({
+        method: 'POST',
+        url: `/v1/sessions/${session.id}/messages`,
+        headers: { authorization: `Bearer ${token}` },
+        payload: { role: 'user', content: 'hello', tier: 2 },
+      });
+      expect(messageResponse.statusCode).toBe(201);
+      const message = JSON.parse(messageResponse.body);
+      expect(message.tier).toBe(2);
+
+      const user = await resolveAuthUser(token, `${token}@test.local`);
+      const audit = await withTenantTransaction(user.tenantId, async (ctx) => {
+        return listAuditEvents(ctx, { limit: 10 });
+      });
+      const decision = audit.data.find((e) => e.action === 'classification_decision');
+      expect(decision).toBeDefined();
+      expect(decision?.tier).toBe(2);
+    }
+  );
 });

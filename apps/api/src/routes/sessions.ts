@@ -3,7 +3,9 @@ import { z } from 'zod';
 import { withTenantTransaction } from '../db/tenant-context';
 import { Scopes, requireScope } from '../middleware/rbac';
 import { protectedRouteConfig } from '../middleware/route-config';
+import { createAuditEvent } from '../repositories/audit';
 import { createMessage, createSession, listMessages, listSessions } from '../repositories/session';
+import { ClassificationGateway } from '../services/classification/gateway';
 
 const createSessionSchema = z.object({
   source: z.enum(['web', 'telegram', 'discord', 'slack', 'cli', 'api']).default('web'),
@@ -63,8 +65,38 @@ export async function sessionRoutes(app: FastifyInstance) {
         return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
 
       const body = createMessageSchema.parse(request.body);
+      const classifier = new ClassificationGateway();
+
       const message = await withTenantTransaction(user.tenantId, async (ctx) => {
-        return createMessage(ctx, { ...body, sessionId: request.params.sessionId });
+        const classification =
+          body.tier === undefined
+            ? classifier.classify({
+                prompt: body.content,
+                attachments: [],
+                retrievedContext: [],
+              })
+            : {
+                tier: body.tier as 0 | 1 | 2,
+                confidence: 1,
+                reason: 'Tier provided by client',
+                fallback: false,
+                policyVersion: 'explicit',
+              };
+
+        const message = await createMessage(ctx, {
+          ...body,
+          sessionId: request.params.sessionId,
+          tier: classification.tier,
+        });
+
+        await createAuditEvent(ctx, {
+          actor: user.userId,
+          action: 'classification_decision',
+          tier: classification.tier,
+          payload: classification as unknown as Record<string, unknown>,
+        });
+
+        return message;
       });
       return reply.status(201).send(message);
     }

@@ -10,6 +10,7 @@ export type { ModelInput, ModelOutput } from '@mimir/shared-types';
 
 type ModelProviderLike = {
   id: string;
+  local: boolean;
   invoke: (
     input: ModelInput,
     options: { tier: 0 | 1 | 2; model?: string; maxTokens?: number }
@@ -48,6 +49,7 @@ export class ModelRouter {
 
   route(tier: 0 | 1 | 2, providerId?: string): ModelAdapter {
     const provider = this.registry.find(tier, providerId) ?? this.fallback;
+    this.assertTierContainment(tier, [provider]);
     return {
       name: provider.id,
       tier,
@@ -67,7 +69,8 @@ export class ModelRouter {
       .getAvailable(tier)
       .filter((p) => !this.getBreaker(p.id).isOpen());
 
-    let providers = available;
+    const allowed = this.filterByTier(tier, available);
+    let providers = allowed;
     if (options?.provider) {
       const preferredIndex = available.findIndex((p) => p.id === options.provider);
       if (preferredIndex >= 0) {
@@ -89,6 +92,7 @@ export class ModelRouter {
     providers: ModelProviderLike[],
     options: ModelRouterOptions | undefined
   ): Promise<ModelOutput> {
+    this.assertTierContainment(tier, providers);
     if (providers.length === 0) {
       const output = await this.fallback.invoke(input, {
         tier,
@@ -134,6 +138,19 @@ export class ModelRouter {
         output.usage.completionTokens
       ),
     };
+  }
+
+  private filterByTier(tier: 0 | 1 | 2, providers: ModelProviderLike[]): ModelProviderLike[] {
+    if (tier !== 0) return providers;
+    return providers.filter((p) => p.local);
+  }
+
+  private assertTierContainment(tier: 0 | 1 | 2, providers: ModelProviderLike[]): void {
+    if (tier === 0 && providers.some((p) => !p.local)) {
+      throw new Error(
+        `TIER_VIOLATION: tier 0 request selected non-local provider(s): ${providers.map((p) => p.id).join(', ')}`
+      );
+    }
   }
 
   status() {

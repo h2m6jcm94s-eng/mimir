@@ -16,6 +16,7 @@ export class AnthropicMessagesProvider implements ModelProvider {
   readonly id: ProviderId;
   readonly name: string;
   readonly supportedTiers = [2] as const;
+  readonly local = false;
   setupHint: string;
 
   private apiKeyName: string;

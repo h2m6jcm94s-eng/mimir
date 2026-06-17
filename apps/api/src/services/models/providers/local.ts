@@ -5,6 +5,7 @@ export class LocalProvider implements ModelProvider {
   readonly id = 'local';
   readonly name = 'Local (stub)';
   readonly supportedTiers = [0, 1, 2] as const;
+  readonly local = true;
   setupHint = 'No configuration required.';
 
   isAvailable(): boolean {

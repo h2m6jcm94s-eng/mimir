@@ -100,6 +100,23 @@ describe('ModelRouter', () => {
     }
   });
 
+  it('falls back to local when a cloud provider is configured for T0', async () => {
+    process.env.OPENAI_API_KEY = 'test-openai-key';
+    const fetchMock = vi.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const router = new ModelRouter(
+      makeConfig({
+        0: [{ provider: 'openai', priority: 0 }],
+      })
+    );
+
+    const output = await router.invoke(0, { prompt: 'hello', payload: {} });
+    expect(output.provider).toBe('local');
+    expect(output.tier).toBe(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('allows an explicit provider override', async () => {
     process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
     const fetchMock = vi.fn().mockResolvedValue({

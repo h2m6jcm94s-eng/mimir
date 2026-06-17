@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '../../db/tenant-context';
 import { createEmbeddings, createKnowledgeItem } from '../../repositories/knowledge';
+import { ClassificationGateway } from '../classification/gateway';
 
 export interface ChunkOptions {
   chunkSize?: number;
@@ -13,6 +14,19 @@ export interface IngestDocumentInput {
   content: string;
   tier?: number;
   meta?: Record<string, unknown>;
+}
+
+export interface IngestDocumentResult {
+  itemId: string;
+  chunks: number;
+  tier: number;
+  classification: {
+    tier: 0 | 1 | 2;
+    confidence: number;
+    reason: string;
+    fallback: boolean;
+    policyVersion: string;
+  };
 }
 
 export function chunkText(text: string, options: ChunkOptions = {}): string[] {
@@ -71,16 +85,38 @@ export function generateFakeEmbedding(text: string): number[] {
   return vector.map((v) => v / norm);
 }
 
+function classifyDocument(input: IngestDocumentInput) {
+  const classifier = new ClassificationGateway();
+  const promptParts = [`[kind:${input.kind}]`];
+  if (input.uri) promptParts.push(`[uri:${input.uri}]`);
+  promptParts.push(input.content);
+  return classifier.classify({
+    prompt: promptParts.join(' '),
+    attachments: [],
+    retrievedContext: [],
+  });
+}
+
 export async function ingestDocument(
   ctx: TenantContext,
   input: IngestDocumentInput
-): Promise<{ itemId: string; chunks: number }> {
+): Promise<IngestDocumentResult> {
   const hash = computeContentHash(input.content);
+  const classification =
+    input.tier === undefined
+      ? classifyDocument(input)
+      : {
+          tier: input.tier as 0 | 1 | 2,
+          confidence: 1,
+          reason: 'Tier provided by client',
+          fallback: false,
+          policyVersion: 'explicit',
+        };
 
   const item = await createKnowledgeItem(ctx, {
     kind: input.kind,
     uri: input.uri,
-    tier: input.tier,
+    tier: classification.tier,
     hash,
     content: input.content,
     meta: input.meta,
@@ -88,7 +124,7 @@ export async function ingestDocument(
 
   const chunks = chunkText(input.content);
   if (chunks.length === 0) {
-    return { itemId: item.id, chunks: 0 };
+    return { itemId: item.id, chunks: 0, tier: classification.tier, classification };
   }
 
   const embeddings = chunks.map((text, idx) => ({
@@ -101,7 +137,12 @@ export async function ingestDocument(
 
   await createEmbeddings(ctx, embeddings);
 
-  return { itemId: item.id, chunks: embeddings.length };
+  return {
+    itemId: item.id,
+    chunks: embeddings.length,
+    tier: classification.tier,
+    classification,
+  };
 }
 
 // Unused but exported for clarity: embedding generation should call a real model.

@@ -6,6 +6,7 @@ export class OllamaProvider implements ModelProvider {
   readonly id = 'ollama' as const;
   readonly name = 'Ollama (local)';
   readonly supportedTiers = [0, 1] as const;
+  readonly local = true;
   setupHint = 'Set OLLAMA_BASE_URL to enable Ollama (default: http://localhost:11434).';
 
   private getBaseUrl(): string {
