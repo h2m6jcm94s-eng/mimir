@@ -34,6 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Messaging & social connectors: added `telegram`, `whatsapp`, `instagram`, `facebook`, and `pinterest` to the `connector_kind` enum; shared Zod input schemas; Telegram Bot API client; shared Meta Graph API client for WhatsApp/Instagram/Facebook; Pinterest REST API client; read actions (`getChat`, `getBusinessProfile`, `listMedia`, `getMedia`, `listPages`, `listPosts`, `listBoards`, `listPins`) and approval-gated write actions (`sendMessage`, `publishMedia`, `publishPost`, `createPin`) with connector-specific approval messages; wired into registry, routes, Temporal apply handlers, and web connectors page; unit and integration tests.
 - F-038 agent hierarchy / role registry: tenant-scoped `agent_role` schema/migration with built-in defaults (`main`, `planner`, `reviewer`, `coder`, `researcher`, `memory`, `executor`, `fallback`); `AgentRoleRegistry` resolves role + tier + capabilities to a provider/model without hard-coding any vendor; `GET/POST/PATCH/DELETE /v1/agents/roles` and `POST /v1/agents/resolve` endpoints; integration tests.
 - F-074 conversational memory search: keyword search across session messages via `GET /v1/sessions/search?query=...&limit=...`; returns matching messages with their sessions; integration test.
+- F-061 ceo/operator dashboard: `GET /v1/reports/ceo` aggregates task health (status counts + recent failures), burn (daily spend vs budget), risk (halt state + failure counts), and decisions (pending approvals); integration test.
 
 ### Fixed
 

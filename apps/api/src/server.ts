@@ -18,6 +18,7 @@ import { healthRoutes } from './routes/health';
 import { knowledgeRoutes } from './routes/knowledge';
 import { knowledgeShareRoutes } from './routes/knowledge-shares';
 import { nodeRoutes } from './routes/nodes';
+import { reportRoutes } from './routes/reports';
 import { sessionRoutes } from './routes/sessions';
 import { taskRoutes } from './routes/tasks';
 import { getTemporalConnection } from './temporal/client';
@@ -68,6 +69,7 @@ async function main() {
   app.register(budgetRoutes, { prefix: '/v1/budget' });
   app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
   app.register(knowledgeShareRoutes, { prefix: '/v1/knowledge/shares' });
+  app.register(reportRoutes, { prefix: '/v1/reports' });
   app.register(haltRoutes, { prefix: '/v1/halt' });
 
   app.setErrorHandler((error, _request, reply) => {

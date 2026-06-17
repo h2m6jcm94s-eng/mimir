@@ -1937,7 +1937,7 @@ Airtable base when M6 lands (F‑020).
 | F‑058 | Personal finance assistant: bank/CSV ingestion, budgeting, spend anomaly detection | Free | P1 | ⬜ | api | 2026‑12 | M6 |
 | F‑059 | Marketing/creator assistant: content calendar, brand‑voice drafting, campaign analytics | Pro | P1 | ⬜ | api/web | 2027‑01 | M6 |
 | F‑060 | HR/people partner: 1:1 prep, feedback drafting, hiring pipeline memory | Pro | P2 | ⬜ | api | 2027‑01 | M7 |
-| F‑061 | CEO/operator dashboard: burn, revenue, task health, risk rollup, decision briefings | Pro | P0 | 🟦 | api/web | 2026‑12 | M5/M6 |
+| F‑061 | CEO/operator dashboard: burn, revenue, task health, risk rollup, decision briefings | Pro | P0 | ✅ | api/web | 2026‑12 | M5/M6 |
 | F‑062 | Document bonding & record unification: cross‑connector entity resolution (customer, vendor, project) | Pro | P1 | 🟦 | api | 2026‑12 | M6 |
 | F‑063 | Daily briefing & morning companion | Free | P1 | ⬜ | api/web | 2027‑Q1 | M7 |
 | F‑064 | Emotional check‑in & private mood journal | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
