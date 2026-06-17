@@ -1828,32 +1828,32 @@ Airtable base when M6 lands (F‑020).
 | ID | Feature | Tier | Pri | Status | Owner | Target | Milestone |
 |---|---|---|---|---|---|---|---|
 | F‑001 | Repo, docs, CI rails, conventions | Free | P0 | ✅ | core | 2026‑06 | M0 |
-| F‑002 | API skeleton + JWT auth | Free | P0 | 🟦 | api | 2026‑07 | M1 |
-| F‑003 | Multi‑tenant schema + Postgres RLS + tenant guard | Pro | P0 | 🟦 | api | 2026‑07 | M1 |
-| F‑004 | RBAC (action‑granular) + JIT scaffold | Pro | P1 | 🟦 | api | 2026‑08 | M1 |
+| F‑002 | API skeleton + JWT auth | Free | P0 | ✅ | api | 2026‑07 | M1 |
+| F‑003 | Multi‑tenant schema + Postgres RLS + tenant guard | Pro | P0 | ✅ | api | 2026‑07 | M1 |
+| F‑004 | RBAC (action‑granular) + JIT scaffold | Pro | P1 | ✅ | api | 2026‑08 | M1 |
 | F‑005 | LibSQL embedded‑replica state store | Free | P0 | 🟦 | api | 2026‑08 | M1 |
-| F‑006 | Event bus + Temporal workflows | Free | P0 | ⬜ | api | 2026‑08 | M2 |
-| F‑007 | Durable job queue (kanban‑as‑queue) | Free | P0 | ⬜ | api | 2026‑08 | M2 |
+| F‑006 | Event bus + Temporal workflows | Free | P0 | 🟦 | api | 2026‑08 | M2 |
+| F‑007 | Durable job queue (kanban‑as‑queue) | Free | P0 | 🟦 | api | 2026‑08 | M2 |
 | F‑008 | Data‑classification gateway (tier routing) | Free | P0 | ✅ | api | 2026‑09 | M2 |
-| F‑009 | Workhorse→reviewer loop (AST‑diff + JSON‑patch) | Free | P0 | ⬜ | api | 2026‑09 | M2 |
-| F‑010 | Resilience: circuit breakers + idempotent replay | Free | P0 | ⬜ | api | 2026‑09 | M2/M3 |
+| F‑009 | Workhorse→reviewer loop (AST‑diff + JSON‑patch) | Free | P0 | ✅ | api | 2026‑09 | M2 |
+| F‑010 | Resilience: circuit breakers + idempotent replay | Free | P0 | ✅ | api | 2026‑09 | M2/M3 |
 | F‑011 | Leader/fencing + read‑only transitions | Free | P1 | ⬜ | api | 2026‑10 | M3 |
 | F‑012 | gVisor sandbox + static‑analysis gate | Free | P0 | ⬜ | infra | 2026‑10/M10 | M3/M10 |
 | F‑013 | Tailscale ACLs + air‑gapped cloud worker | Free | P1 | ⬜ | infra | 2026‑10 | M3/M10 |
 | F‑014 | Secrets vault + ephemeral SSH CA + FDE/SQLCipher | Pro | P0 | ⬜ | infra | 2026‑10 | M3/M10 |
 | F‑015 | RAG knowledge base + screenshots‑as‑references | Free | P0 | ✅ | api | 2026‑11 | M4 |
-| F‑016 | Graph‑native shared memory + time‑machine | Pro | P1 | ✅ | api | 2026‑11 | M4 |
-| F‑017 | Governance‑as‑code (OPA) + immutable audit | Pro | P0 | ⬜ | api | 2026‑11 | M5 |
+| F‑016 | Graph‑native shared memory + time‑machine | Pro | P1 | ⬜ | api | 2026‑11 | M4 |
+| F‑017 | Governance‑as‑code (OPA) + immutable audit | Pro | P0 | 🟦 | api | 2026‑11 | M5 |
 | F‑018 | Connector: GitHub | Free | P0 | ✅ | api | 2026‑12 | M6 |
 | F‑019 | Connector: Mail (Gmail / MS Graph) | Pro | P1 | ⬜ | api | 2026‑12 | M6 |
 | F‑020 | Connectors: Airtable, Contacts, Docs | Pro | P1 | ⬜ | api | 2027‑01 | M6 |
 | F‑021 | Chat surfaces: Telegram, Discord, Slack | Free | P1 | ⬜ | gateway | 2027‑01 | M6 |
-| F‑022 | Web: console, status topology, tasks | Free | P0 | ⬜ | web | 2026‑12 | M2/M3 |
-| F‑023 | Web: approvals, reports, knowledge, memory | Pro | P1 | ⬜ | web | 2027‑01 | M4/M7 |
-| F‑024 | Web: governance/audit, cost, settings | Pro | P1 | ⬜ | web | 2027‑01 | M5/M7 |
+| F‑022 | Web: console, status topology, tasks | Free | P0 | 🟦 | web | 2026‑12 | M2/M3 |
+| F‑023 | Web: approvals, reports, knowledge, memory | Pro | P1 | 🟦 | web | 2027‑01 | M4/M7 |
+| F‑024 | Web: governance/audit, cost, settings | Pro | P1 | 🟦 | web | 2027‑01 | M5/M7 |
 | F‑025 | 4‑channel delivery + notification tiers + dedup | Free | P1 | ⬜ | gateway | 2027‑01 | M8 |
-| F‑026 | Emergency halt + auto circuit‑breaker | Free | P0 | ⬜ | web/api | 2026‑12 | M5/M8 |
-| F‑027 | Cost governance: budgets + auto‑throttle + forecast | Pro | P0 | ⬜ | api | 2027‑02 | M9 |
+| F‑026 | Emergency halt + auto circuit‑breaker | Free | P0 | ✅ | web/api | 2026‑12 | M5/M8 |
+| F‑027 | Cost governance: budgets + auto‑throttle + forecast | Pro | P0 | 🟦 | api | 2027‑02 | M9 |
 | F‑028 | Observability: metrics/traces/logs (tier‑redacted) | Pro | P1 | ⬜ | infra | 2027‑02 | M9 |
 | F‑029 | SSO/SAML/SCIM (enterprise access) | Ent | P2 | ⬜ | api | 2027‑03 | post‑M10 |
 | F‑030 | Backups/DR (3‑2‑1) + restore tests | Pro | P0 | ⬜ | infra | 2026‑10 | M3 |
@@ -1880,6 +1880,7 @@ Airtable base when M6 lands (F‑020).
 | F‑051 | Federated local model improvement | Ent | P3 | ⬜ | services | 2027‑Q3 | post‑M10 |
 | F‑052 | E2EE for sensitive chats | Pro | P2 | ⬜ | api | 2027‑Q2 | M8 |
 | F‑053 | Hardware attestation / TPM integration | Ent | P3 | ⬜ | infra | 2027‑Q3 | post‑M10 |
+| F‑054 | Cross‑mesh knowledge sharing with admin approval | Pro | P1 | ✅ | api | 2026‑11 | M4 |
 | F‑054 | Agent‑to‑agent negotiation | Pro | P3 | ⬜ | api | 2027‑Q3 | post‑M10 |
 | F‑055 | Usage insights / time‑saved dashboard | Pro | P2 | ⬜ | web | 2027‑Q1 | M9 |
 | F‑056 | Local webserver per node + mesh discovery | Free | P0 | ⬜ | api/infra | 2026‑10 | M3 |

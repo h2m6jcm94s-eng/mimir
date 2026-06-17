@@ -491,9 +491,24 @@ Responsible disclosure: see `SECURITY.md` (lands in M0). Known open defects are 
 
 ## Project status & roadmap
 
-**Pre‑alpha — Milestone 0** (repo, docs, CI rails, conventions; *before* feature code, so the team
-builds on solid ground). The full plan — features table, M0–M10 with deadlines, risk register,
-analytics/KPIs/SLOs, and the commercialization go/no‑go gate — is in **[`ROADMAP.md`](./ROADMAP.md)**.
+**Pre‑alpha — moving past Milestone 0.** The repo rails, docs, and conventions are solid, and a
+meaningful slice of M1–M2 functionality is already landed and tested. The full plan — features
+table, M0–M10 with deadlines, risk register, analytics/KPIs/SLOs, and the commercialization go/no‑go
+gate — is in **[`ROADMAP.md`](./ROADMAP.md)**.
+
+**Landed so far:**
+
+- Auth, multi-tenancy, and RBAC (Supertokens sessions, Postgres RLS, action-granular scopes).
+- Classification gateway with T0/T1/T2 routing and conservative fallback.
+- Durable orchestration (Temporal) and the workhorse→reviewer loop with JSON-patch apply.
+- Foundational RAG knowledge base with pgvector and cross-mesh knowledge sharing.
+- Immutable hash-chain audit.
+- GitHub connector with tier-tagged read actions and review-gated `openPr`.
+- Emergency halt and cost-governance foundation.
+- Web app screens for console, status, tasks, approvals, knowledge, memory/time-machine, governance,
+  cost, and settings.
+
+See `CHANGELOG.md` for details and `ROADMAP.md` §23 for the full feature status table.
 
 ---
 
