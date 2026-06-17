@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import type { TenantContext } from '../db/tenant-context';
 
@@ -12,6 +12,8 @@ export interface CreateJobInput {
 export interface ListJobsInput {
   limit: number;
   cursor?: string;
+  status?: (typeof schema.job.$inferSelect)['status'];
+  type?: string;
 }
 
 export interface ListJobsOutput {
@@ -34,19 +36,31 @@ export async function createJob(ctx: TenantContext, input: CreateJobInput) {
   return created;
 }
 
+const terminalStatuses = new Set<string>(['done', 'failed']);
+
 export async function updateJobStatus(
   ctx: TenantContext,
   jobId: string,
   status: (typeof schema.job.$inferSelect)['status'],
   update: Partial<typeof schema.job.$inferSelect> = {}
 ) {
+  const existing = await getJob(ctx, jobId);
+  const set: Partial<typeof schema.job.$inferSelect> = {
+    status,
+    ...update,
+    updatedAt: new Date(),
+  };
+
+  if (status === 'running' && !existing?.startedAt) {
+    set.startedAt = new Date();
+  }
+  if (terminalStatuses.has(status) && !existing?.finishedAt) {
+    set.finishedAt = new Date();
+  }
+
   const [updated] = await ctx.tenantScopedDb
     .update(schema.job)
-    .set({
-      status,
-      ...update,
-      updatedAt: new Date(),
-    })
+    .set(set)
     .where(eq(schema.job.id, jobId))
     .returning();
   return updated;
@@ -118,6 +132,21 @@ export async function getJob(ctx: TenantContext, jobId: string) {
   return found;
 }
 
+export async function countJobsByStatus(
+  ctx: TenantContext
+): Promise<Record<(typeof schema.job.$inferSelect)['status'], number>> {
+  const rows = await ctx.tenantScopedDb
+    .select({ status: schema.job.status, total: count() })
+    .from(schema.job)
+    .groupBy(schema.job.status);
+
+  const result = {} as Record<(typeof schema.job.$inferSelect)['status'], number>;
+  for (const row of rows) {
+    result[row.status] = Number(row.total);
+  }
+  return result;
+}
+
 export async function findJobByIdempotency(ctx: TenantContext, idempotencyKey: string) {
   const [found] = await ctx.tenantScopedDb
     .select()
@@ -127,12 +156,17 @@ export async function findJobByIdempotency(ctx: TenantContext, idempotencyKey: s
 }
 
 export async function listJobs(ctx: TenantContext, input: ListJobsInput): Promise<ListJobsOutput> {
-  const cursorFilter = input.cursor ? lt(schema.job.id, input.cursor) : undefined;
+  const filters: (ReturnType<typeof eq> | ReturnType<typeof lt> | undefined)[] = [];
+  if (input.cursor) filters.push(lt(schema.job.id, input.cursor));
+  if (input.status) filters.push(eq(schema.job.status, input.status));
+  if (input.type) filters.push(eq(schema.job.type, input.type));
+
+  const whereClause = filters.length > 0 ? and(...filters) : undefined;
 
   const rows = await ctx.tenantScopedDb
     .select()
     .from(schema.job)
-    .where(cursorFilter)
+    .where(whereClause)
     .orderBy(desc(schema.job.createdAt), desc(schema.job.id))
     .limit(input.limit + 1);
 

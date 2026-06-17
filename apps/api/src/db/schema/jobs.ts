@@ -35,6 +35,13 @@ export const job = pgTable('job', {
   epoch: integer('epoch').notNull().default(0),
   checkpoint: jsonb('checkpoint').notNull().default({}),
   costUsd: integer('cost_usd').notNull().default(0),
+  priority: integer('priority').notNull().default(0),
+  retryCount: integer('retry_count').notNull().default(0),
+  maxRetries: integer('max_retries').notNull().default(3),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+  errorCode: varchar('error_code', { length: 64 }),
+  errorMessage: text('error_message'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

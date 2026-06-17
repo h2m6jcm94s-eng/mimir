@@ -148,6 +148,13 @@
       "when": 1781737784840,
       "tag": "0020_sparkling_naoko",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1781737784850,
+      "tag": "0021_enrich_job_queue",
+      "breakpoints": true
     }
   ]
 }

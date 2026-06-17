@@ -1,4 +1,11 @@
-import { ProviderId } from '@mimir/shared-types';
+import {
+  AgentRoleKind,
+  JobStatus,
+  ProviderId,
+  TaskCountsResponse,
+  TaskListQuery,
+  UpdateJobStatusRequest,
+} from '@mimir/shared-types';
 import { Client, Connection } from '@temporalio/client';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -8,6 +15,7 @@ import { protectedRouteConfig } from '../middleware/route-config';
 import { createApproval } from '../repositories/approval';
 import { createAuditEvent } from '../repositories/audit';
 import {
+  countJobsByStatus,
   createJob,
   findJobByIdempotency,
   getJob,
@@ -32,14 +40,25 @@ const createTaskSchema = z.object({
   attachments: z.array(attachmentSchema).default([]),
   provider: ProviderId.optional(),
   model: z.string().optional(),
+  role: AgentRoleKind.optional(),
   maxTokens: z.number().int().min(1).optional(),
   maxCostUsd: z.number().int().min(0).optional(),
 });
 
-const listTasksSchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  cursor: z.string().optional(),
-});
+const listTasksSchema = TaskListQuery;
+
+const manualTransitions: Record<string, Set<string>> = {
+  queued: new Set(['blocked']),
+  running: new Set(['blocked']),
+  blocked: new Set(['queued']),
+  needs_attention: new Set(['queued']),
+  done: new Set(),
+  failed: new Set(),
+};
+
+function isValidManualTransition(from: string, to: string): boolean {
+  return manualTransitions[from]?.has(to) ?? false;
+}
 
 const classifier = new ClassificationGateway();
 const budgetService = new BudgetService();
@@ -222,6 +241,7 @@ export async function taskRoutes(app: FastifyInstance) {
               prompt: body.prompt,
               ...(body.provider && { provider: body.provider }),
               ...(body.model && { model: body.model }),
+              ...(body.role && { role: body.role }),
               ...(body.maxTokens !== undefined && { maxTokens: body.maxTokens }),
               ...(body.maxCostUsd !== undefined && { maxCostUsd: body.maxCostUsd }),
               ...body.payload,
@@ -250,10 +270,93 @@ export async function taskRoutes(app: FastifyInstance) {
       const query = listTasksSchema.parse(request.query);
 
       const { data, nextCursor } = await withTenantTransaction(user.tenantId, async (ctx) => {
-        return listJobs(ctx, { limit: query.limit, cursor: query.cursor });
+        return listJobs(ctx, {
+          limit: query.limit,
+          cursor: query.cursor,
+          status: query.status,
+          type: query.type,
+        });
       });
 
       return reply.send({ data, nextCursor });
+    }
+  );
+
+  app.get(
+    '/counts',
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.JOBS_READ) },
+    async (request: FastifyRequest, reply) => {
+      const user = request.user;
+      if (!user)
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+
+      const counts = await withTenantTransaction(user.tenantId, async (ctx) => {
+        return countJobsByStatus(ctx);
+      });
+
+      const typed = JobStatus.options.reduce(
+        (acc, status) => {
+          acc[status] = counts[status] ?? 0;
+          return acc;
+        },
+        {} as Record<(typeof JobStatus)['options'][number], number>
+      );
+
+      return reply.send(TaskCountsResponse.parse({ counts: typed }));
+    }
+  );
+
+  app.patch<{ Params: { jobId: string } }>(
+    '/:jobId/status',
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.JOBS_WRITE) },
+    async (request, reply) => {
+      const user = request.user;
+      if (!user)
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+
+      const { jobId } = request.params;
+      const body = UpdateJobStatusRequest.parse(request.body);
+
+      const result = await withTenantTransaction(user.tenantId, async (ctx) => {
+        const job = await getJob(ctx, jobId);
+        if (!job) return { notFound: true };
+
+        if (!isValidManualTransition(job.status, body.status)) {
+          return { invalidTransition: true, from: job.status };
+        }
+
+        const updated = await updateJobStatus(ctx, jobId, body.status, {
+          ...(body.reason && { errorMessage: body.reason }),
+        });
+
+        await createAuditEvent(ctx, {
+          actor: user.userId,
+          action: 'job_status_updated',
+          tier: updated.tier,
+          payload: {
+            jobId: updated.id,
+            previousStatus: job.status,
+            newStatus: updated.status,
+            reason: body.reason ?? null,
+          } as unknown as Record<string, unknown>,
+        });
+
+        return { updated };
+      });
+
+      if ('notFound' in result) {
+        return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Job not found' } });
+      }
+      if ('invalidTransition' in result) {
+        return reply.status(409).send({
+          error: {
+            code: 'INVALID_STATUS_TRANSITION',
+            message: `Cannot transition job from ${result.from} to ${body.status}`,
+          },
+        });
+      }
+
+      return reply.send(result.updated);
     }
   );
 

@@ -43,6 +43,13 @@ export const Job = z.object({
   epoch: z.number().int().default(0),
   checkpoint: z.record(z.unknown()).default({}),
   costUsd: z.number().default(0),
+  priority: z.number().int().default(0),
+  retryCount: z.number().int().default(0),
+  maxRetries: z.number().int().default(3),
+  startedAt: z.string().datetime().optional(),
+  finishedAt: z.string().datetime().optional(),
+  errorCode: z.string().optional(),
+  errorMessage: z.string().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { withTenantTransaction } from '../db/tenant-context';
 import { resolveAuthUser } from '../middleware/auth';
-import { createJob } from '../repositories/job';
+import { createJob, updateJobStatus } from '../repositories/job';
 import { buildTestApp } from '../test-helpers/build-app';
 import { taskRoutes } from './tasks';
 
@@ -47,5 +47,115 @@ describe('tasks routes', () => {
     expect(body.data).toBeInstanceOf(Array);
     expect(body.data.length).toBeGreaterThan(0);
     expect(body.data.some((j: { id: string }) => j.id === job.id)).toBe(true);
+  });
+
+  it.skipIf(!process.env.RUN_DB_TESTS)('filters jobs by status and type', async () => {
+    const externalId = `tasks_filter_${Date.now()}`;
+    const user = await resolveAuthUser(externalId, `${externalId}@test.local`);
+    const { runningJob } = await withTenantTransaction(user.tenantId, async (ctx) => {
+      const running = await createJob(ctx, {
+        idempotencyKey: `tasks-filter-running-${Date.now()}`,
+        type: 'filter-task',
+        tier: 1,
+        input: { prompt: 'running' },
+      });
+      await updateJobStatus(ctx, running.id, 'running');
+      const queued = await createJob(ctx, {
+        idempotencyKey: `tasks-filter-queued-${Date.now()}`,
+        type: 'other-task',
+        tier: 1,
+        input: { prompt: 'queued' },
+      });
+      return { runningJob: running };
+    });
+
+    const app = await buildTestApp(async (app) => {
+      await app.register(taskRoutes, { prefix: '/v1/tasks' });
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/tasks?status=running&type=filter-task&limit=10',
+      headers: { authorization: `Bearer ${externalId}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.data.length).toBe(1);
+    expect(body.data[0].id).toBe(runningJob.id);
+  });
+
+  it.skipIf(!process.env.RUN_DB_TESTS)('returns counts grouped by status', async () => {
+    const externalId = `tasks_counts_${Date.now()}`;
+    const user = await resolveAuthUser(externalId, `${externalId}@test.local`);
+    await withTenantTransaction(user.tenantId, async (ctx) => {
+      const running = await createJob(ctx, {
+        idempotencyKey: `tasks-counts-running-${Date.now()}`,
+        type: 'count-task',
+        tier: 1,
+        input: { prompt: 'running' },
+      });
+      await updateJobStatus(ctx, running.id, 'running');
+      const blocked = await createJob(ctx, {
+        idempotencyKey: `tasks-counts-blocked-${Date.now()}`,
+        type: 'count-task',
+        tier: 1,
+        input: { prompt: 'blocked' },
+      });
+      await updateJobStatus(ctx, blocked.id, 'blocked');
+    });
+
+    const app = await buildTestApp(async (app) => {
+      await app.register(taskRoutes, { prefix: '/v1/tasks' });
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/tasks/counts',
+      headers: { authorization: `Bearer ${externalId}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.counts.running).toBeGreaterThanOrEqual(1);
+    expect(body.counts.blocked).toBeGreaterThanOrEqual(1);
+  });
+
+  it.skipIf(!process.env.RUN_DB_TESTS)('updates job status with a valid transition', async () => {
+    const externalId = `tasks_status_${Date.now()}`;
+    const user = await resolveAuthUser(externalId, `${externalId}@test.local`);
+    const { job } = await withTenantTransaction(user.tenantId, async (ctx) => {
+      const created = await createJob(ctx, {
+        idempotencyKey: `tasks-status-${Date.now()}`,
+        type: 'status-task',
+        tier: 1,
+        input: { prompt: 'status' },
+      });
+      return { job: created };
+    });
+
+    const app = await buildTestApp(async (app) => {
+      await app.register(taskRoutes, { prefix: '/v1/tasks' });
+    });
+
+    const patchResponse = await app.inject({
+      method: 'PATCH',
+      url: `/v1/tasks/${job.id}/status`,
+      headers: { authorization: `Bearer ${externalId}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ status: 'blocked', reason: 'paused for review' }),
+    });
+
+    expect(patchResponse.statusCode).toBe(200);
+    const patched = JSON.parse(patchResponse.body);
+    expect(patched.status).toBe('blocked');
+
+    const invalidResponse = await app.inject({
+      method: 'PATCH',
+      url: `/v1/tasks/${job.id}/status`,
+      headers: { authorization: `Bearer ${externalId}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ status: 'done' }),
+    });
+
+    expect(invalidResponse.statusCode).toBe(409);
   });
 });
