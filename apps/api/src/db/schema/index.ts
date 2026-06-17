@@ -10,3 +10,4 @@ export * from './knowledge-share';
 export * from './connector';
 export * from './policy';
 export * from './approval';
+export * from './budget';

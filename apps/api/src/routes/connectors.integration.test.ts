@@ -135,4 +135,78 @@ describe('connectors routes', () => {
     expect(body.jobId).toBeDefined();
     expect(body.workflowId).toBeDefined();
   });
+
+  it.skipIf(!process.env.RUN_DB_TESTS)('queues a telegram sendMessage job', async () => {
+    const token = `connector_telegram_${Date.now()}`;
+    const app = await buildTestApp(async (app) => {
+      await app.register(connectorRoutes, { prefix: '/v1/connectors' });
+    });
+
+    const user = await resolveAuthUser(token, `${token}@test.local`);
+    process.env[`MIMIR_SECRET_TELEGRAM_${user.tenantId}`] = 'test-token';
+
+    await app.inject({
+      method: 'POST',
+      url: '/v1/connectors',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        kind: 'telegram',
+        secretRef: 'telegram',
+        scopes: [],
+        tier: 1,
+      },
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/connectors/telegram/actions/sendMessage',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        tier: 1,
+        input: { chatId: '@channel', text: 'Hello from Mimir' },
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = JSON.parse(response.body);
+    expect(body.jobId).toBeDefined();
+    expect(body.workflowId).toBeDefined();
+  });
+
+  it.skipIf(!process.env.RUN_DB_TESTS)('queues a facebook publishPost job', async () => {
+    const token = `connector_facebook_${Date.now()}`;
+    const app = await buildTestApp(async (app) => {
+      await app.register(connectorRoutes, { prefix: '/v1/connectors' });
+    });
+
+    const user = await resolveAuthUser(token, `${token}@test.local`);
+    process.env[`MIMIR_SECRET_FACEBOOK_${user.tenantId}`] = 'test-token';
+
+    await app.inject({
+      method: 'POST',
+      url: '/v1/connectors',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        kind: 'facebook',
+        secretRef: 'facebook',
+        scopes: [],
+        tier: 1,
+      },
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/connectors/facebook/actions/publishPost',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        tier: 1,
+        input: { pageId: 'page1', message: 'Hello from Mimir' },
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = JSON.parse(response.body);
+    expect(body.jobId).toBeDefined();
+    expect(body.workflowId).toBeDefined();
+  });
 });

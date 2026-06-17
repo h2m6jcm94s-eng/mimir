@@ -7,17 +7,25 @@ export type { JsonPatchOperation, ReviewResult } from '@mimir/shared-types';
 import { withTenantTransaction } from '../db/tenant-context';
 import { createAuditEvent } from '../repositories/audit';
 import { addJobCost, getJob, updateJobStatus } from '../repositories/job';
-import { checkRunawayCost } from '../services/cost/governor';
+import { BudgetService } from '../services/cost/budget';
 import { hashObject } from '../services/diff/ast-diff';
 import { ModelRouter } from '../services/models/router';
 import { applyPatch as applyJsonPatch } from '../services/patch/json-patch';
 import { ApplyRegistry } from '../services/apply/registry';
-import { githubOpenPrHandler } from '../services/connectors/github/apply';
+import { connectorWriteRegistry } from '../services/connectors/write-registry';
+import '../services/connectors/facebook/handlers';
+import '../services/connectors/github/apply';
+import '../services/connectors/instagram/handlers';
+import '../services/connectors/pinterest/handlers';
+import '../services/connectors/telegram/handlers';
+import '../services/connectors/whatsapp/handlers';
 import { evaluateTenantPolicy } from '../services/governance/engine';
 import { ReviewerRouter } from '../services/reviewers/router';
 import { scrubForTier } from '../services/scrubber/scrubber';
 import { throwIfHalted } from '../services/halt/state';
 import type { TaskRunInput } from './workflows';
+
+const budgetService = new BudgetService();
 
 export interface BuildResult {
   success: boolean;
@@ -91,7 +99,11 @@ export async function build(input: TaskRunInput): Promise<BuildResult> {
           `Job cost ceiling exceeded: ${totalCostUsd} micro-USD spent vs ${budget} micro-USD budget`
         );
       }
-      await checkRunawayCost(input.tenantId, input.jobId, callCostUsd, input.userId);
+      await budgetService.checkAction(ctx, {
+        tier: input.tier,
+        projectedCostUsd: callCostUsd,
+        actor: input.userId,
+      });
     }
 
     const result: BuildResult = {
@@ -221,7 +233,12 @@ export async function applyPatch(
 }
 
 const applyRegistry = new ApplyRegistry();
-applyRegistry.register('github.openPr', githubOpenPrHandler);
+for (const descriptor of connectorWriteRegistry.values()) {
+  applyRegistry.register(
+    `${descriptor.kind}.${descriptor.action}`,
+    connectorWriteRegistry.applyHandlerFor(descriptor)
+  );
+}
 
 export async function apply(
   input: TaskRunInput,

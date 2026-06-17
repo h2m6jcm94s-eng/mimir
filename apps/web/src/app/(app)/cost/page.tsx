@@ -17,16 +17,6 @@ import {
   YAxis,
 } from 'recharts';
 
-interface Transaction {
-  id: number;
-  model: string;
-  skill: string;
-  tier: 0 | 1 | 2;
-  tokens: number;
-  cost: number;
-  time: string;
-}
-
 interface DailySpend {
   date: string;
   usd: number;
@@ -37,69 +27,46 @@ interface TierSpend {
   usd: number;
 }
 
-const dailySpend: DailySpend[] = [
-  { date: 'Mon', usd: 4.2 },
-  { date: 'Tue', usd: 6.8 },
-  { date: 'Wed', usd: 5.1 },
-  { date: 'Thu', usd: 9.3 },
-  { date: 'Fri', usd: 7.5 },
-  { date: 'Sat', usd: 3.4 },
-  { date: 'Sun', usd: 12.0 },
-];
+interface BudgetStatus {
+  dailyBudgetUsd: number;
+  monthlyBudgetUsd: number;
+  dailySpendUsd: number;
+  monthlySpendUsd: number;
+  dailyRemainingUsd: number;
+  monthlyRemainingUsd: number;
+  throttleThreshold: number;
+  throttled: boolean;
+  exceeded: boolean;
+  enabled: boolean;
+}
 
-const tierSpend: TierSpend[] = [
-  { tier: 0, usd: 14.2 },
-  { tier: 1, usd: 22.5 },
-  { tier: 2, usd: 11.8 },
-];
+interface BudgetForecast {
+  projectedEndOfDayUsd: number;
+  projectedMonthEndUsd: number;
+  daysUntilDailyBudgetDepleted: number | null;
+  daysUntilMonthlyBudgetDepleted: number | null;
+  averageHourlyBurnUsd: number;
+}
 
-const transactions: Transaction[] = [
-  {
-    id: 1,
-    model: 'Kimi K2',
-    skill: 'Security brief',
-    tier: 2,
-    tokens: 12400,
-    cost: 0.124,
-    time: '10:28',
-  },
-  {
-    id: 2,
-    model: 'Claude 4',
-    skill: 'Code review',
-    tier: 1,
-    tokens: 8600,
-    cost: 0.086,
-    time: '10:15',
-  },
-  {
-    id: 3,
-    model: 'Llama 4 Scout',
-    skill: 'Local search',
-    tier: 0,
-    tokens: 3200,
-    cost: 0.0,
-    time: '09:52',
-  },
-  {
-    id: 4,
-    model: 'Kimi K2',
-    skill: 'Governance audit',
-    tier: 2,
-    tokens: 18200,
-    cost: 0.182,
-    time: '09:30',
-  },
-  {
-    id: 5,
-    model: 'Claude 4',
-    skill: 'Memory compression',
-    tier: 1,
-    tokens: 5400,
-    cost: 0.054,
-    time: '09:12',
-  },
-];
+interface ApiJob {
+  id: string;
+  type: string;
+  tier: number;
+  status: string;
+  costUsd?: number;
+  createdAt: string;
+  input?: Record<string, unknown> | null;
+}
+
+const MICROS_PER_DOLLAR = 1_000_000;
+
+function microToUsd(micro: number): number {
+  return micro / MICROS_PER_DOLLAR;
+}
+
+function formatUsd(micro: number): string {
+  return `$${microToUsd(micro).toFixed(2)}`;
+}
 
 function SummaryCard({
   icon: Icon,
@@ -269,48 +236,160 @@ function TierSpendChart({ data }: { data: TierSpend[] }) {
 }
 
 export default function CostPage() {
-  const today = 12.0;
-  const projected = 58.4;
-  const [budget, setBudget] = useState(50);
+  const [status, setStatus] = useState<BudgetStatus | null>(null);
+  const [forecast, setForecast] = useState<BudgetForecast | null>(null);
+  const [dailySpend, setDailySpend] = useState<DailySpend[]>([]);
+  const [tierSpend, setTierSpend] = useState<TierSpend[]>([]);
+  const [transactions, setTransactions] = useState<ApiJob[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [dismissedAlert, setDismissedAlert] = useState(false);
 
-  const remaining = useMemo(() => Math.max(0, budget - today), [budget]);
-  const burnPct = useMemo(() => Math.min(100, (today / budget) * 100), [budget]);
+  const budgetInput = status?.dailyBudgetUsd ?? 0;
+  const [budgetDraft, setBudgetDraft] = useState(microToUsd(budgetInput));
+
+  useEffect(() => {
+    setBudgetDraft(microToUsd(budgetInput));
+  }, [budgetInput]);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [statusRes, forecastRes, spendRes, tasksRes] = await Promise.all([
+          fetch('/api/v1/budget', { credentials: 'include' }),
+          fetch('/api/v1/budget/forecast', { credentials: 'include' }),
+          fetch('/api/v1/budget/spend', { credentials: 'include' }),
+          fetch('/api/v1/tasks?limit=50', { credentials: 'include' }),
+        ]);
+
+        if (!statusRes.ok) throw new Error(`Budget status failed: ${statusRes.status}`);
+        if (!forecastRes.ok) throw new Error(`Forecast failed: ${forecastRes.status}`);
+        if (!spendRes.ok) throw new Error(`Spend series failed: ${spendRes.status}`);
+        if (!tasksRes.ok) throw new Error(`Tasks failed: ${tasksRes.status}`);
+
+        const statusBody = (await statusRes.json()) as { data: BudgetStatus };
+        const forecastBody = (await forecastRes.json()) as { data: BudgetForecast };
+        const spendBody = (await spendRes.json()) as {
+          data: { daily: DailySpend[]; tier: TierSpend[] };
+        };
+        const tasksBody = (await tasksRes.json()) as { data: ApiJob[] };
+
+        setStatus(statusBody.data);
+        setForecast(forecastBody.data);
+        setDailySpend(spendBody.data.daily);
+        setTierSpend(spendBody.data.tier);
+        setTransactions(tasksBody.data.filter((j) => (j.costUsd ?? 0) > 0));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load cost data');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void load();
+  }, []);
+
+  async function saveBudget() {
+    if (!status?.enabled) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch('/api/v1/budget', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dailyBudgetUsd: Math.round(budgetDraft * MICROS_PER_DOLLAR),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+      if (!res.ok) {
+        setSaveError(data.error?.message || 'Failed to save budget');
+      } else {
+        const statusRes = await fetch('/api/v1/budget', { credentials: 'include' });
+        if (statusRes.ok) {
+          const body = (await statusRes.json()) as { data: BudgetStatus };
+          setStatus(body.data);
+        }
+      }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Network error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const today = status?.dailySpendUsd ?? 0;
+  const projected = forecast?.projectedEndOfDayUsd ?? 0;
+  const budget = status?.dailyBudgetUsd ?? 0;
+  const remaining = status?.dailyRemainingUsd ?? 0;
+  const burnPct = budget > 0 ? Math.min(100, (today / budget) * 100) : 0;
+  const overBudget = projected > budget && budget > 0;
+  const throttled = status?.throttled ?? false;
+  const exceeded = status?.exceeded ?? false;
+
   const topModel = useMemo(() => {
     const totals = new Map<string, number>();
     for (const t of transactions) {
-      totals.set(t.model, (totals.get(t.model) || 0) + t.cost);
+      const model = typeof t.input?.model === 'string' ? t.input.model : t.type;
+      totals.set(model, (totals.get(model) ?? 0) + (t.costUsd ?? 0));
     }
-    return [...totals.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—';
-  }, []);
+    const sorted = [...totals.entries()].sort((a, b) => b[1] - a[1]);
+    return sorted[0]?.[0] ?? '—';
+  }, [transactions]);
 
-  const overBudget = projected > budget;
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-sm text-[var(--text-muted)]">Loading cost data…</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader title="Cost" description="Track token spend, model usage, and budget health." />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard icon={DollarSign} label="Total today" value={`$${today.toFixed(2)}`} />
+        <SummaryCard icon={DollarSign} label="Total today" value={formatUsd(today)} />
         <SummaryCard
           icon={TrendingUp}
-          label="Projected this week"
-          value={`$${projected.toFixed(2)}`}
-          subtext="Based on current burn rate"
+          label="Projected EOD"
+          value={formatUsd(projected)}
+          subtext="Based on 24h burn rate"
         />
         <SummaryCard
           icon={Wallet}
           label="Budget remaining"
-          value={`$${remaining.toFixed(2)}`}
-          subtext={`$${today.toFixed(2)} of $${budget.toFixed(2)} used`}
-          tone={remaining < 10 ? 'warning' : 'default'}
+          value={formatUsd(remaining)}
+          subtext={
+            status?.enabled
+              ? `${formatUsd(today)} of ${formatUsd(budget)} used`
+              : 'No budget configured'
+          }
+          tone={exceeded ? 'danger' : throttled ? 'warning' : 'default'}
         />
-        <SummaryCard icon={Cpu} label="Top model" value={topModel} subtext="By cumulative spend" />
+        <SummaryCard icon={Cpu} label="Top skill" value={topModel} subtext="By cumulative spend" />
       </div>
 
       <div className="rounded-xl bg-[var(--bg-surface)] p-4 shadow-card">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-xs font-medium text-[var(--text-muted)]">Budget burn</span>
+          <span className="text-xs font-medium text-[var(--text-muted)]">Daily budget burn</span>
           <span className="text-xs font-medium text-[var(--text-muted)]">
             {burnPct.toFixed(0)}%
           </span>
@@ -337,7 +416,7 @@ export default function CostPage() {
       </div>
 
       <AnimatePresence>
-        {overBudget && !dismissedAlert && (
+        {(overBudget || throttled || exceeded) && !dismissedAlert && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -348,15 +427,18 @@ export default function CostPage() {
               <AlertTriangle className="mt-0.5 h-5 w-5 text-[var(--accent-warning)]" />
               <div>
                 <p className="text-sm font-medium text-[var(--text-primary)]">
-                  Projected weekly spend (${projected.toFixed(2)}) exceeds your ${budget.toFixed(2)}{' '}
-                  budget.
+                  {exceeded
+                    ? `Daily budget exceeded (${formatUsd(today)} / ${formatUsd(budget)}).`
+                    : throttled
+                      ? 'Daily budget throttle reached: cloud-tier (T2) actions are paused.'
+                      : `Projected EOD spend (${formatUsd(projected)}) exceeds your ${formatUsd(budget)} budget.`}
                 </p>
                 <p className="mt-1 text-xs text-[var(--text-secondary)]">
                   Increase the limit or reduce cloud-tier usage.
                 </p>
                 <div className="mt-3 flex items-center gap-2">
                   <label htmlFor="budget-input" className="text-xs text-[var(--text-secondary)]">
-                    Budget limit
+                    Daily budget limit
                   </label>
                   <div className="relative">
                     <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)]">
@@ -367,11 +449,23 @@ export default function CostPage() {
                       type="number"
                       min={0}
                       step={1}
-                      value={budget}
-                      onChange={(e) => setBudget(Number(e.target.value))}
-                      className="h-8 w-24 rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] pl-5 pr-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+                      value={budgetDraft}
+                      disabled={!status?.enabled || saving}
+                      onChange={(e) => setBudgetDraft(Number(e.target.value))}
+                      className="h-8 w-24 rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] pl-5 pr-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)] disabled:opacity-50"
                     />
                   </div>
+                  <button
+                    type="button"
+                    disabled={!status?.enabled || saving}
+                    onClick={saveBudget}
+                    className="rounded-lg bg-[var(--accent-primary)] px-2.5 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                  >
+                    {saving ? 'Saving…' : 'Save'}
+                  </button>
+                  {saveError && (
+                    <span className="text-xs text-[var(--accent-danger)]">{saveError}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -401,17 +495,15 @@ export default function CostPage() {
         <div className="flex items-center justify-between border-b border-[var(--border-subtle-solid)] p-4">
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">Recent transactions</h3>
           <span className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)]">
-            <Coins className="h-3 w-3" /> {transactions.length} today
+            <Coins className="h-3 w-3" /> {transactions.length} shown
           </span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-[var(--bg-surface-raised)] text-[var(--text-muted)]">
               <tr>
-                <th className="px-4 py-2 font-medium">Model</th>
                 <th className="px-4 py-2 font-medium">Skill</th>
                 <th className="px-4 py-2 font-medium">Tier</th>
-                <th className="px-4 py-2 font-medium">Tokens</th>
                 <th className="px-4 py-2 font-medium">Cost</th>
                 <th className="px-4 py-2 font-medium">Time</th>
               </tr>
@@ -419,20 +511,27 @@ export default function CostPage() {
             <tbody className="divide-y divide-[var(--border-subtle-solid)]">
               {transactions.map((t) => (
                 <tr key={t.id}>
-                  <td className="px-4 py-3 text-[var(--text-primary)]">{t.model}</td>
-                  <td className="px-4 py-3 text-[var(--text-secondary)]">{t.skill}</td>
-                  <td className="px-4 py-3">
-                    <TierBadge tier={t.tier} />
+                  <td className="px-4 py-3 text-[var(--text-primary)]">
+                    {typeof t.input?.prompt === 'string' ? t.input.prompt : t.type}
                   </td>
-                  <td className="px-4 py-3 font-mono text-[var(--text-secondary)]">
-                    {t.tokens.toLocaleString()}
+                  <td className="px-4 py-3">
+                    <TierBadge tier={t.tier as 0 | 1 | 2} />
                   </td>
                   <td className="px-4 py-3 font-mono text-[var(--text-primary)]">
-                    ${t.cost.toFixed(3)}
+                    {formatUsd(t.costUsd ?? 0)}
                   </td>
-                  <td className="px-4 py-3 text-[var(--text-muted)]">{t.time}</td>
+                  <td className="px-4 py-3 text-[var(--text-muted)]">
+                    {new Date(t.createdAt).toLocaleString()}
+                  </td>
                 </tr>
               ))}
+              {transactions.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-[var(--text-secondary)]">
+                    No cost-bearing transactions yet.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

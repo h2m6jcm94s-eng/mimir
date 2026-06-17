@@ -4,4 +4,5 @@ export * from './classification';
 export * from './knowledge-share';
 export * from './connectors';
 export * from './governance';
+export * from './budget';
 export * from './errors';

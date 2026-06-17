@@ -4,24 +4,29 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
+  Camera,
   Check,
   Code,
   FileText,
   GitBranch,
+  Globe,
   Mail,
   MessageSquare,
   Palette,
+  Pin,
   Plug,
   RefreshCw,
   Search,
+  Send,
+  Smartphone,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 type ConnectorStatus = 'connected' | 'disconnected' | 'error';
-type Category = 'All' | 'Communication' | 'Dev' | 'Productivity' | 'Design';
+type Category = 'All' | 'Communication' | 'Dev' | 'Productivity' | 'Design' | 'Social';
 
-interface Connector {
+type ConnectorDef = {
   id: string;
   name: string;
   description: string;
@@ -29,9 +34,11 @@ interface Connector {
   status: ConnectorStatus;
   lastSync?: string;
   icon: React.ElementType;
-}
+  defaultScopes: string[];
+  accountLabel?: string;
+};
 
-const initialConnectors: Connector[] = [
+const connectorCatalog: ConnectorDef[] = [
   {
     id: 'gmail',
     name: 'Gmail',
@@ -39,6 +46,7 @@ const initialConnectors: Connector[] = [
     category: 'Communication',
     status: 'disconnected',
     icon: Mail,
+    defaultScopes: [],
   },
   {
     id: 'slack',
@@ -47,6 +55,27 @@ const initialConnectors: Connector[] = [
     category: 'Communication',
     status: 'disconnected',
     icon: MessageSquare,
+    defaultScopes: [],
+  },
+  {
+    id: 'telegram',
+    name: 'Telegram',
+    description: 'Send messages and read chat context via bot.',
+    category: 'Communication',
+    status: 'disconnected',
+    icon: Send,
+    defaultScopes: [],
+    accountLabel: 'Default chat ID (optional)',
+  },
+  {
+    id: 'whatsapp',
+    name: 'WhatsApp',
+    description: 'Send messages through the WhatsApp Business API.',
+    category: 'Communication',
+    status: 'disconnected',
+    icon: Smartphone,
+    defaultScopes: [],
+    accountLabel: 'Phone number ID (optional)',
   },
   {
     id: 'github',
@@ -55,6 +84,38 @@ const initialConnectors: Connector[] = [
     category: 'Dev',
     status: 'disconnected',
     icon: Code,
+    defaultScopes: ['repo'],
+    accountLabel: 'Account / org (optional)',
+  },
+  {
+    id: 'instagram',
+    name: 'Instagram',
+    description: 'List media and publish posts on your behalf.',
+    category: 'Social',
+    status: 'disconnected',
+    icon: Camera,
+    defaultScopes: [],
+    accountLabel: 'IG user ID (optional)',
+  },
+  {
+    id: 'facebook',
+    name: 'Facebook',
+    description: 'List pages and publish posts on your behalf.',
+    category: 'Social',
+    status: 'disconnected',
+    icon: Globe,
+    defaultScopes: [],
+    accountLabel: 'Page ID (optional)',
+  },
+  {
+    id: 'pinterest',
+    name: 'Pinterest',
+    description: 'List boards and create pins on your behalf.',
+    category: 'Social',
+    status: 'disconnected',
+    icon: Pin,
+    defaultScopes: [],
+    accountLabel: 'Username (optional)',
   },
   {
     id: 'notion',
@@ -63,6 +124,7 @@ const initialConnectors: Connector[] = [
     category: 'Productivity',
     status: 'disconnected',
     icon: FileText,
+    defaultScopes: [],
   },
   {
     id: 'linear',
@@ -71,6 +133,7 @@ const initialConnectors: Connector[] = [
     category: 'Productivity',
     status: 'disconnected',
     icon: GitBranch,
+    defaultScopes: [],
   },
   {
     id: 'figma',
@@ -79,10 +142,11 @@ const initialConnectors: Connector[] = [
     category: 'Design',
     status: 'disconnected',
     icon: Palette,
+    defaultScopes: [],
   },
 ];
 
-const categories: Category[] = ['All', 'Communication', 'Dev', 'Productivity', 'Design'];
+const categories: Category[] = ['All', 'Communication', 'Dev', 'Social', 'Productivity', 'Design'];
 
 const statusLabel: Record<ConnectorStatus, string> = {
   connected: 'Connected',
@@ -97,12 +161,13 @@ const statusDot: Record<ConnectorStatus, string> = {
 };
 
 export default function ConnectorsPage() {
-  const [connectors, setConnectors] = useState<Connector[]>(initialConnectors);
+  const [connectors, setConnectors] = useState<ConnectorDef[]>(connectorCatalog);
+  const [config, setConfig] = useState<Record<string, { account: string; secretRef: string }>>(() =>
+    Object.fromEntries(connectorCatalog.map((c) => [c.id, { account: '', secretRef: c.id }]))
+  );
   const [active, setActive] = useState<Category>('All');
   const [query, setQuery] = useState('');
-  const [githubAccount, setGithubAccount] = useState('');
-  const [githubAlias, setGithubAlias] = useState('github');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/v1/connectors', { credentials: 'include' })
@@ -125,50 +190,37 @@ export default function ConnectorsPage() {
   }, []);
 
   async function toggle(id: string) {
-    if (id !== 'github') {
+    const def = connectors.find((c) => c.id === id);
+    if (!def) return;
+
+    if (def.status === 'connected') {
+      setLoading(id);
+      await fetch(`/api/v1/connectors/${id}`, { method: 'DELETE', credentials: 'include' });
+      setLoading(null);
       setConnectors((prev) =>
-        prev.map((c) => {
-          if (c.id !== id) return c;
-          if (c.status === 'connected') {
-            return { ...c, status: 'disconnected', lastSync: undefined };
-          }
-          return { ...c, status: 'connected', lastSync: 'just now' };
-        })
+        prev.map((c) => (c.id === id ? { ...c, status: 'disconnected', lastSync: undefined } : c))
       );
       return;
     }
 
-    const existing = connectors.find((c) => c.id === 'github');
-    if (existing?.status === 'connected') {
-      setLoading(true);
-      await fetch('/api/v1/connectors/github', { method: 'DELETE', credentials: 'include' });
-      setLoading(false);
-      setConnectors((prev) =>
-        prev.map((c) =>
-          c.id === 'github' ? { ...c, status: 'disconnected', lastSync: undefined } : c
-        )
-      );
-      return;
-    }
-
-    setLoading(true);
+    const { account, secretRef } = config[id] ?? { account: '', secretRef: id };
+    setLoading(id);
     const res = await fetch('/api/v1/connectors', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        kind: 'github',
-        account: githubAccount || undefined,
-        secretRef: githubAlias,
-        scopes: ['repo'],
+        kind: id,
+        account: account || undefined,
+        secretRef,
+        scopes: def.defaultScopes,
       }),
     });
-    setLoading(false);
+    setLoading(null);
+
     if (res.ok) {
       setConnectors((prev) =>
-        prev.map((c) =>
-          c.id === 'github' ? { ...c, status: 'connected', lastSync: 'just now' } : c
-        )
+        prev.map((c) => (c.id === id ? { ...c, status: 'connected', lastSync: 'just now' } : c))
       );
     }
   }
@@ -225,7 +277,7 @@ export default function ConnectorsPage() {
         <AnimatePresence mode="popLayout">
           {filtered.map((connector) => {
             const Icon = connector.icon;
-            const isGithub = connector.id === 'github';
+            const isConnected = connector.status === 'connected';
             return (
               <motion.div
                 key={connector.id}
@@ -258,27 +310,39 @@ export default function ConnectorsPage() {
                 </h3>
                 <p className="mt-1 text-xs text-[var(--text-secondary)]">{connector.description}</p>
 
-                {isGithub && connector.status !== 'connected' && (
+                {!isConnected && (
                   <div className="mt-3 space-y-2">
-                    <input
-                      type="text"
-                      placeholder="GitHub account (optional)"
-                      value={githubAccount}
-                      onChange={(e) => setGithubAccount(e.target.value)}
-                      className="h-8 w-full rounded-md border border-[var(--border-subtle-solid)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
-                    />
+                    {connector.accountLabel && (
+                      <input
+                        type="text"
+                        placeholder={connector.accountLabel}
+                        value={config[connector.id]?.account ?? ''}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            [connector.id]: { ...prev[connector.id], account: e.target.value },
+                          }))
+                        }
+                        className="h-8 w-full rounded-md border border-[var(--border-subtle-solid)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+                      />
+                    )}
                     <input
                       type="text"
                       placeholder="Secret alias (env var name)"
-                      value={githubAlias}
-                      onChange={(e) => setGithubAlias(e.target.value)}
+                      value={config[connector.id]?.secretRef ?? connector.id}
+                      onChange={(e) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          [connector.id]: { ...prev[connector.id], secretRef: e.target.value },
+                        }))
+                      }
                       className="h-8 w-full rounded-md border border-[var(--border-subtle-solid)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
                     />
                   </div>
                 )}
 
                 <div className="mt-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
-                  {connector.status === 'connected' ? (
+                  {isConnected ? (
                     <>
                       <RefreshCw className="h-3 w-3" />
                       <span>Synced {connector.lastSync}</span>
@@ -300,16 +364,16 @@ export default function ConnectorsPage() {
                   <button
                     type="button"
                     data-testid="connector-toggle"
-                    disabled={loading}
+                    disabled={loading === connector.id}
                     onClick={() => toggle(connector.id)}
                     className={cn(
                       'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
-                      connector.status === 'connected'
+                      isConnected
                         ? 'bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-raised)]'
                         : 'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90'
                     )}
                   >
-                    {connector.status === 'connected' ? (
+                    {isConnected ? (
                       <>
                         <X className="h-3.5 w-3.5" /> Disconnect
                       </>

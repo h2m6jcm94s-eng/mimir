@@ -1,10 +1,19 @@
 import { secrets } from '../../config/secrets';
+import type * as schema from '../../db/schema';
 import type { TenantContext } from '../../db/tenant-context';
 import { createAuditEvent } from '../../repositories/audit';
 import { findConnectorByKind } from '../../repositories/connector';
 import { evaluateTenantPolicy } from '../governance/engine';
 import { ingestDocument } from '../knowledge/ingest';
+import { facebookHandlers } from './facebook/handlers';
 import { GitHubClient } from './github/client';
+import { instagramHandlers } from './instagram/handlers';
+import { lemonSqueezyHandlers } from './lemon-squeezy/handlers';
+import { paddleHandlers } from './paddle/handlers';
+import { pinterestHandlers } from './pinterest/handlers';
+import { stripeHandlers } from './stripe/handlers';
+import { telegramHandlers } from './telegram/handlers';
+import { whatsappHandlers } from './whatsapp/handlers';
 
 export interface ConnectorActionContext {
   tenantId: string;
@@ -82,6 +91,14 @@ const githubHandlers: Record<string, ConnectorActionHandler> = {
 
 const handlersByKind: Record<string, Record<string, ConnectorActionHandler>> = {
   github: githubHandlers,
+  telegram: telegramHandlers,
+  whatsapp: whatsappHandlers,
+  instagram: instagramHandlers,
+  facebook: facebookHandlers,
+  pinterest: pinterestHandlers,
+  stripe: stripeHandlers,
+  lemonSqueezy: lemonSqueezyHandlers,
+  paddle: paddleHandlers,
 };
 
 export class ConnectorRegistry {
@@ -89,7 +106,10 @@ export class ConnectorRegistry {
     ctx: TenantContext,
     actionCtx: ConnectorActionContext
   ): Promise<{ success: boolean; result: Record<string, unknown> }> {
-    const connector = await findConnectorByKind(ctx, actionCtx.kind as 'github');
+    const connector = await findConnectorByKind(
+      ctx,
+      actionCtx.kind as (typeof schema.connector.kind.enumValues)[number]
+    );
     if (!connector) {
       throw new Error(`Connector not found: ${actionCtx.kind}`);
     }

@@ -15,8 +15,11 @@ export const Scopes = {
   CONNECTORS_ADMIN: 'connectors:admin',
   NODES_READ: 'nodes:read',
   COST_READ: 'cost:read',
+  BUDGET_READ: 'budget:read',
+  BUDGET_WRITE: 'budget:write',
   HALT_READ: 'halt:read',
   HALT_WRITE: 'halt:write',
+  REPORTS_READ: 'reports:read',
 } as const;
 
 const ROLE_SCOPES: Record<string, string[]> = {
@@ -34,7 +37,9 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.KNOWLEDGE_READ,
     Scopes.NODES_READ,
     Scopes.COST_READ,
+    Scopes.BUDGET_READ,
     Scopes.HALT_READ,
+    Scopes.REPORTS_READ,
   ],
   viewer: [
     Scopes.CHAT_READ,
@@ -43,7 +48,9 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.KNOWLEDGE_READ,
     Scopes.NODES_READ,
     Scopes.COST_READ,
+    Scopes.BUDGET_READ,
     Scopes.HALT_READ,
+    Scopes.REPORTS_READ,
   ],
 };
 

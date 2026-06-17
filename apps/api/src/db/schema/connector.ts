@@ -1,7 +1,23 @@
 import { integer, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { tenant } from './tenancy';
 
-export const connectorKindEnum = pgEnum('connector_kind', ['github']);
+export const connectorKindEnum = pgEnum('connector_kind', [
+  'github',
+  'telegram',
+  'whatsapp',
+  'instagram',
+  'facebook',
+  'pinterest',
+  'gmail',
+  'slack',
+  'airtable',
+  'stripe',
+  'lemonSqueezy',
+  'paddle',
+  'csv',
+  'xlsx',
+  'googleSheets',
+]);
 export const connectorStatusEnum = pgEnum('connector_status', [
   'connected',
   'disconnected',

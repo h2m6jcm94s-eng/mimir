@@ -29,6 +29,7 @@ const allProviders: Record<string, () => ModelProvider> = {
         baseUrlName: 'KIMI_BASE_URL',
         defaultBaseUrl: 'https://api.kimi.com/coding/v1',
         defaultModel: 'kimi-for-coding',
+        supportedTiers: [1, 2],
       });
     }
     return new OpenAICompatibleProvider('kimi', 'Kimi');

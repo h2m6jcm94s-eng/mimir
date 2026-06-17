@@ -26,12 +26,20 @@ vi.mock('../repositories/job', () => ({
   findJobByIdempotency: vi.fn(),
   getJob: vi.fn(),
   getTenantDailyCostUsd: vi.fn(),
+  getTenantMonthlyCostUsd: vi.fn(),
+  getTenantHourlyBurnUsd: vi.fn(),
   listJobs: vi.fn(),
   updateJobStatus: vi.fn(),
 }));
 
 vi.mock('../repositories/audit', () => ({
   createAuditEvent: vi.fn(),
+}));
+
+vi.mock('../repositories/budget', () => ({
+  getBudget: vi.fn().mockResolvedValue(undefined),
+  upsertBudget: vi.fn(),
+  getSpendSeries: vi.fn(),
 }));
 
 vi.mock('../services/halt/state', () => ({

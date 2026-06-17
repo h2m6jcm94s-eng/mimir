@@ -15,6 +15,7 @@ import {
   updateJobStatus,
 } from '../repositories/job';
 import { ClassificationGateway } from '../services/classification/gateway';
+import { BudgetExceededError, BudgetService, BudgetThrottledError } from '../services/cost/budget';
 import { evaluateTenantPolicy } from '../services/governance/engine';
 
 const attachmentSchema = z.object({
@@ -41,6 +42,7 @@ const listTasksSchema = z.object({
 });
 
 const classifier = new ClassificationGateway();
+const budgetService = new BudgetService();
 
 const temporalHost = process.env.TEMPORAL_HOST || 'localhost:7233';
 const taskQueue = process.env.TEMPORAL_TASK_QUEUE || 'mimir-task-queue';
@@ -56,9 +58,8 @@ export async function taskRoutes(app: FastifyInstance) {
 
       const body = createTaskSchema.parse(request.body);
 
-      const { job, classification, decision, approvalId, idempotent } = await withTenantTransaction(
-        user.tenantId,
-        async (ctx) => {
+      const { job, classification, decision, approvalId, idempotent, budgetError } =
+        await withTenantTransaction(user.tenantId, async (ctx) => {
           const existing = await findJobByIdempotency(ctx, body.idempotencyKey);
           if (existing) {
             return {
@@ -67,6 +68,7 @@ export async function taskRoutes(app: FastifyInstance) {
               decision: null,
               approvalId: null,
               idempotent: true,
+              budgetError: null,
             };
           }
 
@@ -75,6 +77,26 @@ export async function taskRoutes(app: FastifyInstance) {
             attachments: body.attachments,
             retrievedContext: [],
           });
+
+          try {
+            await budgetService.checkAction(ctx, {
+              tier: classification.tier,
+              projectedCostUsd: 0,
+              actor: user.userId,
+            });
+          } catch (error) {
+            if (error instanceof BudgetExceededError || error instanceof BudgetThrottledError) {
+              return {
+                job: null,
+                classification,
+                decision: null,
+                approvalId: null,
+                idempotent: false,
+                budgetError: error,
+              };
+            }
+            throw error;
+          }
 
           const decision = await evaluateTenantPolicy(ctx, {
             action: body.type,
@@ -136,8 +158,18 @@ export async function taskRoutes(app: FastifyInstance) {
           });
 
           return { job, classification, decision, approvalId: null, idempotent: false };
-        }
-      );
+        });
+
+      if (budgetError) {
+        const code =
+          budgetError instanceof BudgetExceededError ? 'BUDGET_EXCEEDED' : 'BUDGET_THROTTLED';
+        return reply.status(403).send({
+          error: {
+            code,
+            message: budgetError.message,
+          },
+        });
+      }
 
       if (decision?.effect === 'deny') {
         return reply.status(403).send({

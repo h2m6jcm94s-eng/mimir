@@ -10,12 +10,13 @@ export interface AnthropicMessagesOptions {
   baseUrlName?: string;
   defaultBaseUrl?: string;
   defaultModel?: string;
+  supportedTiers?: ReadonlyArray<0 | 1 | 2>;
 }
 
 export class AnthropicMessagesProvider implements ModelProvider {
   readonly id: ProviderId;
   readonly name: string;
-  readonly supportedTiers = [2] as const;
+  readonly supportedTiers: ReadonlyArray<0 | 1 | 2>;
   readonly local = false;
   setupHint: string;
 
@@ -31,6 +32,7 @@ export class AnthropicMessagesProvider implements ModelProvider {
     this.baseUrlName = options.baseUrlName ?? 'ANTHROPIC_BASE_URL';
     this.defaultBaseUrl = options.defaultBaseUrl ?? 'https://api.anthropic.com/v1';
     this.defaultModel = options.defaultModel ?? 'claude-3-5-sonnet-20241022';
+    this.supportedTiers = options.supportedTiers ?? ([2] as const);
     this.setupHint = `Set ${this.apiKeyName} to enable ${this.name}.`;
   }
 

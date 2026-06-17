@@ -5,6 +5,7 @@ import Fastify from 'fastify';
 import { registerAuth } from '../middleware/auth';
 import { approvalRoutes } from '../routes/approvals';
 import { auditRoutes } from '../routes/audit';
+import { budgetRoutes } from '../routes/budget';
 import { connectorRoutes } from '../routes/connectors';
 import { governanceRoutes } from '../routes/governance';
 import { healthRoutes } from '../routes/health';
@@ -42,6 +43,7 @@ async function main() {
   app.register(connectorRoutes, { prefix: '/v1/connectors' });
   app.register(governanceRoutes, { prefix: '/v1/governance' });
   app.register(approvalRoutes, { prefix: '/v1/approvals' });
+  app.register(budgetRoutes, { prefix: '/v1/budget' });
 
   await app.ready();
 

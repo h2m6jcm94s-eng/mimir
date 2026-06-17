@@ -39,14 +39,23 @@ const queueData = [
   { hour: '14:00', pending: 4 },
 ];
 
-const costData = [
-  { time: '09:00', usd: 0.2 },
-  { time: '10:00', usd: 0.8 },
-  { time: '11:00', usd: 1.1 },
-  { time: '12:00', usd: 2.4 },
-  { time: '13:00', usd: 3.1 },
-  { time: '14:00', usd: 3.5 },
-];
+interface BudgetStatus {
+  dailyBudgetUsd: number;
+  dailySpendUsd: number;
+  throttled: boolean;
+  exceeded: boolean;
+  enabled: boolean;
+}
+
+interface BudgetForecast {
+  projectedEndOfDayUsd: number;
+}
+
+const MICROS_PER_DOLLAR = 1_000_000;
+
+function microToUsd(micro: number): number {
+  return micro / MICROS_PER_DOLLAR;
+}
 
 function mapNode(apiNode: ApiNode): MeshNode {
   return {
@@ -74,6 +83,8 @@ function overallStatus(nodes: MeshNode[]) {
 export default function StatusPage() {
   const [nodes, setNodes] = useState<MeshNode[]>([]);
   const [activeJobs, setActiveJobs] = useState<ApiJob[]>([]);
+  const [budgetStatus, setBudgetStatus] = useState<BudgetStatus | null>(null);
+  const [budgetForecast, setBudgetForecast] = useState<BudgetForecast | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,7 +94,7 @@ export default function StatusPage() {
         setLoading(true);
         setError(null);
 
-        const [nodesRes, tasksRes] = await Promise.all([
+        const [nodesRes, tasksRes, budgetRes, forecastRes] = await Promise.all([
           fetch('/api/v1/nodes', {
             // TODO: replace dev stub token with Clerk session JWT.
             headers: { Authorization: 'Bearer test' },
@@ -92,16 +103,24 @@ export default function StatusPage() {
             // TODO: replace dev stub token with Clerk session JWT.
             headers: { Authorization: 'Bearer test' },
           }),
+          fetch('/api/v1/budget', { credentials: 'include' }),
+          fetch('/api/v1/budget/forecast', { credentials: 'include' }),
         ]);
 
         if (!nodesRes.ok) throw new Error(`Nodes fetch failed: ${nodesRes.status}`);
         if (!tasksRes.ok) throw new Error(`Tasks fetch failed: ${tasksRes.status}`);
+        if (!budgetRes.ok) throw new Error(`Budget fetch failed: ${budgetRes.status}`);
+        if (!forecastRes.ok) throw new Error(`Forecast fetch failed: ${forecastRes.status}`);
 
         const nodesBody = (await nodesRes.json()) as { data: ApiNode[] };
         const tasksBody = (await tasksRes.json()) as { data: ApiJob[] };
+        const budgetBody = (await budgetRes.json()) as { data: BudgetStatus };
+        const forecastBody = (await forecastRes.json()) as { data: BudgetForecast };
 
         setNodes(nodesBody.data.map(mapNode));
         setActiveJobs(tasksBody.data.filter((job) => job.status === 'running'));
+        setBudgetStatus(budgetBody.data);
+        setBudgetForecast(forecastBody.data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load status');
       } finally {
@@ -134,6 +153,12 @@ export default function StatusPage() {
   const totalJobs = activeJobs.length;
   const queueDepth = queueData[queueData.length - 1].pending;
   const onlineCount = nodes.filter((n) => n.status === 'up').length;
+  const todayUsd = microToUsd(budgetStatus?.dailySpendUsd ?? 0);
+  const projectedUsd = microToUsd(budgetForecast?.projectedEndOfDayUsd ?? 0);
+  const costData = [0, 1, 2, 3, 4, 5].map((i) => ({
+    time: `${9 + i}:00`,
+    usd: todayUsd * (i / 5),
+  }));
 
   return (
     <div className="space-y-6">
@@ -206,7 +231,7 @@ export default function StatusPage() {
           </div>
         </div>
 
-        <CostWidget today={12.0} projected={58} data={costData} />
+        <CostWidget today={todayUsd} projected={projectedUsd} data={costData} />
       </div>
 
       <div className="rounded-xl bg-[var(--bg-surface)] p-4 shadow-card">
@@ -222,7 +247,7 @@ export default function StatusPage() {
           <div>
             <p className="text-xs text-[var(--text-muted)]">Cost burn rate</p>
             <p className="text-xl font-semibold text-[var(--text-primary)]">
-              $12 today · $58 proj/wk
+              ${todayUsd.toFixed(2)} today · ${projectedUsd.toFixed(2)} projected EOD
             </p>
           </div>
         </div>

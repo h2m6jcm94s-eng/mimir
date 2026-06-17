@@ -78,6 +78,38 @@ export async function getTenantDailyCostUsd(ctx: TenantContext, date: Date): Pro
   return Number(row?.total ?? 0);
 }
 
+export async function getTenantMonthlyCostUsd(ctx: TenantContext, date: Date): Promise<number> {
+  const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+  const end = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1));
+
+  const [row] = await ctx.tenantScopedDb
+    .select({
+      total: sql`coalesce(sum(${schema.job.costUsd}), 0)`,
+    })
+    .from(schema.job)
+    .where(and(gte(schema.job.createdAt, start), lt(schema.job.createdAt, end)));
+
+  return Number(row?.total ?? 0);
+}
+
+export async function getTenantHourlyBurnUsd(
+  ctx: TenantContext,
+  now: Date,
+  hours: number
+): Promise<number> {
+  const start = new Date(now.getTime() - hours * 60 * 60 * 1000);
+
+  const [row] = await ctx.tenantScopedDb
+    .select({
+      total: sql`coalesce(sum(${schema.job.costUsd}), 0)`,
+    })
+    .from(schema.job)
+    .where(gte(schema.job.createdAt, start));
+
+  const total = Number(row?.total ?? 0);
+  return Math.round(total / hours);
+}
+
 export async function getJob(ctx: TenantContext, jobId: string) {
   const [found] = await ctx.tenantScopedDb
     .select()
