@@ -39,6 +39,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Console page type error: removed stale `model` variable reference in raw tool-call preview after switching to provider/role selection.
+
 - Added missing `REPORTS_READ` scope to `Scopes` in `apps/api/src/middleware/rbac.ts`, resolving a runtime undefined reference for `member`/`viewer` roles.
 - Enabled Kimi and Groq provider integration tests to run without real API keys by falling back to a local HTTP mock server; real keys still hit live endpoints when present. Made `AnthropicMessagesProvider` support configurable `supportedTiers` so the Kimi Code path can serve tier 1.
 - Fixed e2e global setup parameterization of `SET LOCAL app.tenant_id`; switched Playwright provider defaults to `local` so the suite passes without API keys; renamed `console-kimi.spec.ts` to `console-provider.spec.ts`; added `NEXT_PUBLIC_PLAYWRIGHT_TEST` + `mimir_test_session` cookie auth bypass so web e2e tests can reach protected API routes in test mode.

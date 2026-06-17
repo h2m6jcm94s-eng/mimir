@@ -27,6 +27,14 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+interface AgentRole {
+  id: string;
+  kind: string;
+  name: string;
+  provider: string;
+  model?: string;
+}
+
 type Role = 'user' | 'assistant' | 'system';
 
 interface AssistantMessage {
@@ -107,12 +115,6 @@ function isSystem(msg: Message): msg is SystemMessage {
   return msg.role === 'system';
 }
 
-const MODEL_TO_PROVIDER = {
-  kimi: 'kimi',
-  claude: 'anthropic',
-  ollama: 'ollama',
-} as const;
-
 async function pollJob(jobId: string): Promise<string> {
   for (let attempt = 0; attempt < 30; attempt++) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -149,7 +151,9 @@ export default function ConsolePage() {
   const [showAttachments, setShowAttachments] = useState(false);
   const [offlineMode, setOfflineMode] = useState(false);
 
-  const [model, setModel] = useState<'kimi' | 'claude' | 'ollama'>('kimi');
+  const [agentRoles, setAgentRoles] = useState<AgentRole[]>([]);
+  const [selectedRole, setSelectedRole] = useState<AgentRole | null>(null);
+  const [rolesLoading, setRolesLoading] = useState(true);
   const [budget, setBudget] = useState<number>(5);
   const [tier, setTier] = useState<0 | 1 | 2>(1);
   const [node, setNode] = useState<'auto' | 'laptop' | 'desktop' | 'cloud' | 'phone'>('auto');
@@ -163,6 +167,30 @@ export default function ConsolePage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
+  // load available agent roles so the console is model-agnostic
+  useEffect(() => {
+    async function loadRoles() {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/agents/roles`, {
+          credentials: 'include',
+        });
+        if (!res.ok) throw new Error('failed to load roles');
+        const body = (await res.json()) as { roles: AgentRole[] };
+        const roles = body.roles.filter((r) => r.kind === 'main');
+        setAgentRoles(roles);
+        setSelectedRole(roles[0] ?? null);
+      } catch {
+        // fall back to a minimal local role so the UI still renders
+        const fallback: AgentRole = { id: 'local', kind: 'main', name: 'local', provider: 'local' };
+        setAgentRoles([fallback]);
+        setSelectedRole(fallback);
+      } finally {
+        setRolesLoading(false);
+      }
+    }
+    loadRoles();
+  }, []);
+
   async function handleSend() {
     const text = input.trim();
     if (!text || isStreaming) return;
@@ -173,7 +201,6 @@ export default function ConsolePage() {
     setIsStreaming(true);
 
     try {
-      const provider = MODEL_TO_PROVIDER[model];
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/tasks`, {
         method: 'POST',
         credentials: 'include',
@@ -186,7 +213,9 @@ export default function ConsolePage() {
           prompt: text,
           payload: {},
           attachments: [],
-          provider,
+          ...(selectedRole && { role: selectedRole.kind }),
+          ...(selectedRole?.model && { model: selectedRole.model }),
+          ...(selectedRole?.provider && { provider: selectedRole.provider }),
         }),
       });
 
@@ -202,7 +231,7 @@ export default function ConsolePage() {
         id: Date.now() + 1,
         role: 'assistant',
         content: answer,
-        model,
+        model: selectedRole?.model ?? selectedRole?.provider ?? 'local',
         confidence: 0.89,
         cost: 0.007,
         tier,
@@ -517,21 +546,25 @@ export default function ConsolePage() {
                         Model
                       </span>
                       <div className="flex gap-1">
-                        {(['kimi', 'claude', 'ollama'] as const).map((m) => (
-                          <button
-                            key={m}
-                            type="button"
-                            onClick={() => setModel(m)}
-                            className={cn(
-                              'rounded-md px-2 py-1 text-xs font-medium capitalize transition-colors',
-                              model === m
-                                ? 'bg-[var(--accent-primary)] text-white'
-                                : 'bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-raised)]'
-                            )}
-                          >
-                            {m}
-                          </button>
-                        ))}
+                        {rolesLoading ? (
+                          <span className="text-xs text-[var(--text-muted)]">loading roles…</span>
+                        ) : (
+                          agentRoles.map((role) => (
+                            <button
+                              key={role.id}
+                              type="button"
+                              onClick={() => setSelectedRole(role)}
+                              className={cn(
+                                'rounded-md px-2 py-1 text-xs font-medium transition-colors',
+                                selectedRole?.id === role.id
+                                  ? 'bg-[var(--accent-primary)] text-white'
+                                  : 'bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-raised)]'
+                              )}
+                            >
+                              {role.name}
+                            </button>
+                          ))
+                        )}
                       </div>
                     </div>
 
@@ -614,7 +647,7 @@ export default function ConsolePage() {
 
                   {rawToolCalls && (
                     <div className="mt-3 rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] p-2 font-mono text-[10px] text-[var(--text-muted)]">
-                      {`> classify_tier(text="${input.slice(0, 40)}...")\n> route_node(tier=${tier}, node=${node})\n> generate_plan(model=${model}, budget=${budget})`}
+                      {`> classify_tier(text="${input.slice(0, 40)}...")\n> route_node(tier=${tier}, node=${node})\n> delegate_role(role=${selectedRole?.kind ?? 'main'}, budget=${budget})`}
                     </div>
                   )}
                 </div>
