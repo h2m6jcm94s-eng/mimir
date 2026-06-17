@@ -23,6 +23,11 @@ declare module 'fastify' {
 
 export type ExternalIdResolver = (externalId: string, email: string) => Promise<AuthUser>;
 
+function hasTestSessionCookie(cookieHeader: string | undefined): boolean {
+  if (!cookieHeader) return false;
+  return cookieHeader.split(';').some((entry) => entry.trim().startsWith('mimir_test_session='));
+}
+
 let externalIdResolver: ExternalIdResolver | undefined;
 
 export function setExternalIdResolver(resolver: ExternalIdResolver): void {
@@ -119,6 +124,11 @@ export async function authMiddleware(request: FastifyRequest, reply: FastifyRepl
       // Test bypass so integration tests do not need a running Supertokens core.
       externalId = request.headers.authorization.slice(7);
       email = `${externalId}@test.local`;
+    } else if (process.env.NODE_ENV === 'test' && hasTestSessionCookie(request.headers.cookie)) {
+      // Browser e2e tests set this cookie via fixtures/auth.ts so the web app
+      // can call the API without a real Supertokens session.
+      externalId = 'test';
+      email = 'test@test.local';
     } else {
       const session = await Session.getSession(request, reply, { sessionRequired: false });
       if (!session) {

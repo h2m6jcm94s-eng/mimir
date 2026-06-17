@@ -141,6 +141,13 @@
       "when": 1781727712208,
       "tag": "0019_unique_mole_man",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1781737784840,
+      "tag": "0020_sparkling_naoko",
+      "breakpoints": true
     }
   ]
 }

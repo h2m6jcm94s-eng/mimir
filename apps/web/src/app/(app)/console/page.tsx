@@ -279,6 +279,7 @@ export default function ConsolePage() {
                 </div>
               ) : (
                 <div
+                  data-testid={msg.role === 'assistant' ? 'assistant-message' : undefined}
                   className={cn(
                     'max-w-[85%] rounded-2xl px-5 py-3.5 text-sm leading-relaxed',
                     msg.role === 'user'

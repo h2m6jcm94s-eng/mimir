@@ -11,3 +11,4 @@ export * from './connector';
 export * from './policy';
 export * from './approval';
 export * from './budget';
+export * from './agent-roles';

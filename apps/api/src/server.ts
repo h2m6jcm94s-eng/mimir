@@ -7,6 +7,7 @@ import { initSupertokens } from './auth/supertokens';
 import { loadConfig } from './config';
 import { redis } from './db/redis';
 import { authMiddleware, registerAuth } from './middleware/auth';
+import { agentRoutes } from './routes/agents';
 import { approvalRoutes } from './routes/approvals';
 import { auditRoutes } from './routes/audit';
 import { budgetRoutes } from './routes/budget';
@@ -62,6 +63,7 @@ async function main() {
   app.register(auditRoutes, { prefix: '/v1/audit' });
   app.register(connectorRoutes, { prefix: '/v1/connectors' });
   app.register(governanceRoutes, { prefix: '/v1/governance' });
+  app.register(agentRoutes, { prefix: '/v1/agents' });
   app.register(approvalRoutes, { prefix: '/v1/approvals' });
   app.register(budgetRoutes, { prefix: '/v1/budget' });
   app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });

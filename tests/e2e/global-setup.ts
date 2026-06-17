@@ -28,12 +28,16 @@ export default async function globalSetup() {
 
   console.log('[e2e setup] Ensuring test tenant exists...');
   const sql = postgres(databaseUrl);
-  await sql`
-    SET LOCAL app.tenant_id = ${TEST_TENANT_ID};
-    INSERT INTO tenant (id, name, plan)
-    VALUES (${TEST_TENANT_ID}, 'Test Tenant', 'free')
-    ON CONFLICT (id) DO NOTHING;
-  `;
+  // SET LOCAL cannot use query parameters, so the validated UUID is inlined safely
+  // inside an explicit transaction so RLS policies see the tenant context.
+  await sql.begin(async (tx) => {
+    await tx.unsafe(`SET LOCAL app.tenant_id = '${TEST_TENANT_ID}'`);
+    await tx`
+      INSERT INTO tenant (id, name, plan)
+      VALUES (${TEST_TENANT_ID}, 'Test Tenant', 'free')
+      ON CONFLICT (id) DO NOTHING;
+    `;
+  });
   await sql.end();
   console.log('[e2e setup] Test tenant ready.');
 }
