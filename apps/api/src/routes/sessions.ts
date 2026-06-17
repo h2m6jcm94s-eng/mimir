@@ -4,7 +4,13 @@ import { withTenantTransaction } from '../db/tenant-context';
 import { Scopes, requireScope } from '../middleware/rbac';
 import { protectedRouteConfig } from '../middleware/route-config';
 import { createAuditEvent } from '../repositories/audit';
-import { createMessage, createSession, listMessages, listSessions } from '../repositories/session';
+import {
+  createMessage,
+  createSession,
+  listMessages,
+  listSessions,
+  searchMessages,
+} from '../repositories/session';
 import { ClassificationGateway } from '../services/classification/gateway';
 
 const createSessionSchema = z.object({
@@ -23,6 +29,11 @@ const createMessageSchema = z.object({
 const paginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
+});
+
+const searchSchema = z.object({
+  query: z.string().min(1).max(500),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
 });
 
 export async function sessionRoutes(app: FastifyInstance) {
@@ -117,4 +128,20 @@ export async function sessionRoutes(app: FastifyInstance) {
       return reply.send(result);
     }
   );
+
+  app.get('/search', { config: protectedRouteConfig }, async (request: FastifyRequest, reply) => {
+    const user = request.user;
+    if (!user)
+      return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+
+    const query = searchSchema.parse(request.query);
+    const results = await withTenantTransaction(user.tenantId, async (ctx) => {
+      return searchMessages(ctx, query.query, query.limit);
+    });
+
+    return reply.send({
+      query: query.query,
+      results,
+    });
+  });
 }

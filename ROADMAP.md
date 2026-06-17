@@ -1950,7 +1950,7 @@ Airtable base when M6 lands (F‑020).
 | F‑071 | Second brain / idea capture with bidirectional links | Free | P1 | ⬜ | api/web | 2026‑12 | M6 |
 | F‑072 | Meeting prep & automated follow‑up drafts | Pro | P1 | ⬜ | api | 2027‑Q1 | M7 |
 | F‑073 | Inbox Zero assistant (triage, draft replies, priorities) | Pro | P1 | ⬜ | api | 2027‑Q1 | M7 |
-| F‑074 | Conversational memory search across all chats | Free | P1 | 🟦 | api | 2026‑11 | M4 |
+| F‑074 | Conversational memory search across all chats | Free | P1 | ✅ | api | 2026‑11 | M4 |
 | F‑075 | Proactive contextual suggestions (opt‑in) | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
 | F‑076 | Voice‑first hands‑free companion mode | Free | P2 | ⬜ | gateway | 2027‑Q2 | M8 |
 | F‑077 | Life documentation & legacy memory (stories, recipes, memoirs) | Free | P2 | ⬜ | api/web | 2027‑Q3 | post‑M10 |

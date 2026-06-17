@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { withTenantTransaction } from '../db/tenant-context';
 import { resolveAuthUser } from '../middleware/auth';
 import { listAuditEvents } from '../repositories/audit';
+import { createMessage, createSession } from '../repositories/session';
 import { buildTestApp } from '../test-helpers/build-app';
 import { sessionRoutes } from './sessions';
 
@@ -113,4 +114,42 @@ describe('sessions routes', () => {
       expect(decision?.tier).toBe(2);
     }
   );
+
+  it.skipIf(!process.env.RUN_DB_TESTS)('searches messages across sessions', async () => {
+    const externalId = `sessions_search_user_${Date.now()}`;
+    const user = await resolveAuthUser(externalId, `${externalId}@test.local`);
+
+    const { session } = await withTenantTransaction(user.tenantId, async (ctx) => {
+      const session = await createSession(ctx, { source: 'web' });
+      await createMessage(ctx, {
+        sessionId: session.id,
+        role: 'user',
+        content: 'I am planning a trip to Berlin in October.',
+      });
+      return { session };
+    });
+
+    const app = await buildTestApp(async (app) => {
+      await app.register(sessionRoutes, { prefix: '/v1/sessions' });
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/sessions/search?query=Berlin',
+      headers: { authorization: `Bearer ${externalId}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.results).toBeInstanceOf(Array);
+    expect(body.results.length).toBeGreaterThan(0);
+    expect(
+      body.results.some((r: { message: { content: string } }) =>
+        r.message.content.includes('Berlin')
+      )
+    ).toBe(true);
+    expect(body.results.some((r: { session: { id: string } }) => r.session.id === session.id)).toBe(
+      true
+    );
+  });
 });

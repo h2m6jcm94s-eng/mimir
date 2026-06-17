@@ -1,4 +1,4 @@
-import { and, desc, eq, gt } from 'drizzle-orm';
+import { and, desc, eq, gt, ilike } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import type { TenantContext } from '../db/tenant-context';
 
@@ -100,4 +100,29 @@ export async function listMessages(
   const nextCursor = hasMore ? data[data.length - 1]?.id : undefined;
 
   return { data, nextCursor };
+}
+
+export interface MessageSearchResult {
+  message: typeof schema.message.$inferSelect;
+  session: typeof schema.session.$inferSelect;
+}
+
+export async function searchMessages(
+  ctx: TenantContext,
+  query: string,
+  limit: number
+): Promise<MessageSearchResult[]> {
+  const escaped = query.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+  const pattern = `%${escaped}%`;
+
+  return ctx.tenantScopedDb
+    .select({
+      message: schema.message,
+      session: schema.session,
+    })
+    .from(schema.message)
+    .innerJoin(schema.session, eq(schema.message.sessionId, schema.session.id))
+    .where(and(eq(schema.message.tenantId, ctx.tenantId), ilike(schema.message.content, pattern)))
+    .orderBy(desc(schema.message.createdAt))
+    .limit(limit);
 }
