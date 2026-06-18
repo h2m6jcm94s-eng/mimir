@@ -24,6 +24,7 @@ import { metricsRoutes } from './routes/metrics';
 import { nodeRoutes } from './routes/nodes';
 import { notificationRoutes } from './routes/notifications';
 import { reportRoutes } from './routes/reports';
+import { sandboxRoutes } from './routes/sandbox';
 import { sessionRoutes } from './routes/sessions';
 import { taskRoutes } from './routes/tasks';
 import { httpRequestsCounter } from './services/metrics/registry';
@@ -82,6 +83,7 @@ async function main() {
   app.register(metricsRoutes, { prefix: '/v1/metrics' });
   app.register(notificationRoutes, { prefix: '/v1/notifications' });
   app.register(reportRoutes, { prefix: '/v1/reports' });
+  app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
   app.register(haltRoutes, { prefix: '/v1/halt' });
 
   app.addHook('onResponse', async (request, reply) => {

@@ -22,6 +22,9 @@ export const Scopes = {
   HALT_WRITE: 'halt:write',
   REPORTS_READ: 'reports:read',
   METRICS_READ: 'metrics:read',
+  SANDBOX_RUN: 'sandbox:run',
+  SANDBOX_ANALYZE: 'sandbox:analyze',
+  SANDBOX_READ: 'sandbox:read',
 } as const;
 
 const ROLE_SCOPES: Record<string, string[]> = {
@@ -44,6 +47,7 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.HALT_READ,
     Scopes.REPORTS_READ,
     Scopes.METRICS_READ,
+    Scopes.SANDBOX_ANALYZE,
   ],
   viewer: [
     Scopes.CHAT_READ,
