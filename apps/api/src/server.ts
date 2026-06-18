@@ -37,6 +37,7 @@ import { schedulingRoutes } from './routes/scheduling';
 import { sessionRoutes } from './routes/sessions';
 import { sshCaRoutes } from './routes/ssh-ca';
 import { taskRoutes } from './routes/tasks';
+import { toolsRoutes } from './routes/tools';
 import { httpRequestsCounter } from './services/metrics/registry';
 import { initializeLibSqlSchema } from './services/state/libsql-schema';
 import { getTemporalConnection } from './temporal/client';
@@ -87,6 +88,7 @@ async function main() {
 
   app.register(sessionRoutes, { prefix: '/v1/sessions' });
   app.register(taskRoutes, { prefix: '/v1/tasks' });
+  app.register(toolsRoutes, { prefix: '/v1/tools' });
   app.register(nodeRoutes, { prefix: '/v1/nodes' });
   app.register(auditRoutes, { prefix: '/v1/audit' });
   app.register(connectorRoutes, { prefix: '/v1/connectors' });

@@ -21,3 +21,4 @@ export * from './memory';
 export * from './life-admin';
 export * from './marketing';
 export * from './scheduling';
+export * from './tool';
