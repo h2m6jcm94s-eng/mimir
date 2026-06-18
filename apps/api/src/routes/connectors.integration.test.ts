@@ -209,4 +209,69 @@ describe('connectors routes', () => {
     expect(body.jobId).toBeDefined();
     expect(body.workflowId).toBeDefined();
   });
+
+  const newWriteConnectors: Array<{
+    kind: string;
+    action: string;
+    input: Record<string, unknown>;
+  }> = [
+    {
+      kind: 'gmail',
+      action: 'sendMessage',
+      input: { to: 'a@example.com', subject: 'Hi', body: 'Hello' },
+    },
+    {
+      kind: 'microsoftGraph',
+      action: 'sendMessage',
+      input: { to: 'a@example.com', subject: 'Hi', body: 'Hello' },
+    },
+    {
+      kind: 'googleContacts',
+      action: 'createContact',
+      input: { givenName: 'Ada', email: 'ada@example.com' },
+    },
+    { kind: 'googleDocs', action: 'createDocument', input: { title: 'Notes' } },
+    { kind: 'discord', action: 'sendMessage', input: { channelId: '123', content: 'hi' } },
+    { kind: 'slack', action: 'sendMessage', input: { channelId: '#general', text: 'hi' } },
+  ];
+
+  it.skipIf(!process.env.RUN_DB_TESTS)(
+    'queues write-action jobs for F-019/F-020/F-021 connectors',
+    async () => {
+      for (const { kind, action, input } of newWriteConnectors) {
+        const token = `connector_${kind}_${Date.now()}`;
+        const app = await buildTestApp(async (app) => {
+          await app.register(connectorRoutes, { prefix: '/v1/connectors' });
+        });
+
+        const user = await resolveAuthUser(token, `${token}@test.local`);
+        process.env[`MIMIR_SECRET_${kind.toUpperCase()}_${user.tenantId}`] = 'test-token';
+
+        const connectResponse = await app.inject({
+          method: 'POST',
+          url: '/v1/connectors',
+          headers: { authorization: `Bearer ${token}` },
+          payload: {
+            kind,
+            secretRef: kind,
+            scopes: [],
+            tier: 1,
+          },
+        });
+        expect(connectResponse.statusCode).toBe(201);
+
+        const response = await app.inject({
+          method: 'POST',
+          url: `/v1/connectors/${kind}/actions/${action}`,
+          headers: { authorization: `Bearer ${token}` },
+          payload: { tier: 1, input },
+        });
+
+        expect(response.statusCode).toBe(201);
+        const body = JSON.parse(response.body);
+        expect(body.jobId).toBeDefined();
+        expect(body.workflowId).toBeDefined();
+      }
+    }
+  );
 });

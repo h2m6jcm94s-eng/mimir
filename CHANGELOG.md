@@ -53,6 +53,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Wired missing Temporal worker side-effect imports for F-019/F-020/F-021 connector handlers (`gmail`, `microsoftGraph`, `airtable`, `googleContacts`, `googleDocs`, `discord`, `slack`) so queued write actions actually execute instead of falling through to the default no-op handler.
+- Made the connectors e2e "connect button toggles connector status" test idempotent so it passes regardless of whether a previous run left GitHub connected.
 - Full e2e suite stabilized against real API data (68 passing). Fixed approvals page approve/deny endpoint mapping, added empty request body, and added `data-testid`s to approval cards; updated governance/scaffold/status/cost/connectors/task-orchestration assertions for live data and test isolation.
 - Briefings web page now routes API calls through `/api/v1/...` rewrites, includes an empty JSON body on generate, signs in the test user, and uses first-element/count assertions so the suite passes with accumulated briefing rows.
 - Console page type error: removed stale `model` variable reference in raw tool-call preview after switching to provider/role selection.

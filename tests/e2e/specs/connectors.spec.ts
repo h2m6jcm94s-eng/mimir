@@ -30,8 +30,13 @@ test.describe('Connectors', () => {
 
   test('connect button toggles connector status', async ({ page }) => {
     const github = page.getByTestId('connector-github');
-    await expect(github.getByTestId('connector-status')).toHaveText('Disconnected');
+    const status = github.getByTestId('connector-status');
+    const current = await status.textContent();
+    if (current?.trim() === 'Connected') {
+      await github.getByTestId('connector-toggle').click();
+      await expect(status).toHaveText('Disconnected');
+    }
     await github.getByTestId('connector-toggle').click();
-    await expect(github.getByTestId('connector-status')).toHaveText('Connected');
+    await expect(status).toHaveText('Connected');
   });
 });
