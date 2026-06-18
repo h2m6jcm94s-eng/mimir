@@ -24,3 +24,11 @@ export async function createEdge(ctx: TenantContext, input: memoryRepo.CreateMem
 export async function deleteEdge(ctx: TenantContext, id: string) {
   return memoryRepo.deleteMemoryEdge(ctx, id);
 }
+
+export async function getNodesByKind(
+  ctx: TenantContext,
+  kind: memoryRepo.CreateMemoryNodeInput['kind'],
+  limit: number
+) {
+  return memoryRepo.listActiveMemoryNodesByKind(ctx, { kind, limit });
+}

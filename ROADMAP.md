@@ -1941,7 +1941,7 @@ Airtable base when M6 lands (F‑020).
 | F‑062 | Document bonding & record unification: cross‑connector entity resolution (customer, vendor, project) | Pro | P1 | 🟦 | api | 2026‑12 | M6 |
 | F‑063 | Daily briefing & morning companion | Free | P1 | ✅ | api/web | 2027‑Q1 | M7 |
 | F‑064 | Emotional check‑in & private mood journal | Free | P2 | ✅ (shipped as F‑057 Phase 1) | api | 2026‑11 | M4 |
-| F‑065 | Relationship memory (birthdays, preferences, conversation follow‑ups) | Free | P2 | ⬜ | api | 2027‑Q1 | M7 |
+| F‑065 | Relationship memory (birthdays, preferences, conversation follow‑ups) (Phase 1: `POST/GET /v1/memory/relationships` storing tagged semantic memory nodes) | Free | P2 | ✅ Phase 1 | api | 2027‑Q1 | M7 |
 | F‑066 | Nutrition & meal planner with grocery list | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
 | F‑067 | Fitness & workout coach with progress tracking | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
 | F‑068 | Life admin tracker (home, car, insurance, renewals, warranties) | Free | P2 | ⬜ | api | 2027‑Q1 | M7 |

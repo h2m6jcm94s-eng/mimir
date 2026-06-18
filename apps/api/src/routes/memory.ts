@@ -3,6 +3,7 @@ import {
   CreateMemoryCheckpointRequest,
   CreateMemoryEdgeRequest,
   CreateMemoryNodeRequest,
+  CreateRelationshipMemoryRequest,
   type MemoryEdge as MemoryEdgeType,
   MemoryGraphQuery,
   type MemoryNode as MemoryNodeType,
@@ -76,6 +77,23 @@ function serializeEdge(edge: {
     validFrom: edge.validFrom.toISOString(),
     validTo: edge.validTo?.toISOString() ?? null,
     createdAt: edge.createdAt.toISOString(),
+  };
+}
+
+function serializeRelationshipNode(node: {
+  id: string;
+  value: unknown;
+  createdAt: Date;
+}) {
+  const value = (node.value as Record<string, unknown>) ?? {};
+  return {
+    id: node.id,
+    name: (value.name as string) ?? '',
+    relationship: (value.relationship as string) ?? '',
+    notes: (value.notes as string | null) ?? null,
+    birthday: (value.birthday as string | null) ?? null,
+    preferences: (value.preferences as Record<string, string>) ?? {},
+    createdAt: node.createdAt.toISOString(),
   };
 }
 
@@ -378,6 +396,63 @@ export async function memoryRoutes(app: FastifyInstance) {
       });
 
       return reply.status(201).send({ data: serializeCheckpoint(checkpoint) });
+    }
+  );
+
+  app.post(
+    '/relationships',
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.MEMORY_WRITE) },
+    async (request: FastifyRequest, reply) => {
+      const user = request.user;
+      if (!user) {
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+      }
+
+      const body = CreateRelationshipMemoryRequest.parse(request.body);
+      const node = await withTenantTransaction(user.tenantId, async (ctx) => {
+        const created = await graphService.createNode(ctx, {
+          kind: 'semantic',
+          key: `relationship:${body.name.toLowerCase().replace(/\s+/g, '-')}`,
+          value: {
+            type: 'relationship',
+            name: body.name,
+            relationship: body.relationship,
+            notes: body.notes ?? null,
+            birthday: body.birthday ?? null,
+            preferences: body.preferences,
+          },
+          createdBy: user.userAccountId,
+        });
+        await createAuditEvent(ctx, {
+          actor: user.userId,
+          action: 'memory.relationship.created',
+          tier: 0,
+          payload: { nodeId: created.id, name: body.name, relationship: body.relationship },
+        });
+        return created;
+      });
+
+      return reply.status(201).send({ data: serializeRelationshipNode(node) });
+    }
+  );
+
+  app.get(
+    '/relationships',
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.MEMORY_READ) },
+    async (request: FastifyRequest, reply) => {
+      const user = request.user;
+      if (!user) {
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+      }
+
+      const data = await withTenantTransaction(user.tenantId, async (ctx) => {
+        const nodes = await graphService.getNodesByKind(ctx, 'semantic', 100);
+        return nodes
+          .filter((n) => (n.value as Record<string, unknown>)?.type === 'relationship')
+          .map(serializeRelationshipNode);
+      });
+
+      return reply.send({ data });
     }
   );
 }

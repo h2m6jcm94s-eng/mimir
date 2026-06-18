@@ -103,6 +103,24 @@ export async function listActiveMemoryNodes(
     .limit(input.limit);
 }
 
+export async function listActiveMemoryNodesByKind(
+  ctx: TenantContext,
+  input: { kind: CreateMemoryNodeInput['kind']; limit: number }
+): Promise<(typeof schema.memoryNode.$inferSelect)[]> {
+  return ctx.tenantScopedDb
+    .select()
+    .from(schema.memoryNode)
+    .where(
+      and(
+        eq(schema.memoryNode.tenantId, ctx.tenantId),
+        eq(schema.memoryNode.kind, input.kind),
+        isNull(schema.memoryNode.validTo)
+      )
+    )
+    .orderBy(desc(schema.memoryNode.createdAt))
+    .limit(input.limit);
+}
+
 export async function createMemoryEdge(
   ctx: TenantContext,
   input: CreateMemoryEdgeInput

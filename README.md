@@ -396,7 +396,7 @@ Deep architecture: `ROADMAP.md` §3, §5.1, §6–§14.
 | **Second brain / Capture** | Quick notes with `[[wiki-link]]` syntax become classified, searchable `knowledge_item` notes and bidirectional graph edges. |
 | **Daily briefings** | Morning PA-style digest of recent tasks, knowledge, and notifications; generate on demand from the web or API. |
 | **Notifications** | In-app notification center with unread badge, deduplication, and auto-generated alerts for approvals, task failures/completions, and cloud-worker returns. |
-| **Memory** | **Time‑machine** (branch/rewind) + an interactive **graph‑memory** viewer. |
+| **Memory** | **Time‑machine** (branch/rewind) + an interactive **graph‑memory** viewer + relationship memory for people you care about. |
 | **Governance / Audit** | Policy‑as‑code editor + a tamper‑evident **hash‑chain audit log** with temporal replay. |
 | **Cost / Budget** | Live burn‑rate, budgets, auto‑throttle; per‑task pre‑flight cost estimate. |
 | **Usage insights** | Estimated time saved, automation rate, and task throughput — so you can see the return on your brain. |

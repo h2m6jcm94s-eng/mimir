@@ -105,3 +105,28 @@ export const CheckpointDiffQuery = z.object({
   compare: z.string().uuid().optional(),
 });
 export type CheckpointDiffQuery = z.infer<typeof CheckpointDiffQuery>;
+
+export const CreateRelationshipMemoryRequest = z.object({
+  name: z.string().min(1).max(255),
+  relationship: z.string().min(1).max(128),
+  notes: z.string().max(2000).optional(),
+  birthday: z.string().datetime().optional(),
+  preferences: z.record(z.string()).default({}),
+});
+export type CreateRelationshipMemoryRequest = z.infer<typeof CreateRelationshipMemoryRequest>;
+
+export const RelationshipMemory = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  relationship: z.string(),
+  notes: z.string().nullable(),
+  birthday: z.string().datetime().nullable(),
+  preferences: z.record(z.string()),
+  createdAt: z.string().datetime(),
+});
+export type RelationshipMemory = z.infer<typeof RelationshipMemory>;
+
+export const ListRelationshipMemoryResponse = z.object({
+  data: z.array(RelationshipMemory),
+});
+export type ListRelationshipMemoryResponse = z.infer<typeof ListRelationshipMemoryResponse>;
