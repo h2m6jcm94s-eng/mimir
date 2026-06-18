@@ -57,6 +57,68 @@ describe('knowledge routes', () => {
     expect(searchBody.data[0]?.text).toContain('PostgreSQL');
   });
 
+  it('rejects a screenshot without a citation uri', async () => {
+    const token = `knowledge_screenshot_no_uri_${Date.now()}`;
+    const app = await buildTestApp(async (app) => {
+      await app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/knowledge',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        kind: 'screenshot',
+        content: 'OCR text from a screenshot',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.error?.message).toMatch(/screenshots require a citation uri/i);
+  });
+
+  it.skipIf(!process.env.RUN_DB_TESTS)(
+    'ingests a screenshot with ocr text and returns its citation on search',
+    async () => {
+      const token = `knowledge_screenshot_${Date.now()}`;
+      const app = await buildTestApp(async (app) => {
+        await app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
+      });
+
+      const ingestResponse = await app.inject({
+        method: 'POST',
+        url: '/v1/knowledge',
+        headers: { authorization: `Bearer ${token}` },
+        payload: {
+          kind: 'screenshot',
+          uri: 'https://example.com/invoice/9921',
+          content: 'Invoice total is $142.50 for invoice number 9921.',
+          tier: 2,
+        },
+      });
+
+      expect(ingestResponse.statusCode).toBe(201);
+      const ingestBody = JSON.parse(ingestResponse.body);
+      expect(ingestBody.itemId).toBeDefined();
+      expect(ingestBody.tier).toBe(2);
+
+      const searchResponse = await app.inject({
+        method: 'GET',
+        url: '/v1/knowledge/search?q=invoice&limit=5',
+        headers: { authorization: `Bearer ${token}` },
+      });
+
+      expect(searchResponse.statusCode).toBe(200);
+      const searchBody = JSON.parse(searchResponse.body);
+      expect(searchBody.data.length).toBeGreaterThan(0);
+      const hit = searchBody.data.find((r: { kind: string }) => r.kind === 'screenshot');
+      expect(hit).toBeDefined();
+      expect(hit.citation).toBe('https://example.com/invoice/9921');
+      expect(hit.uri).toBe('https://example.com/invoice/9921');
+    }
+  );
+
   it.skipIf(!process.env.RUN_DB_TESTS)(
     'classifies an untagged document and audits the classification decision',
     async () => {

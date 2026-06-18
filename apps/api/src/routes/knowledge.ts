@@ -64,6 +64,21 @@ export async function knowledgeRoutes(app: FastifyInstance) {
       }
 
       const body = ingestSchema.parse(request.body);
+      if (body.kind === 'screenshot') {
+        if (!body.uri || body.uri.length === 0) {
+          return reply.status(400).send({
+            error: { code: 'BAD_REQUEST', message: 'screenshots require a citation uri' },
+          });
+        }
+        try {
+          // eslint-disable-next-line no-new
+          new URL(body.uri);
+        } catch {
+          return reply.status(400).send({
+            error: { code: 'BAD_REQUEST', message: 'screenshot uri must be a valid url' },
+          });
+        }
+      }
       const result = await withTenantTransaction(user.tenantId, async (ctx) => {
         const ingestResult = await ingestDocument(ctx, {
           kind: body.kind,

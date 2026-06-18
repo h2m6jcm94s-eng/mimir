@@ -347,6 +347,7 @@ export interface SearchWithSharesResult {
   score: number;
   kind: string;
   uri: string | null;
+  citation: string | null;
   sharedFromTenantId?: string;
 }
 
@@ -384,6 +385,7 @@ export async function searchKnowledgeWithShares(
       score: localRank,
       kind: schema.knowledgeItem.kind,
       uri: schema.knowledgeItem.uri,
+      citation: schema.knowledgeItem.uri,
     })
     .from(schema.embedding)
     .innerJoin(schema.knowledgeItem, eq(schema.embedding.knowledgeItemId, schema.knowledgeItem.id))
@@ -418,6 +420,7 @@ export async function searchKnowledgeWithShares(
       score: sharedRank,
       kind: schema.sharedKnowledgeItem.kind,
       uri: schema.sharedKnowledgeItem.uri,
+      citation: schema.sharedKnowledgeItem.uri,
       sharedFromTenantId: schema.sharedKnowledgeItem.sourceTenantId,
     })
     .from(schema.sharedEmbedding)

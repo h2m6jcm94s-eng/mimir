@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { TierBadge } from '@/components/ui/TierBadge';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FileText, Image, Plus, Search, Share2, Upload, X } from 'lucide-react';
+import { ExternalLink, FileText, Image, Plus, Search, Share2, Upload, X } from 'lucide-react';
 import { useState } from 'react';
 
 type KnowledgeKind = 'document' | 'screenshot';
@@ -20,6 +20,8 @@ interface KnowledgeItem {
   updated: string;
   description?: string;
   ocr?: string;
+  uri?: string;
+  citation?: string;
 }
 
 const items: KnowledgeItem[] = [
@@ -52,6 +54,8 @@ const items: KnowledgeItem[] = [
     sources: 1,
     updated: '3d ago',
     ocr: 'Total: $142.50 · Invoice #9921',
+    uri: 'https://example.com/billing',
+    citation: 'https://example.com/billing',
   },
   {
     id: 4,
@@ -62,6 +66,8 @@ const items: KnowledgeItem[] = [
     sources: 2,
     updated: '5d ago',
     ocr: 'Mesh topology v2',
+    uri: 'https://example.com/docs/architecture',
+    citation: 'https://example.com/docs/architecture',
   },
   {
     id: 5,
@@ -82,6 +88,8 @@ const items: KnowledgeItem[] = [
     sources: 1,
     updated: '1w ago',
     ocr: 'Error 502: upstream timeout',
+    uri: 'https://example.com/status',
+    citation: 'https://example.com/status',
   },
 ];
 
@@ -132,6 +140,18 @@ function ItemCard({
             {item.sources} sources · {item.updated}
           </span>
         </div>
+        {item.kind === 'screenshot' && item.citation && (
+          <a
+            href={item.citation}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium text-[var(--accent-primary)] hover:underline"
+          >
+            <ExternalLink className="h-3 w-3" />
+            Source
+          </a>
+        )}
       </div>
     </motion.div>
   );
@@ -171,7 +191,19 @@ function Lightbox({ item, onClose }: { item: KnowledgeItem | null; onClose: () =
         </div>
         <div className="mt-4 flex h-64 items-center justify-center rounded-xl bg-[var(--bg-surface-raised)]">
           {item.kind === 'screenshot' ? (
-            <Image className="h-16 w-16 text-[var(--text-muted)]" />
+            item.citation ? (
+              <a
+                href={item.citation}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--accent-primary)]/90"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open source
+              </a>
+            ) : (
+              <Image className="h-16 w-16 text-[var(--text-muted)]" />
+            )
           ) : (
             <FileText className="h-16 w-16 text-[var(--accent-primary)]" />
           )}

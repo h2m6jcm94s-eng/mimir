@@ -87,6 +87,7 @@ export const SearchKnowledgeResultItem = z.object({
   score: z.number(),
   kind: z.enum(['doc', 'code', 'screenshot', 'web']),
   uri: z.string().nullable(),
+  citation: z.string().nullable().optional(),
   sharedFromTenantId: z.string().uuid().optional(),
 });
 export type SearchKnowledgeResultItem = z.infer<typeof SearchKnowledgeResultItem>;

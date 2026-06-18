@@ -31,6 +31,7 @@ export interface SearchKnowledgeResult {
   score: number;
   kind: string;
   uri: string | null;
+  citation: string | null;
 }
 
 export async function createKnowledgeItem(
@@ -129,6 +130,7 @@ export async function searchKnowledge(
       score: rank,
       kind: schema.knowledgeItem.kind,
       uri: schema.knowledgeItem.uri,
+      citation: schema.knowledgeItem.uri,
     })
     .from(schema.embedding)
     .innerJoin(schema.knowledgeItem, eq(schema.embedding.knowledgeItemId, schema.knowledgeItem.id))
