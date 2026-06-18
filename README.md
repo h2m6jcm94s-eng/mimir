@@ -399,6 +399,7 @@ Deep architecture: `ROADMAP.md` §3, §5.1, §6–§14.
 | **Memory** | **Time‑machine** (branch/rewind) + an interactive **graph‑memory** viewer. |
 | **Governance / Audit** | Policy‑as‑code editor + a tamper‑evident **hash‑chain audit log** with temporal replay. |
 | **Cost / Budget** | Live burn‑rate, budgets, auto‑throttle; per‑task pre‑flight cost estimate. |
+| **Usage insights** | Estimated time saved, automation rate, and task throughput — so you can see the return on your brain. |
 | **Connectors** | One place to connect GitHub, mail, Airtable, contacts, docs, screenshots + Discord/Slack/Telegram. Mimir implements the connector engines (design inspired by Hermes) and adds tier labels, credential vaulting, and approval gating. |
 | **Skills / Tools / Subagents** | Reusable capabilities, custom tools, and delegated subagent runs — executed by Mimir's own engine, discovered, versioned, and governed inside Mimir. |
 | **Media generation & speech** | Image/video generation, text‑to‑speech, speech‑to‑text — routed by Mimir's tier and budget rules. |

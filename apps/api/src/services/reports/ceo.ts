@@ -40,6 +40,11 @@ export interface CeoReport {
       createdAt: string;
     }>;
   };
+  usageInsights: {
+    tasksCompleted: number;
+    timeSavedMinutes: number;
+    automationRate: number;
+  };
 }
 
 export class CeoReportService {
@@ -64,11 +69,15 @@ export class CeoReportService {
       ]);
 
     const haltState = await getHaltState();
+    const totalTasks = Object.values(jobStats).reduce((sum, count) => sum + count, 0);
+    const tasksCompleted = jobStats.done ?? 0;
+    const timeSavedMinutes = tasksCompleted * 5;
+    const automationRate = totalTasks > 0 ? tasksCompleted / totalTasks : 0;
 
     return {
       generatedAt: now.toISOString(),
       taskHealth: {
-        total: Object.values(jobStats).reduce((sum, count) => sum + count, 0),
+        total: totalTasks,
         byStatus: jobStats,
         recentFailures,
       },
@@ -87,6 +96,11 @@ export class CeoReportService {
       decisions: {
         pendingApprovalsCount: approvals.total,
         recentPendingApprovals: approvals.recent,
+      },
+      usageInsights: {
+        tasksCompleted,
+        timeSavedMinutes,
+        automationRate,
       },
     };
   }

@@ -1931,7 +1931,7 @@ Airtable base when M6 lands (F‑020).
 | F‑053 | Hardware attestation / TPM integration | Ent | P3 | ⬜ | infra | 2027‑Q3 | post‑M10 |
 | F‑054 | Cross‑mesh knowledge sharing with admin approval | Pro | P1 | ✅ | api | 2026‑11 | M4 |
 | F‑054 | Agent‑to‑agent negotiation | Pro | P3 | ⬜ | api | 2027‑Q3 | post‑M10 |
-| F‑055 | Usage insights / time‑saved dashboard | Pro | P2 | ⬜ | web | 2027‑Q1 | M9 |
+| F‑055 | Usage insights / time‑saved dashboard (Phase 1: time‑saved estimate and automation rate added to CEO report + Reports UI cards) | Pro | P2 | ✅ Phase 1 | api/web | 2027‑Q1 | M9 |
 | F‑056 | Local webserver per node + mesh discovery | Free | P0 | ✅ | api/infra | 2026‑10 | M3 |
 | F‑057 | Companion mode: emotional context, long‑term personal memory, proactive check‑ins (Phase 1: emotional check‑in / private mood journal) | Free | P1 | ✅ Phase 1 | api | 2026‑11 | M4 |
 | F‑058 | Personal finance assistant: bank/CSV ingestion, budgeting, spend anomaly detection | Free | P1 | ⬜ | api | 2026‑12 | M6 |

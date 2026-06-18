@@ -3,8 +3,17 @@
 import { PageHeader } from '@/components/ui/PageHeader';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
-import { BarChart3, Download, FileText, Search, ShieldCheck, Wallet } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import {
+  BarChart3,
+  Clock,
+  Download,
+  FileText,
+  Search,
+  ShieldCheck,
+  Wallet,
+  Zap,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 type ReportKind = 'security' | 'cost' | 'compliance';
 type ReportStatus = 'ready' | 'generating' | 'scheduled';
@@ -16,6 +25,14 @@ interface Report {
   kind: ReportKind;
   status: ReportStatus;
   date: string;
+}
+
+interface CeoReport {
+  usageInsights: {
+    tasksCompleted: number;
+    timeSavedMinutes: number;
+    automationRate: number;
+  };
 }
 
 const reports: Report[] = [
@@ -73,9 +90,56 @@ const statusBadge: Record<ReportStatus, string> = {
   scheduled: 'bg-[var(--text-muted)]/10 text-[var(--text-muted)]',
 };
 
+async function fetchJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`${res.status}: ${text}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+function formatMinutes(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const remaining = minutes % 60;
+  return remaining > 0 ? `${hours}h ${remaining}m` : `${hours}h`;
+}
+
+function InsightCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  sub?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] p-4 shadow-card">
+      <div className="flex items-center gap-2 text-[var(--text-muted)]">
+        <Icon className="h-4 w-4" />
+        <span className="text-xs font-medium">{label}</span>
+      </div>
+      <p className="mt-2 text-2xl font-semibold text-[var(--text-primary)]">{value}</p>
+      {sub && <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{sub}</p>}
+    </div>
+  );
+}
+
 export default function ReportsPage() {
   const [active, setActive] = useState<ReportKind | 'All'>('All');
   const [query, setQuery] = useState('');
+  const [insights, setInsights] = useState<CeoReport['usageInsights'] | null>(null);
+  const [insightsError, setInsightsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchJson<CeoReport>('/api/v1/reports/ceo')
+      .then((report) => setInsights(report.usageInsights))
+      .catch((err) => setInsightsError(err instanceof Error ? err.message : String(err)));
+  }, []);
 
   const filtered = useMemo(() => {
     return reports.filter((r) => {
@@ -104,8 +168,33 @@ export default function ReportsPage() {
         </button>
       </PageHeader>
 
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium text-[var(--text-primary)]">Usage insights</h2>
+        {insightsError && <p className="text-xs text-[var(--text-danger)]">{insightsError}</p>}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <InsightCard
+            icon={Zap}
+            label="Tasks completed"
+            value={insights ? String(insights.tasksCompleted) : '—'}
+            sub="Automated by Mimir"
+          />
+          <InsightCard
+            icon={Clock}
+            label="Time saved"
+            value={insights ? formatMinutes(insights.timeSavedMinutes) : '—'}
+            sub="Estimated this period"
+          />
+          <InsightCard
+            icon={BarChart3}
+            label="Automation rate"
+            value={insights ? `${(insights.automationRate * 100).toFixed(0)}%` : '—'}
+            sub="Done vs total tasks"
+          />
+        </div>
+      </section>
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" data-testid="report-filters">
           {filters.map((f) => (
             <button
               key={f}

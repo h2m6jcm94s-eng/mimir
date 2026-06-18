@@ -60,6 +60,9 @@ describe('reports routes', () => {
       expect(body.risk).toBeDefined();
       expect(body.risk.halted).toBe(false);
       expect(body.decisions.pendingApprovalsCount).toBeGreaterThan(0);
+      expect(body.usageInsights).toBeDefined();
+      expect(typeof body.usageInsights.timeSavedMinutes).toBe('number');
+      expect(typeof body.usageInsights.automationRate).toBe('number');
     }
   );
 });
