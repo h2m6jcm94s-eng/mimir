@@ -232,6 +232,13 @@
       "when": 1781793223171,
       "tag": "0033_memory_graph_bootstrap",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1781794672956,
+      "tag": "0034_marketing_assistant",
+      "breakpoints": true
     }
   ]
 }

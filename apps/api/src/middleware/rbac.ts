@@ -31,6 +31,8 @@ export const Scopes = {
   NOTIFICATIONS_WRITE: 'notifications:write',
   LIFE_ADMIN_READ: 'life_admin:read',
   LIFE_ADMIN_WRITE: 'life_admin:write',
+  MARKETING_READ: 'marketing:read',
+  MARKETING_WRITE: 'marketing:write',
   CLOUD_WORKERS_ADMIN: 'cloud_workers:admin',
   SSH_CA_SIGN: 'ssh_ca:sign',
   MEMORY_READ: 'memory:read',
@@ -65,6 +67,8 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.NOTIFICATIONS_WRITE,
     Scopes.LIFE_ADMIN_READ,
     Scopes.LIFE_ADMIN_WRITE,
+    Scopes.MARKETING_READ,
+    Scopes.MARKETING_WRITE,
     Scopes.CLOUD_WORKERS_ADMIN,
     Scopes.SSH_CA_SIGN,
     Scopes.MEMORY_READ,
@@ -82,6 +86,7 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.REPORTS_READ,
     Scopes.METRICS_READ,
     Scopes.LIFE_ADMIN_READ,
+    Scopes.MARKETING_READ,
   ],
 };
 

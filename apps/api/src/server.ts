@@ -23,6 +23,7 @@ import { healthRoutes } from './routes/health';
 import { knowledgeRoutes } from './routes/knowledge';
 import { knowledgeShareRoutes } from './routes/knowledge-shares';
 import { lifeAdminRoutes } from './routes/life-admin';
+import { marketingRoutes } from './routes/marketing';
 import { memoryRoutes } from './routes/memory';
 import { metricsRoutes } from './routes/metrics';
 import { nodeHealthRoutes } from './routes/node-health';
@@ -93,6 +94,7 @@ async function main() {
   app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
   app.register(knowledgeShareRoutes, { prefix: '/v1/knowledge/shares' });
   app.register(lifeAdminRoutes, { prefix: '/v1/life-admin' });
+  app.register(marketingRoutes, { prefix: '/v1/marketing' });
   app.register(metricsRoutes, { prefix: '/v1/metrics' });
   app.register(memoryRoutes, { prefix: '/v1/memory' });
   app.register(notificationRoutes, { prefix: '/v1/notifications' });
