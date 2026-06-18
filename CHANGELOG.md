@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- F-023 Reports (Phase 1): tenant-scoped `report` table with RLS; shared Zod schemas; `GET/POST /v1/reports` and `/v1/reports/search`; replace static mock list on `/reports` with live data + kind/search filters; Playwright e2e coverage.
 - F-024 Settings (Phase 1): add live **Nodes** tab wired to `/v1/nodes` with Ping and Rotate-key actions; add **Recent notifications** list wired to `/v1/notifications` with mark-read; keep email-preference toggles as client-side UI; extend Playwright e2e coverage.
 - F-029 SSO/SAML/SCIM provider configuration and user provisioning (Phase 1): tenant-scoped `sso_provider` and `scim_token` tables with RLS; `app_user.active` column for SCIM deactivation; `sso:read`/`sso:write` RBAC scopes; shared Zod types; `GET/POST/PATCH/DELETE /v1/sso/providers` CRUD and SCIM token rotation; `/scim/v2/Users` subset with bearer-token auth supporting list, get, create, replace, active toggle, and delete; DB-backed integration tests.
 - F-039 no-code tool builder (Phase 1): tenant-scoped `tool` table with RLS; `POST/GET/PATCH/DELETE /v1/tools` and `POST /v1/tools/:id/run`; `tools:read`/`tools:write` RBAC scopes; tool engine that validates custom input fields and invokes connector read actions; new `/tools` web page with list, builder, and runner; sidebar link and AppShell title; Playwright e2e coverage.

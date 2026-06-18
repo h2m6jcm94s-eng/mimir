@@ -2,6 +2,7 @@
 
 import { PageHeader } from '@/components/ui/PageHeader';
 import { cn } from '@/lib/utils';
+import type { Report as ReportType } from '@mimir/shared-types';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   BarChart3,
@@ -15,17 +16,8 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-type ReportKind = 'security' | 'cost' | 'compliance';
-type ReportStatus = 'ready' | 'generating' | 'scheduled';
-
-interface Report {
-  id: string;
-  title: string;
-  description: string;
-  kind: ReportKind;
-  status: ReportStatus;
-  date: string;
-}
+type ReportKind = ReportType['kind'];
+type ReportStatus = ReportType['status'];
 
 interface CeoReport {
   usageInsights: {
@@ -34,41 +26,6 @@ interface CeoReport {
     automationRate: number;
   };
 }
-
-const reports: Report[] = [
-  {
-    id: 'security-audit',
-    title: 'Security Audit',
-    description: 'CVE scan, access review, and policy exceptions.',
-    kind: 'security',
-    status: 'ready',
-    date: '2026-06-15',
-  },
-  {
-    id: 'weekly-cost',
-    title: 'Weekly Cost Report',
-    description: 'Token spend by model, tier, and skill.',
-    kind: 'cost',
-    status: 'ready',
-    date: '2026-06-14',
-  },
-  {
-    id: 'compliance-q2',
-    title: 'Q2 Compliance Summary',
-    description: 'Governance log and privacy flow attestations.',
-    kind: 'compliance',
-    status: 'scheduled',
-    date: '2026-06-30',
-  },
-  {
-    id: 'mesh-health',
-    title: 'Mesh Health Snapshot',
-    description: 'Node uptime, latency, and queue depth.',
-    kind: 'security',
-    status: 'generating',
-    date: 'Today',
-  },
-];
 
 const filters: Array<ReportKind | 'All'> = ['All', 'security', 'cost', 'compliance'];
 
@@ -106,6 +63,10 @@ function formatMinutes(minutes: number): string {
   return remaining > 0 ? `${hours}h ${remaining}m` : `${hours}h`;
 }
 
+function formatDate(date: string): string {
+  return new Date(date).toLocaleDateString();
+}
+
 function InsightCard({
   icon: Icon,
   label,
@@ -132,13 +93,30 @@ function InsightCard({
 export default function ReportsPage() {
   const [active, setActive] = useState<ReportKind | 'All'>('All');
   const [query, setQuery] = useState('');
+  const [reports, setReports] = useState<ReportType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [insights, setInsights] = useState<CeoReport['usageInsights'] | null>(null);
   const [insightsError, setInsightsError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchJson<CeoReport>('/api/v1/reports/ceo')
-      .then((report) => setInsights(report.usageInsights))
-      .catch((err) => setInsightsError(err instanceof Error ? err.message : String(err)));
+    setLoading(true);
+    Promise.all([
+      fetchJson<{ data: ReportType[] }>('/api/v1/reports?limit=50'),
+      fetchJson<CeoReport>('/api/v1/reports/ceo'),
+    ])
+      .then(([reportsBody, ceoBody]) => {
+        setReports(reportsBody.data);
+        setInsights(ceoBody.usageInsights);
+        setError(null);
+        setInsightsError(null);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   const filtered = useMemo(() => {
@@ -149,7 +127,7 @@ export default function ReportsPage() {
         !q || r.title.toLowerCase().includes(q) || r.description.toLowerCase().includes(q);
       return matchesKind && matchesQuery;
     });
-  }, [active, query]);
+  }, [active, query, reports]);
 
   return (
     <div className="space-y-6">
@@ -193,6 +171,12 @@ export default function ReportsPage() {
         </div>
       </section>
 
+      {error && (
+        <div className="rounded-lg border border-[var(--border-danger)] bg-[var(--bg-danger)] px-4 py-3 text-sm text-[var(--text-danger)]">
+          {error}
+        </div>
+      )}
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2" data-testid="report-filters">
           {filters.map((f) => (
@@ -224,64 +208,74 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      <motion.div layout className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <AnimatePresence mode="popLayout">
-          {filtered.map((report) => {
-            const Icon = kindIcon[report.kind];
-            return (
-              <motion.div
-                key={report.id}
-                layout
-                data-testid={`report-${report.id}`}
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                transition={{ duration: 0.2 }}
-                className="flex flex-col rounded-xl bg-[var(--bg-surface)] p-4 shadow-card transition-shadow hover:shadow-hover"
-              >
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--bg-surface-raised)] text-[var(--accent-primary)]">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <h3 className="text-sm font-semibold text-[var(--text-primary)]">{report.title}</h3>
-                <p className="mt-1 text-xs text-[var(--text-secondary)]">{report.description}</p>
-                <div className="mt-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
-                  <span className="capitalize">{kindLabel[report.kind]}</span>
-                  <span>·</span>
-                  <span>{report.date}</span>
-                </div>
-                <div className="mt-4 flex items-center justify-between">
-                  <span
-                    data-testid="report-status"
-                    className={cn(
-                      'rounded-full px-2 py-0.5 text-[10px] font-medium capitalize',
-                      statusBadge[report.status]
-                    )}
+      {loading ? (
+        <div className="text-sm text-[var(--text-muted)]">Loading reports…</div>
+      ) : (
+        <>
+          <motion.div layout className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <AnimatePresence mode="popLayout">
+              {filtered.map((report) => {
+                const Icon = kindIcon[report.kind];
+                return (
+                  <motion.div
+                    key={report.id}
+                    layout
+                    data-testid={`report-${report.id}`}
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex flex-col rounded-xl bg-[var(--bg-surface)] p-4 shadow-card transition-shadow hover:shadow-hover"
                   >
-                    {report.status}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={report.status !== 'ready'}
-                    className={cn(
-                      'inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
-                      report.status === 'ready'
-                        ? 'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90'
-                        : 'cursor-not-allowed bg-[var(--bg-primary)] text-[var(--text-muted)]'
-                    )}
-                  >
-                    <Download className="h-3.5 w-3.5" /> Download
-                  </button>
-                </div>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-      </motion.div>
+                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--bg-surface-raised)] text-[var(--accent-primary)]">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                      {report.title}
+                    </h3>
+                    <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                      {report.description}
+                    </p>
+                    <div className="mt-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                      <span className="capitalize">{kindLabel[report.kind]}</span>
+                      <span>·</span>
+                      <span>{formatDate(report.createdAt)}</span>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between">
+                      <span
+                        data-testid="report-status"
+                        className={cn(
+                          'rounded-full px-2 py-0.5 text-[10px] font-medium capitalize',
+                          statusBadge[report.status]
+                        )}
+                      >
+                        {report.status}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={report.status !== 'ready'}
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
+                          report.status === 'ready'
+                            ? 'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90'
+                            : 'cursor-not-allowed bg-[var(--bg-primary)] text-[var(--text-muted)]'
+                        )}
+                      >
+                        <Download className="h-3.5 w-3.5" /> Download
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </motion.div>
 
-      {filtered.length === 0 && (
-        <div className="rounded-xl bg-[var(--bg-surface)] p-8 text-center shadow-card">
-          <p className="text-sm text-[var(--text-secondary)]">No reports match your filters.</p>
-        </div>
+          {filtered.length === 0 && (
+            <div className="rounded-xl bg-[var(--bg-surface)] p-8 text-center shadow-card">
+              <p className="text-sm text-[var(--text-secondary)]">No reports match your filters.</p>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

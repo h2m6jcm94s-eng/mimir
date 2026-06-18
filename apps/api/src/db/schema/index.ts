@@ -23,3 +23,4 @@ export * from './marketing';
 export * from './scheduling';
 export * from './tool';
 export * from './sso';
+export * from './reports';

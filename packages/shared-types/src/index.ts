@@ -15,4 +15,5 @@ export * from './marketing';
 export * from './scheduling';
 export * from './tools';
 export * from './sso';
+export * from './reports';
 export * from './errors';
