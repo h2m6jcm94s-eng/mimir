@@ -225,6 +225,13 @@
       "when": 1781791444286,
       "tag": "0032_life_admin_tracker",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1781793223171,
+      "tag": "0033_memory_graph_bootstrap",
+      "breakpoints": true
     }
   ]
 }

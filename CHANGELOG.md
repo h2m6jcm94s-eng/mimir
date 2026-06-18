@@ -74,6 +74,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added missing `REPORTS_READ` scope to `Scopes` in `apps/api/src/middleware/rbac.ts`, resolving a runtime undefined reference for `member`/`viewer` roles.
 - Enabled Kimi and Groq provider integration tests to run without real API keys by falling back to a local HTTP mock server; real keys still hit live endpoints when present. Made `AnthropicMessagesProvider` support configurable `supportedTiers` so the Kimi Code path can serve tier 1.
 - Fixed e2e global setup parameterization of `SET LOCAL app.tenant_id`; switched Playwright provider defaults to `local` so the suite passes without API keys; renamed `console-kimi.spec.ts` to `console-provider.spec.ts`; added `NEXT_PUBLIC_PLAYWRIGHT_TEST` + `mimir_test_session` cookie auth bypass so web e2e tests can reach protected API routes in test mode.
+- Added idempotent migration `0033_memory_graph_bootstrap.sql` (plus journal entry) to create `memory_node`/`memory_edge`/`memory_checkpoint` on environments where the original `0031` migration file existed but was not recorded as applied.
+- Hardened e2e global setup: it now provisions a deterministic test identity, drops the previous test tenant (cascading all tenant-scoped data), and creates a fresh tenant so every full e2e run starts from a clean slate. This removed cross-run flakiness from accumulated briefings, notifications, memory checkpoints, and life-admin rows.
+- Updated the Memory e2e spec to seed its own node/checkpoint data and run serially, giving the time-machine and graph views deterministic content without relying on stale fixtures.
+- Relaxed Notifications filter-tab selectors (`/^Unread/` and `/^All/`) so they match buttons that include an unread-count badge.
 
 ### Changed
 

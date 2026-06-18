@@ -37,9 +37,9 @@ test.describe('Notifications', () => {
   });
 
   test('filter tabs switch between all and unread', async ({ page }) => {
-    await page.getByRole('button', { name: 'Unread', exact: true }).click();
+    await page.getByRole('button', { name: /^Unread/ }).click();
     await expect(page.getByText(seedTitle).first()).toBeVisible();
-    await page.getByRole('button', { name: 'All', exact: true }).click();
+    await page.getByRole('button', { name: /^All/ }).click();
     await expect(page.getByText(seedTitle).first()).toBeVisible();
   });
 
