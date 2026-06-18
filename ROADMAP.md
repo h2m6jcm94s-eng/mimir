@@ -1731,14 +1731,14 @@ IDs map to the features table (§23).
 | # | Issue | Acceptance | Test |
 |---|---|---|---|
 | M2‑1 | Temporal wired (worker + client) (F‑006) | workflow executes; survives worker restart | integration: kill worker mid‑run → resumes |
-| M2‑2 | Durable job queue (kanban‑as‑queue) (F‑007) | jobs persisted; status transitions; survive reboot | integration: reboot → resume |
+| M2‑2 | Durable job queue (kanban‑as‑queue) (F‑007) ✅ | jobs persisted; status transitions; survive reboot | integration: reboot → resume |
 | M2‑3 | **Classification gateway** + policy stub (F‑008) ✅ | request tagged T0/T1/T2 with confidence score; low‑confidence → conservative T0 fallback; every decision logged as an audit event; route chosen; decision logged | unit: classify cases; **T0 never routes to cloud**; property test: low‑confidence input never leaves T0/T1 |
 | M2‑4 | Identifier scrubber (pre‑T2 dispatch) | hostnames/secrets/proprietary names stripped | unit: scrub fixtures |
 | M2‑5 | **Model routing layer** (workhorse · reviewer · local) | Mimir implements its own provider adapters + classified failover; tier‑aware model selection runs inside the engine (§5.1) | integration: tier→provider routing; primary down → Mimir fallback |
 | M2‑6 | **Review loop** (AST‑diff + JSON‑patch, max‑3 + cycle detect) (F‑009) | reviewer output defined as a Zod/Pydantic schema in `@mimir/shared‑types`; invalid reviewer output is rejected/retried/escalated; diff→review→apply; stops at 3 or on cycle; escalates | unit: cycle fixture; golden: patch schema; contract test: invalid reviewer output handled |
 | M2‑7 | **Subagent delegation** via Mimir `delegate_task` under Temporal | Mimir's own delegation/Kanban semantics; Temporal owns durable/fenced/cost‑bounded cross‑node orchestration (§5.1) | integration: delegate → result to memory; crash mid‑delegation → resumes |
 | M2‑8 | Idempotency keys on writes + replay (F‑010 part) | retry skips completed phases; no double side‑effect | **idempotent replay test** |
-| M2‑9 | Web: Console (stream + badges + 📎sources) + Tasks/Kanban (F‑022 part) | chat streams w/ model/tier/trust badges; kanban shows states | Playwright e2e |
+| M2‑9 | Web: Console (stream + badges + 📎sources) + Tasks/Kanban (F‑022 part) ✅ | chat streams w/ model/tier/trust badges; kanban shows states | Playwright e2e |
 | M2‑10 | Circuit breakers per provider (F‑010 part) | open after N fails; fast‑fail + fallback | unit: breaker states |
 | M2‑11 | **Internal engine protocol** (ADR‑0017 rejected) | Mimir activity calls Mimir engine over internal RPC; session fork/list/load works; tool‑progress relayed | integration: drive a Mimir task end‑to‑end |
 | M2‑12 | **State source‑of‑truth** inside Mimir store (ADR‑0018 rejected) | Mimir store authoritative; engine sessions/provenance persisted idempotently; T0 tier‑redacted | integration: run → sync → re‑pull is a no‑op (idempotent) |
@@ -1882,7 +1882,7 @@ Airtable base when M6 lands (F‑020).
 | F‑004 | RBAC (action‑granular) + JIT scaffold | Pro | P1 | ✅ | api | 2026‑08 | M1 |
 | F‑005 | LibSQL embedded‑replica state store | Free | P0 | 🟦 | api | 2026‑08 | M1 |
 | F‑006 | Event bus + Temporal workflows | Free | P0 | 🟦 | api | 2026‑08 | M2 |
-| F‑007 | Durable job queue (kanban‑as‑queue) | Free | P0 | 🟦 | api | 2026‑08 | M2 |
+| F‑007 | Durable job queue (kanban‑as‑queue) | Free | P0 | ✅ | api | 2026‑08 | M2 |
 | F‑008 | Data‑classification gateway (tier routing) | Free | P0 | ✅ | api | 2026‑09 | M2 |
 | F‑009 | Workhorse→reviewer loop (AST‑diff + JSON‑patch) | Free | P0 | ✅ | api | 2026‑09 | M2 |
 | F‑010 | Resilience: circuit breakers + idempotent replay | Free | P0 | ✅ | api | 2026‑09 | M2/M3 |
@@ -1897,7 +1897,7 @@ Airtable base when M6 lands (F‑020).
 | F‑019 | Connector: Mail (Gmail / MS Graph) | Pro | P1 | ⬜ | api | 2026‑12 | M6 |
 | F‑020 | Connectors: Airtable, Contacts, Docs | Pro | P1 | ⬜ | api | 2027‑01 | M6 |
 | F‑021 | Chat surfaces: Telegram, Discord, Slack | Free | P1 | ⬜ | gateway | 2027‑01 | M6 |
-| F‑022 | Web: console, status topology, tasks | Free | P0 | 🟦 | web | 2026‑12 | M2/M3 |
+| F‑022 | Web: console, status topology, tasks | Free | P0 | ✅ | web | 2026‑12 | M2/M3 |
 | F‑023 | Web: approvals, reports, knowledge, memory | Pro | P1 | 🟦 | web | 2027‑01 | M4/M7 |
 | F‑024 | Web: governance/audit, cost, settings | Pro | P1 | 🟦 | web | 2027‑01 | M5/M7 |
 | F‑025 | 4‑channel delivery + notification tiers + dedup | Free | P1 | ⬜ | gateway | 2027‑01 | M8 |

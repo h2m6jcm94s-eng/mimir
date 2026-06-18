@@ -44,6 +44,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Full e2e suite stabilized against real API data (63 passing). Fixed approvals page approve/deny endpoint mapping, added empty request body, and added `data-testid`s to approval cards; updated governance/scaffold/status/cost/connectors/task-orchestration assertions for live data and test isolation.
 - Console page type error: removed stale `model` variable reference in raw tool-call preview after switching to provider/role selection.
 
 - Added missing `REPORTS_READ` scope to `Scopes` in `apps/api/src/middleware/rbac.ts`, resolving a runtime undefined reference for `member`/`viewer` roles.
