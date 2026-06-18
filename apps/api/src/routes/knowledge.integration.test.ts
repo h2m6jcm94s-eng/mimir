@@ -57,7 +57,7 @@ describe('knowledge routes', () => {
     expect(searchBody.data[0]?.text).toContain('PostgreSQL');
   });
 
-  it('rejects a screenshot without a citation uri', async () => {
+  it.skipIf(!process.env.RUN_DB_TESTS)('rejects a screenshot without a citation uri', async () => {
     const token = `knowledge_screenshot_no_uri_${Date.now()}`;
     const app = await buildTestApp(async (app) => {
       await app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });

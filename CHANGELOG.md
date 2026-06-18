@@ -82,6 +82,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `src/services/connectors/github/apply.test.ts` first test now skips without `RUN_DB_TESTS`.
   - `src/routes/metrics.integration.test.ts` Prometheus exposition test now skips without `RUN_DB_TESTS`.
   - `src/scripts/backup.integration.test.ts` backup-run test now skips without `RUN_DB_TESTS` and uses an absolute path to `backup.sh` so it resolves regardless of the test runner's cwd.
+  - `src/routes/knowledge.integration.test.ts` screenshot citation validation test now skips without `RUN_DB_TESTS` because the route is auth-gated and cannot resolve the test user without a database.
 
 ### Changed
 
