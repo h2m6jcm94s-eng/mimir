@@ -1,10 +1,12 @@
-import { expect, test } from '@playwright/test';
+import { signInAsTestUser } from '../fixtures/auth';
+import { apiRequestHeaders, expect, test } from '../fixtures/base';
 
 /**
  * Settings page tests.
  */
 test.describe('Settings', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context }) => {
+    await signInAsTestUser(context);
     await page.goto('/settings');
   });
 
@@ -14,6 +16,7 @@ test.describe('Settings', () => {
     await expect(page.getByRole('button', { name: 'Appearance' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'API Keys' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Notifications' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Nodes' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Members' })).toBeVisible();
   });
 
@@ -45,5 +48,52 @@ test.describe('Settings', () => {
     await page.getByRole('button', { name: 'Members' }).click();
     await expect(page.getByText('Alex Chen')).toBeVisible();
     await expect(page.getByText('Sam Doe')).toBeVisible();
+  });
+
+  test('nodes tab lists enrolled mesh nodes', async ({ page, apiRequest }) => {
+    const externalId = `settings-node-${Date.now()}`;
+    const enrollResponse = await apiRequest.post('/v1/nodes/enroll', {
+      headers: apiRequestHeaders(),
+      data: {
+        kind: 'desktop',
+        name: externalId,
+        tier: 1,
+        tailnetAddr: '100.64.0.5',
+      },
+    });
+    expect(enrollResponse.status()).toBe(201);
+    const { id: nodeId } = await enrollResponse.json();
+
+    await page.getByRole('button', { name: 'Nodes' }).click();
+    await expect(page.getByTestId(`node-card-${nodeId}`)).toBeVisible();
+    await expect(page.getByTestId(`node-name-${nodeId}`)).toHaveText(externalId);
+  });
+
+  test('notifications tab lists system notifications and supports mark read', async ({
+    page,
+    apiRequest,
+  }) => {
+    const title = `Settings notification ${Date.now()}`;
+    const createResponse = await apiRequest.post('/v1/notifications', {
+      headers: apiRequestHeaders(),
+      data: {
+        kind: 'settings.test',
+        title,
+        body: 'Created from the settings e2e test.',
+        priority: 'normal',
+        channels: ['in_app'],
+      },
+    });
+    expect(createResponse.status()).toBe(201);
+    const { notification } = await createResponse.json();
+
+    await page.getByRole('button', { name: 'Notifications' }).click();
+    await expect(page.getByTestId(`notification-card-${notification.id}`)).toBeVisible();
+    await expect(page.getByText(title)).toBeVisible();
+
+    const markRead = page.getByTestId(`mark-read-${notification.id}`);
+    await expect(markRead).toHaveText('Mark read');
+    await markRead.click();
+    await expect(markRead).toHaveText('Read');
   });
 });

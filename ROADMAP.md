@@ -1904,7 +1904,7 @@ Airtable base when M6 lands (F‑020).
 | F‑026 | Emergency halt + auto circuit‑breaker | Free | P0 | ✅ | web/api | 2026‑12 | M5/M8 |
 | F‑027 | Cost governance: budgets + auto‑throttle + forecast | Pro | P0 | ✅ | api | 2026‑06 | M5/M9 |
 | F‑028 | Observability: metrics/traces/logs (tier‑redacted) | Pro | P1 | ⬜ | infra | 2027‑02 | M9 |
-| F‑029 | SSO/SAML/SCIM (enterprise access) | Ent | P2 | ⬜ | api | 2027‑03 | post‑M10 |
+| F‑029 | SSO/SAML/SCIM (enterprise access) | Ent | P2 | ✅ Phase 1 | api | 2027‑03 | post‑M10 |
 | F‑030 | Backups/DR (3‑2‑1) + restore tests | Pro | P0 | ✅ | infra | 2026‑10 | M3 |
 | F‑031 | Voice (STT/TTS) + telephony | Free | P2 | ⬜ | gateway | 2027‑02 | M8 |
 | F‑032 | Marketplace (publish/install agents) | Ent | P3 | ⬜ | web | 2027‑Q3 | post‑M10 |
