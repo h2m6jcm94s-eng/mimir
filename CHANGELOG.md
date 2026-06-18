@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- F-040 natural-language policy editor: heuristic translator now strips trailing punctuation from extracted actions and supports `Deny all` / `Deny everything` / `Default deny` catch-all rules.
+
 ### Added
 
 - F-040 natural-language policy editor (Phase 1): `POST /v1/governance/policy/translate` converts plain-English descriptions into valid YAML policy using a deterministic heuristic with optional LLM fallback; new natural-language mode on `/governance` with review-before-save workflow; shared request/response types; unit, integration, and Playwright e2e tests.
