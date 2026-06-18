@@ -239,6 +239,13 @@
       "when": 1781794672956,
       "tag": "0034_marketing_assistant",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1781814740866,
+      "tag": "0035_demo_lockout",
+      "breakpoints": true
     }
   ]
 }

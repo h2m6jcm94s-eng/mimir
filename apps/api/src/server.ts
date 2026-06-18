@@ -7,6 +7,7 @@ import { initSupertokens } from './auth/supertokens';
 import { loadConfig } from './config';
 import { redis } from './db/redis';
 import { authMiddleware, registerAuth } from './middleware/auth';
+import { demoLockoutMiddleware } from './middleware/demo-lockout';
 import { agentRoutes } from './routes/agents';
 import { approvalRoutes } from './routes/approvals';
 import { auditRoutes } from './routes/audit';
@@ -16,6 +17,7 @@ import { captureRoutes } from './routes/capture';
 import { cloudWorkerRoutes, cloudWorkerWebhookRoutes } from './routes/cloud-workers';
 import { companionRoutes } from './routes/companion';
 import { connectorRoutes } from './routes/connectors';
+import { demoStatusRoutes } from './routes/demo';
 import { fencingRoutes } from './routes/fencing';
 import { governanceRoutes } from './routes/governance';
 import { haltRoutes } from './routes/halt';
@@ -77,6 +79,11 @@ async function main() {
     }
   });
 
+  // Demo lockout gate (server-side; must run after auth so request.user is set).
+  app.addHook('preHandler', async (request, reply) => {
+    await demoLockoutMiddleware(request, reply);
+  });
+
   app.register(sessionRoutes, { prefix: '/v1/sessions' });
   app.register(taskRoutes, { prefix: '/v1/tasks' });
   app.register(nodeRoutes, { prefix: '/v1/nodes' });
@@ -86,6 +93,7 @@ async function main() {
   app.register(agentRoutes, { prefix: '/v1/agents' });
   app.register(approvalRoutes, { prefix: '/v1/approvals' });
   app.register(budgetRoutes, { prefix: '/v1/budget' });
+  app.register(demoStatusRoutes, { prefix: '/v1/demo' });
   app.register(companionRoutes, { prefix: '/v1/companion' });
   app.register(cloudWorkerRoutes, { prefix: '/v1/cloud-workers' });
   app.register(fencingRoutes, { prefix: '/v1/fencing' });

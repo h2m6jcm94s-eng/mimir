@@ -95,6 +95,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Web auth:** replaced `@clerk/nextjs` with `supertokens-auth-react`; added `/auth/[[...path]]` pre-built UI route and `SessionAuth` wrapper for protected app routes.
 - **Environment:** `.env.example` updated with `SUPERTOKENS_CONNECTION_URI`, `SUPERTOKENS_API_KEY`, `AUTH_DOMAIN`, `WEB_APP_DOMAIN`, and `DATABASE_URL=postgresql://mimir_app:mimir_app@localhost:5432/mimir`.
 - **F-059 Marketing/creator assistant (Phase 1):** tenant-scoped `brand_voice`, `marketing_campaign`, and `content_calendar_item` tables with RLS; `GET/POST/PATCH/DELETE /v1/marketing/brand-voices`, `/v1/marketing/campaigns`, `/v1/marketing/calendar`; `POST /v1/marketing/calendar/:id/generate` for brand-voice-aware draft generation; `GET /v1/marketing/analytics` dashboard; shared Zod types; web `/marketing` page with brand voices, campaigns, calendar, analytics, and AI draft; RBAC scopes `marketing:read`/`marketing:write`; integration and Playwright e2e coverage.
+- **Demo lockout gate:** `tenant.demo_expires_at` / `is_demo_locked` columns; server-side middleware that returns `403 DEMO_EXPIRED` for locked/expired tenants on `/v1/*` routes (with whitelist for health/demo-status); web `/demo-locked` page and `DemoLockoutGuard` polling; `DEMO_DEFAULT_DAYS` env var auto-sets expiry for new signups; integration and Playwright e2e coverage.
 
 ### Migration
 

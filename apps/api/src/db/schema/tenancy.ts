@@ -1,4 +1,4 @@
-import { pgEnum, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { boolean, pgEnum, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 import { userAccount } from './user';
 
 export const planEnum = pgEnum('plan', ['free', 'pro', 'enterprise']);
@@ -20,6 +20,8 @@ export const tenant = pgTable('tenant', {
   }),
   name: varchar('name', { length: 255 }).notNull(),
   plan: planEnum('plan').notNull().default('free'),
+  demoExpiresAt: timestamp('demo_expires_at', { withTimezone: true }),
+  isDemoLocked: boolean('is_demo_locked').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

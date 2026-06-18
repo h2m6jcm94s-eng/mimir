@@ -78,6 +78,12 @@ export async function resolveAuthUser(externalId: string, email: string): Promis
   const userAccountId = randomUUID();
   const appUserId = randomUUID();
 
+  const demoDays = Number(process.env.DEMO_DEFAULT_DAYS);
+  const demoExpiresAt =
+    !Number.isNaN(demoDays) && demoDays > 0
+      ? new Date(Date.now() + demoDays * 24 * 60 * 60 * 1000)
+      : undefined;
+
   return withTenantTransaction(tenantId, async (ctx) => {
     await ctx.tenantScopedDb.insert(schema.userAccount).values({
       id: userAccountId,
@@ -89,6 +95,7 @@ export async function resolveAuthUser(externalId: string, email: string): Promis
       id: tenantId,
       name: `Personal (${email})`,
       plan: 'free',
+      demoExpiresAt,
     });
 
     await ctx.tenantScopedDb.insert(schema.appUser).values({

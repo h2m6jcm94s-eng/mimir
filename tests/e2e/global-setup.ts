@@ -59,7 +59,7 @@ export default async function globalSetup() {
   const tenantId = randomUUID();
   await sql.begin(async (tx) => {
     await tx.unsafe(`SET LOCAL app.tenant_id = '${tenantId}'`);
-    await tx`INSERT INTO tenant (id, name, plan) VALUES (${tenantId}, 'Test Tenant', 'free');`;
+    await tx`INSERT INTO tenant (id, name, plan, demo_expires_at) VALUES (${tenantId}, 'Test Tenant', 'free', ${new Date('2099-12-31T23:59:59Z')});`;
   });
 
   // Link the test account as an owner of the new tenant.
