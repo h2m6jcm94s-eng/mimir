@@ -18,6 +18,7 @@ import {
   createJob,
   findJobByIdempotency,
   getJob,
+  getJobTimeline,
   listJobs,
   setJobWorkflowIds,
   updateJobStatus,
@@ -47,6 +48,10 @@ const createTaskSchema = z.object({
 });
 
 const listTasksSchema = TaskListQuery;
+
+const timelineSchema = z.object({
+  hours: z.coerce.number().int().min(1).max(168).default(12),
+});
 
 const manualTransitions: Record<string, Set<string>> = {
   queued: new Set(['blocked']),
@@ -485,6 +490,23 @@ export async function taskRoutes(app: FastifyInstance) {
         runId,
         status: result.updated.status,
       });
+    }
+  );
+
+  app.get(
+    '/timeline',
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.JOBS_READ) },
+    async (request: FastifyRequest, reply) => {
+      const user = request.user;
+      if (!user)
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+
+      const query = timelineSchema.parse(request.query);
+      const data = await withTenantTransaction(user.tenantId, async (ctx) => {
+        return getJobTimeline(ctx, query.hours);
+      });
+
+      return reply.send({ data });
     }
   );
 

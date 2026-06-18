@@ -78,6 +78,30 @@ export async function addJobCost(ctx: TenantContext, jobId: string, deltaUsd: nu
   return updated;
 }
 
+export async function getJobTimeline(
+  ctx: TenantContext,
+  hours: number
+): Promise<{ hour: string; pending: number }[]> {
+  const now = new Date();
+  const start = new Date(now.getTime() - hours * 60 * 60 * 1000);
+
+  const rows = await ctx.tenantScopedDb
+    .select({
+      bucket: sql<Date>`date_trunc('hour', ${schema.job.createdAt})`,
+      total: count(),
+    })
+    .from(schema.job)
+    .where(gte(schema.job.createdAt, start))
+    .groupBy(sql`date_trunc('hour', ${schema.job.createdAt})`)
+    .orderBy(sql`date_trunc('hour', ${schema.job.createdAt})`);
+
+  return rows.map((row) => {
+    const date = row.bucket;
+    const hour = `${String(date.getUTCHours()).padStart(2, '0')}:00`;
+    return { hour, pending: Number(row.total) };
+  });
+}
+
 export async function getTenantDailyCostUsd(ctx: TenantContext, date: Date): Promise<number> {
   const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);

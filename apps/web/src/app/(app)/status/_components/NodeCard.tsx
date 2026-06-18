@@ -21,16 +21,11 @@ function statusColor(status: MeshNode['status']) {
       : 'bg-red-100 text-red-700';
 }
 
-function MiniBar({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-      <span className="w-6 text-[10px] uppercase text-[var(--text-muted)]">{label}</span>
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--bg-surface-raised)]">
-        <div className={cn('h-full rounded-full', color)} style={{ width: `${value}%` }} />
-      </div>
-      <span className="w-6 text-right">{value}%</span>
-    </div>
-  );
+function formatLastSeen(value: string | undefined): string {
+  if (!value) return 'never';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
 }
 
 export function NodeCard({ node, index }: { node: MeshNode; index: number }) {
@@ -62,11 +57,15 @@ export function NodeCard({ node, index }: { node: MeshNode; index: number }) {
         <TierBadge tier={node.tier as 0 | 1 | 2} />
       </div>
 
-      <div className="mt-4 space-y-2">
-        <MiniBar label="CPU" value={node.cpu} color="bg-[var(--accent-primary)]" />
-        <MiniBar label="RAM" value={node.ram} color="bg-[var(--accent-teal)]" />
-        <MiniBar label="DSK" value={node.disk} color="bg-[var(--accent-slate)]" />
-        <MiniBar label="NET" value={node.net} color="bg-[var(--accent-warning)]" />
+      <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+        <div className="rounded-lg bg-[var(--bg-primary)] p-2">
+          <p className="text-[10px] text-[var(--text-muted)]">Active jobs</p>
+          <p className="font-semibold text-[var(--text-primary)]">{node.jobs}</p>
+        </div>
+        <div className="rounded-lg bg-[var(--bg-primary)] p-2">
+          <p className="text-[10px] text-[var(--text-muted)]">Cost today</p>
+          <p className="font-semibold text-[var(--text-primary)]">${node.cost.toFixed(2)}</p>
+        </div>
       </div>
 
       <div className="mt-4 flex items-center justify-between border-t border-[var(--border-subtle-solid)] pt-3 text-xs text-[var(--text-muted)]">
@@ -74,8 +73,9 @@ export function NodeCard({ node, index }: { node: MeshNode; index: number }) {
           <Wifi className="h-3 w-3" />
           {node.status}
         </span>
-        <span className="flex items-center gap-1">
-          <HardDrive className="h-3 w-3" />${node.cost.toFixed(2)} today
+        <span className="flex items-center gap-1" title={node.lastSeen ?? undefined}>
+          <HardDrive className="h-3 w-3" />
+          {formatLastSeen(node.lastSeen)}
         </span>
       </div>
     </motion.div>

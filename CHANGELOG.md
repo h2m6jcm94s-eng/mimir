@@ -39,6 +39,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - F-007 durable job queue foundation: `job` table extended with `priority`, `retry_count`, `max_retries`, `started_at`, `finished_at`, `error_code`, `error_message`; added `idx_job_tenant_status`; `GET /v1/tasks` now supports `status` and `type` filters; added `GET /v1/tasks/counts` and `PATCH /v1/tasks/:id/status` with transition validation and audit logging.
 - F-007 cancel/retry: `POST /v1/tasks/:id/cancel` terminates the running Temporal workflow and marks the job `failed` with `error_code: cancelled`; `POST /v1/tasks/:id/retry` re-queues a failed/needs-attention job and restarts its workflow while enforcing `max_retries`; workflow/run IDs are persisted on the job row.
 - F-022 tasks kanban wired to real API: board now uses `@mimir/shared-types` `Job`, fetches live jobs and counts, adds a `Failed` column, wires status moves to `PATCH /v1/tasks/:id/status` with optimistic rollback, adds retry buttons for failed jobs, derives blast radius from attachments/type, and adds per-column empty states.
+- F-022 status topology with real data: added `GET /v1/tasks/timeline`; status page now fetches real nodes, jobs, timeline, and budget using cookie auth, removes mocked connector strip and queue chart, shows per-node active-job count and cost with fallback to the brain node, and adds empty states; `NodeCard` simplified to show jobs/cost/last seen instead of fake CPU/RAM bars.
 
 ### Fixed
 

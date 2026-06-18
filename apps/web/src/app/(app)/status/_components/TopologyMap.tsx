@@ -12,12 +12,13 @@ export interface MeshNode {
   kind: NodeKind;
   tier: 0 | 1 | 2;
   status: 'up' | 'degraded' | 'down';
+  lastSeen?: string;
   jobs: number;
   cost: number;
-  cpu: number;
-  ram: number;
-  disk: number;
-  net: number;
+  cpu?: number;
+  ram?: number;
+  disk?: number;
+  net?: number;
 }
 
 const icons: Record<NodeKind, typeof Laptop> = {

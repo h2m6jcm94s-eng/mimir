@@ -3,41 +3,20 @@
 import { PageHeader } from '@/components/ui/PageHeader';
 import { TierBadge } from '@/components/ui/TierBadge';
 import { cn } from '@/lib/utils';
+import type { Job, Node } from '@mimir/shared-types';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Wifi } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { ConnectorStrip } from './_components/ConnectorStrip';
+import { useCallback, useEffect, useState } from 'react';
 import { CostWidget } from './_components/CostWidget';
 import { NodeCard } from './_components/NodeCard';
 import { QueueChart } from './_components/QueueChart';
 import { TopologyMap } from './_components/TopologyMap';
 import type { MeshNode } from './_components/TopologyMap';
 
-interface ApiNode {
-  id: string;
-  name: string;
-  kind: 'brain' | 'desktop' | 'cloud' | 'phone';
-  tier: number;
-  status: 'up' | 'degraded' | 'down' | 'unknown';
+interface QueueData {
+  hour: string;
+  pending: number;
 }
-
-interface ApiJob {
-  id: string;
-  type: string;
-  tier: number;
-  status: string;
-  input?: Record<string, unknown> | null;
-  costUsd?: number;
-}
-
-const queueData = [
-  { hour: '09:00', pending: 3 },
-  { hour: '10:00', pending: 7 },
-  { hour: '11:00', pending: 5 },
-  { hour: '12:00', pending: 12 },
-  { hour: '13:00', pending: 8 },
-  { hour: '14:00', pending: 4 },
-];
 
 interface BudgetStatus {
   dailyBudgetUsd: number;
@@ -57,20 +36,65 @@ function microToUsd(micro: number): number {
   return micro / MICROS_PER_DOLLAR;
 }
 
-function mapNode(apiNode: ApiNode): MeshNode {
-  return {
-    id: apiNode.id,
-    name: apiNode.name,
-    kind: apiNode.kind,
-    tier: apiNode.tier as 0 | 1 | 2,
-    status: apiNode.status === 'unknown' ? 'down' : apiNode.status,
-    jobs: 0,
-    cost: 0,
-    cpu: 0,
-    ram: 0,
-    disk: 0,
-    net: 0,
-  };
+async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...options,
+    credentials: 'include',
+    headers: {
+      ...(options?.headers ?? {}),
+      ...(options?.body && { 'content-type': 'application/json' }),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`${res.status}: ${text}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+function computeNodeMetrics(
+  nodes: Node[],
+  jobs: Job[]
+): { metrics: MeshNode[]; totalCostUsd: number } {
+  const activeJobs = jobs.filter((job) => job.status === 'running');
+  let totalCostUsd = 0;
+
+  const withTarget = activeJobs.filter(
+    (job) => job.targetNode && nodes.some((n) => n.id === job.targetNode)
+  );
+  const fallback = withTarget.length === 0;
+  const brain = nodes.find((n) => n.kind === 'brain') ?? nodes[0];
+
+  const metrics = nodes.map((node) => {
+    const nodeJobs = fallback
+      ? node.id === brain?.id
+        ? activeJobs
+        : []
+      : activeJobs.filter((job) => job.targetNode === node.id);
+
+    const nodeCost = fallback
+      ? node.id === brain?.id
+        ? jobs.reduce((sum, job) => sum + (job.costUsd ?? 0), 0)
+        : 0
+      : jobs
+          .filter((job) => job.targetNode === node.id)
+          .reduce((sum, job) => sum + (job.costUsd ?? 0), 0);
+
+    totalCostUsd += nodeCost;
+
+    return {
+      id: node.id,
+      name: node.name,
+      kind: node.kind,
+      tier: node.tier,
+      status: node.status === 'unknown' ? 'down' : node.status,
+      lastSeen: node.lastSeen,
+      jobs: nodeJobs.length,
+      cost: microToUsd(nodeCost),
+    };
+  });
+
+  return { metrics, totalCostUsd };
 }
 
 function overallStatus(nodes: MeshNode[]) {
@@ -82,54 +106,42 @@ function overallStatus(nodes: MeshNode[]) {
 
 export default function StatusPage() {
   const [nodes, setNodes] = useState<MeshNode[]>([]);
-  const [activeJobs, setActiveJobs] = useState<ApiJob[]>([]);
+  const [activeJobs, setActiveJobs] = useState<Job[]>([]);
+  const [timeline, setTimeline] = useState<QueueData[]>([]);
   const [budgetStatus, setBudgetStatus] = useState<BudgetStatus | null>(null);
   const [budgetForecast, setBudgetForecast] = useState<BudgetForecast | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        const [nodesRes, tasksRes, budgetRes, forecastRes] = await Promise.all([
-          fetch('/api/v1/nodes', {
-            // TODO: replace dev stub token with Clerk session JWT.
-            headers: { Authorization: 'Bearer test' },
-          }),
-          fetch('/api/v1/tasks?limit=50', {
-            // TODO: replace dev stub token with Clerk session JWT.
-            headers: { Authorization: 'Bearer test' },
-          }),
-          fetch('/api/v1/budget', { credentials: 'include' }),
-          fetch('/api/v1/budget/forecast', { credentials: 'include' }),
-        ]);
+      const [nodesBody, tasksBody, timelineBody, budgetBody, forecastBody] = await Promise.all([
+        fetchJson<{ data: Node[] }>('/api/v1/nodes'),
+        fetchJson<{ data: Job[] }>('/api/v1/tasks?limit=50'),
+        fetchJson<{ data: QueueData[] }>('/api/v1/tasks/timeline?hours=6'),
+        fetchJson<{ data: BudgetStatus }>('/api/v1/budget'),
+        fetchJson<{ data: BudgetForecast }>('/api/v1/budget/forecast'),
+      ]);
 
-        if (!nodesRes.ok) throw new Error(`Nodes fetch failed: ${nodesRes.status}`);
-        if (!tasksRes.ok) throw new Error(`Tasks fetch failed: ${tasksRes.status}`);
-        if (!budgetRes.ok) throw new Error(`Budget fetch failed: ${budgetRes.status}`);
-        if (!forecastRes.ok) throw new Error(`Forecast fetch failed: ${forecastRes.status}`);
-
-        const nodesBody = (await nodesRes.json()) as { data: ApiNode[] };
-        const tasksBody = (await tasksRes.json()) as { data: ApiJob[] };
-        const budgetBody = (await budgetRes.json()) as { data: BudgetStatus };
-        const forecastBody = (await forecastRes.json()) as { data: BudgetForecast };
-
-        setNodes(nodesBody.data.map(mapNode));
-        setActiveJobs(tasksBody.data.filter((job) => job.status === 'running'));
-        setBudgetStatus(budgetBody.data);
-        setBudgetForecast(forecastBody.data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load status');
-      } finally {
-        setLoading(false);
-      }
+      const { metrics } = computeNodeMetrics(nodesBody.data, tasksBody.data);
+      setNodes(metrics);
+      setActiveJobs(tasksBody.data.filter((job) => job.status === 'running'));
+      setTimeline(timelineBody.data);
+      setBudgetStatus(budgetBody.data);
+      setBudgetForecast(forecastBody.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load status');
+    } finally {
+      setLoading(false);
     }
-
-    void load();
   }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   if (loading) {
     return (
@@ -151,7 +163,7 @@ export default function StatusPage() {
 
   const status = overallStatus(nodes);
   const totalJobs = activeJobs.length;
-  const queueDepth = queueData[queueData.length - 1].pending;
+  const queueDepth = timeline.length > 0 ? timeline[timeline.length - 1].pending : 0;
   const onlineCount = nodes.filter((n) => n.status === 'up').length;
   const todayUsd = microToUsd(budgetStatus?.dailySpendUsd ?? 0);
   const projectedUsd = microToUsd(budgetForecast?.projectedEndOfDayUsd ?? 0);
@@ -178,15 +190,22 @@ export default function StatusPage() {
         </div>
       </PageHeader>
 
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25 }}
-      >
-        <TopologyMap nodes={nodes} />
-      </motion.div>
-
-      <ConnectorStrip />
+      {nodes.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[var(--border-subtle-solid)] bg-[var(--bg-surface)] p-8 text-center shadow-card">
+          <p className="text-sm font-medium text-[var(--text-primary)]">No nodes enrolled</p>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">
+            Enroll a node to see the mesh topology and health summary.
+          </p>
+        </div>
+      ) : (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          <TopologyMap nodes={nodes} />
+        </motion.div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {nodes.map((node, index) => (
@@ -195,7 +214,7 @@ export default function StatusPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <QueueChart data={queueData} />
+        <QueueChart data={timeline.length > 0 ? timeline : [{ hour: '-', pending: 0 }]} />
 
         <div className="rounded-xl bg-[var(--bg-surface)] p-4 shadow-card">
           <div className="mb-3 flex items-center justify-between">
@@ -203,31 +222,37 @@ export default function StatusPage() {
             <span className="text-xs text-[var(--text-muted)]">{totalJobs} running</span>
           </div>
           <div className="space-y-3">
-            {activeJobs.map((job) => (
-              <div
-                key={job.id}
-                className="flex items-center gap-3 rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] p-3"
-              >
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-[var(--text-primary)]">
-                    {typeof job.input?.prompt === 'string' ? job.input.prompt : job.type}
-                  </p>
-                  <p className="text-xs capitalize text-[var(--text-muted)]">
-                    {typeof job.input?.model === 'string' ? job.input.model : 'kimi'}
-                  </p>
-                </div>
-                <TierBadge tier={job.tier as 0 | 1 | 2} />
-                <div className="w-24">
-                  <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-surface-raised)]">
-                    <div
-                      className="h-full rounded-full bg-[var(--accent-primary)]"
-                      style={{ width: '0%' }}
-                    />
-                  </div>
-                </div>
-                <span className="w-8 text-right text-xs text-[var(--text-secondary)]">0%</span>
+            {activeJobs.length === 0 && (
+              <div className="rounded-lg border border-dashed border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] p-4 text-center text-xs text-[var(--text-muted)]">
+                No active jobs
               </div>
-            ))}
+            )}
+            {activeJobs.map((job) => {
+              const input = (job.input ?? {}) as Record<string, unknown>;
+              const title = (input.prompt as string) ?? job.type;
+              const model = (input.model as string) ?? (input.provider as string) ?? 'local';
+              return (
+                <div
+                  key={job.id}
+                  className="flex items-center gap-3 rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] p-3"
+                >
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-[var(--text-primary)]">{title}</p>
+                    <p className="text-xs capitalize text-[var(--text-muted)]">{model}</p>
+                  </div>
+                  <TierBadge tier={job.tier} />
+                  <div className="w-24">
+                    <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-surface-raised)]">
+                      <div
+                        className="h-full rounded-full bg-[var(--accent-primary)]"
+                        style={{ width: '0%' }}
+                      />
+                    </div>
+                  </div>
+                  <span className="w-8 text-right text-xs text-[var(--text-secondary)]">0%</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 

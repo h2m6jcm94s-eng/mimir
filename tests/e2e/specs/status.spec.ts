@@ -1,13 +1,33 @@
 import { expect, test } from '@playwright/test';
+import { apiHeaders, signInAsTestUser } from '../fixtures/auth';
 
 /**
  * Status page tests.
  *
- * Verifies that the live topology, node cards, and health summary render
- * and that a user can see the mesh status at a glance.
+ * Verifies that the live topology, node cards, and health summary render with
+ * real API data.
  */
 test.describe('Status', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context, request }) => {
+    await signInAsTestUser(context);
+
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    for (const [kind, status] of [
+      ['brain', 'up'],
+      ['desktop', 'up'],
+      ['cloud', 'down'],
+      ['phone', 'up'],
+    ] as const) {
+      await request.post('/api/v1/nodes/enroll', {
+        headers: apiHeaders(),
+        data: {
+          kind,
+          name: `${kind}-${suffix}`,
+          tier: 1,
+        },
+      });
+    }
+
     await page.goto('/status');
   });
 
@@ -21,18 +41,15 @@ test.describe('Status', () => {
     await expect(page.getByText('3/4 nodes online')).toBeVisible();
   });
 
-  test('node cards show metrics and cost', async ({ page }) => {
-    const laptop = page.getByTestId('node-card-laptop');
-    await expect(laptop).toBeVisible();
-    await expect(laptop.getByText('CPU')).toBeVisible();
-    await expect(laptop.getByText('RAM')).toBeVisible();
-    await expect(laptop.getByText('DSK')).toBeVisible();
-    await expect(laptop.getByText('NET')).toBeVisible();
+  test('node cards show jobs and cost', async ({ page }) => {
+    const brain = page.getByText('brain-', { exact: false }).first();
+    await expect(brain).toBeVisible();
+    const card = brain.locator('xpath=ancestor::*[contains(@data-testid, "node-card-")]');
+    await expect(card.getByText('Active jobs')).toBeVisible();
+    await expect(card.getByText('Cost today')).toBeVisible();
   });
 
-  test('active jobs list and queue chart render', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'Active jobs', level: 3 })).toBeVisible();
-    await expect(page.getByText('Security brief review')).toBeVisible();
+  test('queue chart and cost widget render', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Task queue depth', level: 3 })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Cost today', level: 3 })).toBeVisible();
   });
