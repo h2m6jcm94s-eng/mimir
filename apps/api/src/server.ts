@@ -13,6 +13,7 @@ import { auditRoutes } from './routes/audit';
 import { briefingRoutes } from './routes/briefings';
 import { budgetRoutes } from './routes/budget';
 import { captureRoutes } from './routes/capture';
+import { companionRoutes } from './routes/companion';
 import { connectorRoutes } from './routes/connectors';
 import { fencingRoutes } from './routes/fencing';
 import { governanceRoutes } from './routes/governance';
@@ -75,6 +76,7 @@ async function main() {
   app.register(agentRoutes, { prefix: '/v1/agents' });
   app.register(approvalRoutes, { prefix: '/v1/approvals' });
   app.register(budgetRoutes, { prefix: '/v1/budget' });
+  app.register(companionRoutes, { prefix: '/v1/companion' });
   app.register(fencingRoutes, { prefix: '/v1/fencing' });
   app.register(briefingRoutes, { prefix: '/v1/briefings' });
   app.register(captureRoutes, { prefix: '/v1/capture' });

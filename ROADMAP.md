@@ -1933,14 +1933,14 @@ Airtable base when M6 lands (F‑020).
 | F‑054 | Agent‑to‑agent negotiation | Pro | P3 | ⬜ | api | 2027‑Q3 | post‑M10 |
 | F‑055 | Usage insights / time‑saved dashboard | Pro | P2 | ⬜ | web | 2027‑Q1 | M9 |
 | F‑056 | Local webserver per node + mesh discovery | Free | P0 | ✅ | api/infra | 2026‑10 | M3 |
-| F‑057 | Companion mode: emotional context, long‑term personal memory, proactive check‑ins | Free | P1 | 🟦 | api | 2026‑11 | M4 |
+| F‑057 | Companion mode: emotional context, long‑term personal memory, proactive check‑ins (Phase 1: emotional check‑in / private mood journal) | Free | P1 | ✅ Phase 1 | api | 2026‑11 | M4 |
 | F‑058 | Personal finance assistant: bank/CSV ingestion, budgeting, spend anomaly detection | Free | P1 | ⬜ | api | 2026‑12 | M6 |
 | F‑059 | Marketing/creator assistant: content calendar, brand‑voice drafting, campaign analytics | Pro | P1 | ⬜ | api/web | 2027‑01 | M6 |
 | F‑060 | HR/people partner: 1:1 prep, feedback drafting, hiring pipeline memory | Pro | P2 | ⬜ | api | 2027‑01 | M7 |
 | F‑061 | CEO/operator dashboard: burn, revenue, task health, risk rollup, decision briefings | Pro | P0 | ✅ | api/web | 2026‑12 | M5/M6 |
 | F‑062 | Document bonding & record unification: cross‑connector entity resolution (customer, vendor, project) | Pro | P1 | 🟦 | api | 2026‑12 | M6 |
 | F‑063 | Daily briefing & morning companion | Free | P1 | ✅ | api/web | 2027‑Q1 | M7 |
-| F‑064 | Emotional check‑in & private mood journal | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
+| F‑064 | Emotional check‑in & private mood journal | Free | P2 | ✅ (shipped as F‑057 Phase 1) | api | 2026‑11 | M4 |
 | F‑065 | Relationship memory (birthdays, preferences, conversation follow‑ups) | Free | P2 | ⬜ | api | 2027‑Q1 | M7 |
 | F‑066 | Nutrition & meal planner with grocery list | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
 | F‑067 | Fitness & workout coach with progress tracking | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
