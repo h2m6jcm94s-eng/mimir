@@ -18,3 +18,4 @@ export * from './notifications';
 export * from './briefings';
 export * from './companion-check-in';
 export * from './memory';
+export * from './life-admin';

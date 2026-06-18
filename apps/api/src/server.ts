@@ -22,6 +22,7 @@ import { haltRoutes } from './routes/halt';
 import { healthRoutes } from './routes/health';
 import { knowledgeRoutes } from './routes/knowledge';
 import { knowledgeShareRoutes } from './routes/knowledge-shares';
+import { lifeAdminRoutes } from './routes/life-admin';
 import { memoryRoutes } from './routes/memory';
 import { metricsRoutes } from './routes/metrics';
 import { nodeHealthRoutes } from './routes/node-health';
@@ -91,6 +92,7 @@ async function main() {
   app.register(captureRoutes, { prefix: '/v1/capture' });
   app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
   app.register(knowledgeShareRoutes, { prefix: '/v1/knowledge/shares' });
+  app.register(lifeAdminRoutes, { prefix: '/v1/life-admin' });
   app.register(metricsRoutes, { prefix: '/v1/metrics' });
   app.register(memoryRoutes, { prefix: '/v1/memory' });
   app.register(notificationRoutes, { prefix: '/v1/notifications' });

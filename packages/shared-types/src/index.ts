@@ -10,4 +10,5 @@ export * from './tasks';
 export * from './events';
 export * from './memory';
 export * from './notification';
+export * from './life-admin';
 export * from './errors';

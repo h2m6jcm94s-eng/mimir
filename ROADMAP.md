@@ -1944,7 +1944,7 @@ Airtable base when M6 lands (F‑020).
 | F‑065 | Relationship memory (birthdays, preferences, conversation follow‑ups) (Phase 1: `POST/GET /v1/memory/relationships` storing tagged semantic memory nodes) | Free | P2 | ✅ Phase 1 | api | 2027‑Q1 | M7 |
 | F‑066 | Nutrition & meal planner with grocery list | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
 | F‑067 | Fitness & workout coach with progress tracking | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
-| F‑068 | Life admin tracker (home, car, insurance, renewals, warranties) | Free | P2 | ⬜ | api | 2027‑Q1 | M7 |
+| F‑068 | Life admin tracker (home, car, insurance, renewals, warranties) (Phase 1: `POST/GET /v1/life-admin` endpoints, dedicated `life_admin_item` table, `/life-admin` UI with create/mark-done and recurrence) | Free | P2 | ✅ Phase 1 | api/web | 2027‑Q1 | M7 |
 | F‑069 | Travel planner & itinerary assistant | Free | P2 | ⬜ | api/web | 2027‑Q2 | M8 |
 | F‑070 | Adaptive tutor & learning paths | Free | P1 | ⬜ | api/web | 2027‑Q1 | M7 |
 | F‑071 | Second brain / idea capture + self-improvement engine (notes, wiki-links, skill proposals, sandboxed upgrade, rollback) | Free | P1 | ✅ Phase 0 | api/web | 2026‑12 | M6 |

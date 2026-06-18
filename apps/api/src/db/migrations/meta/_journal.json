@@ -218,6 +218,13 @@
       "when": 1781758885908,
       "tag": "0030_magenta_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1781791444286,
+      "tag": "0032_life_admin_tracker",
+      "breakpoints": true
     }
   ]
 }

@@ -61,6 +61,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - F-078 accessibility assistant (Phase 1): new `/accessibility` web page with browser text-to-speech, heuristic text simplification, font-size control, and high-contrast preview; added to app sidebar; Playwright e2e coverage.
 - F-055 usage insights / time-saved dashboard (Phase 1): `CeoReportService` now computes `usageInsights` with `tasksCompleted`, `timeSavedMinutes`, and `automationRate`; Reports page fetches live CEO data and shows insight cards for tasks completed, time saved, and automation rate; integration and Playwright e2e coverage updated.
 - F-065 relationship memory (Phase 1): shared Zod types for relationship memories; `POST /v1/memory/relationships` and `GET /v1/memory/relationships` endpoints that store relationship context as tagged semantic memory nodes with name, relationship, notes, birthday, and preferences; `listActiveMemoryNodesByKind` repository helper; integration test (skipped locally until F-016 memory graph tables are present in the dev database).
+- F-068 life admin tracker (Phase 1): dedicated `life_admin_item` table with `life_admin_recurrence`/`life_admin_status` enums, tenant RLS, and `mimir_app` grants; shared Zod types; `POST /v1/life-admin`, `GET /v1/life-admin/upcoming`, and `POST /v1/life-admin/:id/done` endpoints with automatic next-occurrence creation for recurring items; new `/life-admin` web page with create form, pending/done filters, mark-done, and sidebar navigation; integration and Playwright e2e coverage.
 
 ### Fixed
 
