@@ -32,6 +32,7 @@ const pageTitles: Record<string, string> = {
   '/skills/macos': 'macOS Skills',
   '/skills/linux': 'Linux Skills',
   '/skills/windows': 'Windows Skills',
+  '/tools': 'Tools',
   '/accessibility': 'Accessibility',
   '/settings': 'Settings',
 };

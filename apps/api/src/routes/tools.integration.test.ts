@@ -22,6 +22,25 @@ describe('tools routes', () => {
     expect(response.statusCode).toBe(401);
   });
 
+  it('lists available connector actions', async () => {
+    const token = `tools_actions_${Date.now()}`;
+    const app = await buildTestApp(async (app) => {
+      await app.register(toolsRoutes, { prefix: '/v1/tools' });
+    });
+
+    await resolveAuthUser(token, `${token}@test.local`);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/tools/actions',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.data).toEqual(expect.arrayContaining(['github.listRepos']));
+  });
+
   it.skipIf(!process.env.RUN_DB_TESTS)('creates, lists, updates, and deletes tools', async () => {
     const token = `tools_crud_${Date.now()}`;
     const app = await buildTestApp(async (app) => {

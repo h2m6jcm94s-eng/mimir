@@ -5,6 +5,7 @@ import { withTenantTransaction } from '../db/tenant-context';
 import { Scopes, requireScope } from '../middleware/rbac';
 import { protectedRouteConfig } from '../middleware/route-config';
 import { createTool, deleteTool, getToolById, listTools, updateTool } from '../repositories/tool';
+import { connectorRegistry } from '../services/connectors/registry';
 import { ToolEngineError, runTool } from '../services/tools/engine';
 
 type ToolRow = typeof schema.tool.$inferSelect;
@@ -32,6 +33,14 @@ export async function toolsRoutes(app: FastifyInstance) {
     });
 
     return reply.send({ data: tools.map(serializeTool) });
+  });
+
+  app.get('/actions', { config: protectedRouteConfig }, async (request: FastifyRequest, reply) => {
+    const user = request.user;
+    if (!user)
+      return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+
+    return reply.send({ data: connectorRegistry.knownActions() });
   });
 
   app.get(
