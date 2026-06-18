@@ -1947,7 +1947,7 @@ Airtable base when M6 lands (F‑020).
 | F‑068 | Life admin tracker (home, car, insurance, renewals, warranties) | Free | P2 | ⬜ | api | 2027‑Q1 | M7 |
 | F‑069 | Travel planner & itinerary assistant | Free | P2 | ⬜ | api/web | 2027‑Q2 | M8 |
 | F‑070 | Adaptive tutor & learning paths | Free | P1 | ⬜ | api/web | 2027‑Q1 | M7 |
-| F‑071 | Second brain / idea capture with bidirectional links | Free | P1 | ✅ | api/web | 2026‑12 | M6 |
+| F‑071 | Second brain / idea capture + self-improvement engine (notes, wiki-links, skill proposals, sandboxed upgrade, rollback) | Free | P1 | ✅ Phase 0 | api/web | 2026‑12 | M6 |
 | F‑072 | Meeting prep & automated follow‑up drafts | Pro | P1 | ⬜ | api | 2027‑Q1 | M7 |
 | F‑073 | Inbox Zero assistant (triage, draft replies, priorities) | Pro | P1 | ⬜ | api | 2027‑Q1 | M7 |
 | F‑074 | Conversational memory search across all chats | Free | P1 | ✅ | api | 2026‑11 | M4 |
