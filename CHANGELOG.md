@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- F-040 natural-language policy editor (Phase 1): `POST /v1/governance/policy/translate` converts plain-English descriptions into valid YAML policy using a deterministic heuristic with optional LLM fallback; new natural-language mode on `/governance` with review-before-save workflow; shared request/response types; unit, integration, and Playwright e2e tests.
 - F-042 resource-aware scheduling (Phase 1): tenant-scoped `project`, `resource`, and `schedule_assignment` tables with RLS; `POST/GET/PATCH/DELETE /v1/scheduling/projects`, `/v1/scheduling/resources`, `/v1/scheduling/assignments`, and `GET /v1/scheduling/utilization`; weekly capacity vs allocation summary with over-allocation detection; new `/scheduling` web page with projects, resources, schedule, and utilization tabs; sidebar link; integration and Playwright e2e tests.
 - M0 monorepo scaffolding implemented: `apps/web`, `apps/api`, `packages/shared-types`, `packages/contracts`, `packages/eslint-config`, `services/agent`, `services/rag`, `services/shared`, `infra/`, `tests/`.
 - Root docs: `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`.

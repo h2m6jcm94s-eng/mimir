@@ -1,4 +1,4 @@
-import { UpsertPolicyRequest } from '@mimir/shared-types';
+import { TranslatePolicyRequest, UpsertPolicyRequest } from '@mimir/shared-types';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { withTenantTransaction } from '../db/tenant-context';
 import { Scopes, requireScope } from '../middleware/rbac';
@@ -6,6 +6,8 @@ import { protectedRouteConfig } from '../middleware/route-config';
 import { createAuditEvent } from '../repositories/audit';
 import { getActivePolicy, upsertPolicy } from '../repositories/policy';
 import { PolicyEngine } from '../services/governance/engine';
+import { translatePolicy } from '../services/governance/translator';
+import { ModelRouter } from '../services/models/router';
 
 export async function governanceRoutes(app: FastifyInstance) {
   app.addHook('preHandler', requireScope(Scopes.GOVERNANCE_READ));
@@ -69,6 +71,31 @@ export async function governanceRoutes(app: FastifyInstance) {
       });
 
       return reply.send({ data: policy });
+    }
+  );
+
+  app.post(
+    '/policy/translate',
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.GOVERNANCE_WRITE) },
+    async (request: FastifyRequest, reply) => {
+      const user = request.user;
+      if (!user)
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+
+      const body = TranslatePolicyRequest.parse(request.body);
+
+      try {
+        const router = new ModelRouter();
+        const source = await translatePolicy(body.description, {
+          invokeModel: (input) => router.invoke(1, input, { maxTokens: 1024 }),
+        });
+        return reply.send({ data: { source } });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Translation failed';
+        return reply.status(400).send({
+          error: { code: 'INVALID_POLICY', message },
+        });
+      }
     }
   );
 }

@@ -79,3 +79,13 @@ export const DecideApprovalRequest = z.object({
   reason: z.string().optional(),
 });
 export type DecideApprovalRequest = z.infer<typeof DecideApprovalRequest>;
+
+export const TranslatePolicyRequest = z.object({
+  description: z.string().min(1).max(2000),
+});
+export type TranslatePolicyRequest = z.infer<typeof TranslatePolicyRequest>;
+
+export const TranslatePolicyResponse = z.object({
+  source: z.string(),
+});
+export type TranslatePolicyResponse = z.infer<typeof TranslatePolicyResponse>;

@@ -95,4 +95,45 @@ describe('governance routes', () => {
     const body = JSON.parse(response.body);
     expect(body.error.code).toBe('INVALID_POLICY');
   });
+
+  it.skipIf(!process.env.RUN_DB_TESTS)('translates a natural-language policy to yaml', async () => {
+    const token = `gov_translate_${Date.now()}`;
+    const app = await buildTestApp(async (app) => {
+      await app.register(governanceRoutes, { prefix: '/v1/governance' });
+    });
+
+    await resolveAuthUser(token, `${token}@test.local`);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/governance/policy/translate',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ description: 'Require approval for github.openPr' }),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.data.source).toContain('action: "github.openPr"');
+    expect(body.data.source).toContain('effect: require_approval');
+  });
+
+  it.skipIf(!process.env.RUN_DB_TESTS)('rejects an untranslatable description', async () => {
+    const token = `gov_translate_fail_${Date.now()}`;
+    const app = await buildTestApp(async (app) => {
+      await app.register(governanceRoutes, { prefix: '/v1/governance' });
+    });
+
+    await resolveAuthUser(token, `${token}@test.local`);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/governance/policy/translate',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ description: 'just some unrelated text' }),
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.error.code).toBe('INVALID_POLICY');
+  });
 });

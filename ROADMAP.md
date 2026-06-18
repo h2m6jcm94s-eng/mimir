@@ -1915,7 +1915,7 @@ Airtable base when M6 lands (F‑020).
 | F‑037 | Electron desktop chat app | Free | P2 | ⬜ | web | 2026‑12 | M4/M7 |
 | F‑038 | Agent hierarchy / role registry | Free | P0 | ✅ | api | 2026‑09 | M2 |
 | F‑039 | No‑code tool builder | Free | P2 | ⬜ | web | 2027‑Q1 | M6 |
-| F‑040 | Natural‑language policy editor | Pro | P1 | ⬜ | web | 2026‑11 | M5 |
+| F‑040 | Natural‑language policy editor (Phase 1: heuristic + optional LLM `POST /v1/governance/policy/translate`, natural-language mode on `/governance`) | Pro | P1 | ✅ Phase 1 | api/web | 2026‑11 | M5 |
 | F‑041 | Agent reputation / trust score | Pro | P2 | ⬜ | api | 2027‑Q1 | M7 |
 | F‑042 | Resource‑aware scheduling (Phase 1: projects, resources, weekly assignments, utilization API + `/scheduling` UI) | Free | P1 | ✅ Phase 1 | api/web | 2026‑10 | M3 |
 | F‑043 | Energy/cost‑aware routing | Free | P2 | ⬜ | api | 2027‑Q1 | M8 |
