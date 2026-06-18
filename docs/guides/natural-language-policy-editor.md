@@ -18,6 +18,7 @@ F-040 Phase 1 lets tenants describe a governance policy in plain English and con
 | `Require approval for github.openPr` | `effect: require_approval` on `github.openPr` |
 | `Deny tier 2 actions` | `effect: deny` with `when.tier: 2` |
 | `Deny when daily spend is greater than 5.00` | `effect: deny` with `when.dailySpendUsd: '> 5.00'` |
+| `Deny all` / `Deny everything` | Catch-all `effect: deny` |
 | `Allow everything else` / `Allow all` | Catch-all `effect: allow` |
 
 Multiple sentences separated by periods or newlines are translated into multiple rules.

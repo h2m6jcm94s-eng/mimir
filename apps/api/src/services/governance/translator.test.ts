@@ -8,10 +8,22 @@ describe('translatePolicy', () => {
     expect(source).toContain('effect: require_approval');
   });
 
+  it('strips trailing punctuation from extracted actions', async () => {
+    const source = await translatePolicy('Require approval for github.openPr.');
+    expect(source).toContain('action: "github.openPr"');
+    expect(source).toContain('effect: require_approval');
+  });
+
   it('translates a tier-based deny rule', async () => {
     const source = await translatePolicy('Deny tier 2 actions');
     expect(source).toContain('effect: deny');
     expect(source).toContain('tier: 2');
+  });
+
+  it('translates a default deny rule', async () => {
+    const source = await translatePolicy('Deny all');
+    expect(source).toContain('action: "*"');
+    expect(source).toContain('effect: deny');
   });
 
   it('translates a daily spend deny rule', async () => {

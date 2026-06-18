@@ -19,7 +19,7 @@ function extractAction(text: string): string | undefined {
   const quoted = text.match(/["']([^"']+)["']/);
   if (quoted) return quoted[1];
   const match = text.match(/(?:for|on)\s+(\S+)/);
-  return match?.[1];
+  return match?.[1]?.replace(/[.,;:!?]+$/, '');
 }
 
 function extractNumber(text: string): number | undefined {
@@ -44,6 +44,10 @@ function parseSentence(sentence: string): string | undefined {
   if (lower.includes('require approval')) {
     const action = extractAction(sentence) ?? '*';
     return `- action: "${action}"\n  effect: require_approval\n  reason: requires human approval`;
+  }
+
+  if (/^(deny\s+all|deny\s+everything|default\s+deny)/i.test(lower)) {
+    return `- action: "*"\n  effect: deny\n  reason: default deny`;
   }
 
   if (lower.includes('deny')) {
