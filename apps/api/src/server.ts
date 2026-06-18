@@ -34,8 +34,10 @@ import { notificationRoutes } from './routes/notifications';
 import { reportRoutes } from './routes/reports';
 import { sandboxRoutes } from './routes/sandbox';
 import { schedulingRoutes } from './routes/scheduling';
+import { scimRoutes } from './routes/scim';
 import { sessionRoutes } from './routes/sessions';
 import { sshCaRoutes } from './routes/ssh-ca';
+import { ssoRoutes } from './routes/sso';
 import { taskRoutes } from './routes/tasks';
 import { toolsRoutes } from './routes/tools';
 import { httpRequestsCounter } from './services/metrics/registry';
@@ -73,6 +75,7 @@ async function main() {
   // Public webhooks (registered before the auth hook so they skip session checks).
   app.register(cloudWorkerWebhookRoutes, { prefix: '/webhooks' });
   app.register(nodeHealthRoutes, { prefix: '/health/nodes' });
+  app.register(scimRoutes, { prefix: '/scim/v2' });
 
   // Protected API routes
   app.addHook('preHandler', async (request, reply) => {
@@ -112,6 +115,7 @@ async function main() {
   app.register(reportRoutes, { prefix: '/v1/reports' });
   app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
   app.register(schedulingRoutes, { prefix: '/v1/scheduling' });
+  app.register(ssoRoutes, { prefix: '/v1/sso/providers' });
   app.register(sshCaRoutes, { prefix: '/v1' });
   app.register(haltRoutes, { prefix: '/v1/halt' });
 

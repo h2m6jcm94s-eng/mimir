@@ -14,4 +14,5 @@ export * from './life-admin';
 export * from './marketing';
 export * from './scheduling';
 export * from './tools';
+export * from './sso';
 export * from './errors';

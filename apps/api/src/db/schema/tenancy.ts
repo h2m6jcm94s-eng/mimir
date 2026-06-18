@@ -34,5 +34,6 @@ export const appUser = pgTable('app_user', {
     .notNull()
     .references(() => userAccount.id, { onDelete: 'cascade' }),
   role: userRoleEnum('role').notNull().default('member'),
+  active: boolean('active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
