@@ -68,6 +68,7 @@ export default function GovernancePage() {
   const [description, setDescription] = useState('');
   const [translating, setTranslating] = useState(false);
   const [translateError, setTranslateError] = useState<string | null>(null);
+  const [explanations, setExplanations] = useState<string[]>([]);
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [auditVerified, setAuditVerified] = useState<boolean | null>(null);
   const valid = useMemo(() => validatePolicy(policy), [policy]);
@@ -129,10 +130,11 @@ export default function GovernancePage() {
     }
   }
 
-  async function translate() {
-    if (!description.trim()) return;
+  async function translate(): Promise<boolean> {
+    if (!description.trim()) return false;
     setTranslating(true);
     setTranslateError(null);
+    setExplanations([]);
     try {
       const res = await fetch('/api/v1/governance/policy/translate', {
         method: 'POST',
@@ -143,14 +145,27 @@ export default function GovernancePage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setTranslateError(data.error?.message || 'Translation failed');
-      } else if (data.data?.source) {
-        setPolicy(data.data.source);
-        setMode('yaml');
+        return false;
       }
+      if (data.data?.source) {
+        setPolicy(data.data.source);
+        setExplanations(data.data.explanations ?? []);
+        setMode('yaml');
+        return true;
+      }
+      return false;
     } catch (err) {
       setTranslateError(err instanceof Error ? err.message : 'Network error');
+      return false;
     } finally {
       setTranslating(false);
+    }
+  }
+
+  async function translateAndSaveDraft() {
+    const translated = await translate();
+    if (translated) {
+      await savePolicy();
     }
   }
 
@@ -256,20 +271,36 @@ export default function GovernancePage() {
                     {translateError}
                   </div>
                 )}
-                <button
-                  type="button"
-                  disabled={!description.trim() || translating}
-                  onClick={translate}
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
-                    !description.trim() || translating
-                      ? 'cursor-not-allowed bg-[var(--bg-primary)] text-[var(--text-muted)]'
-                      : 'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90'
-                  )}
-                  data-testid="governance-translate"
-                >
-                  {translating ? 'Translating…' : 'Translate to YAML'}
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={!description.trim() || translating || loading}
+                    onClick={translate}
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
+                      !description.trim() || translating || loading
+                        ? 'cursor-not-allowed bg-[var(--bg-primary)] text-[var(--text-muted)]'
+                        : 'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90'
+                    )}
+                    data-testid="governance-translate"
+                  >
+                    {translating ? 'Translating…' : 'Translate to YAML'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!description.trim() || translating || loading}
+                    onClick={translateAndSaveDraft}
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
+                      !description.trim() || translating || loading
+                        ? 'cursor-not-allowed bg-[var(--bg-primary)] text-[var(--text-muted)]'
+                        : 'bg-[var(--bg-surface-raised)] text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
+                    )}
+                    data-testid="governance-translate-save"
+                  >
+                    {translating || loading ? 'Saving…' : 'Translate & save draft'}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -330,6 +361,22 @@ export default function GovernancePage() {
                 className="h-80 w-full rounded-xl border border-[var(--border-subtle-solid)] bg-[var(--bg-surface)] p-4 font-mono text-xs leading-relaxed shadow-card outline-none focus:border-[var(--border-focus)]"
                 data-testid="governance-yaml-input"
               />
+            )}
+
+            {explanations.length > 0 && (
+              <div
+                className="space-y-2 rounded-xl border border-[var(--border-subtle-solid)] bg-[var(--bg-surface)] p-4 shadow-card"
+                data-testid="governance-explanations"
+              >
+                <h4 className="text-xs font-medium text-[var(--text-primary)]">
+                  What this policy does
+                </h4>
+                <ul className="list-disc space-y-1 pl-4 text-xs text-[var(--text-secondary)]">
+                  {explanations.map((explanation) => (
+                    <li key={explanation}>{explanation}</li>
+                  ))}
+                </ul>
+              </div>
             )}
           </motion.div>
         )}

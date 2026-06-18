@@ -41,6 +41,19 @@ test.describe('Governance', () => {
     await expect(page.getByTestId('governance-yaml-input')).toHaveValue(/action: "github\.openPr"/);
     await expect(page.getByTestId('governance-yaml-input')).toHaveValue(/effect: require_approval/);
     await expect(page.getByTestId('policy-valid')).toBeVisible();
+    await expect(page.getByTestId('governance-explanations')).toContainText(
+      'Require approval for github.openPr'
+    );
+  });
+
+  test('one-click save persists a translated draft', async ({ page }) => {
+    await page.getByTestId('governance-mode-natural').click();
+    await page.getByTestId('governance-natural-input').fill('Allow all');
+    await page.getByTestId('governance-translate-save').click();
+
+    await expect(page.getByTestId('governance-yaml-input')).toBeVisible();
+    await expect(page.getByTestId('governance-yaml-input')).toHaveValue(/effect: allow/);
+    await expect(page.getByText('Saved')).toBeVisible();
   });
 
   test('audit log tab renders hash-chain table', async ({ page }) => {

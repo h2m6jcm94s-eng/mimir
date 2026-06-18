@@ -115,7 +115,33 @@ describe('governance routes', () => {
     const body = JSON.parse(response.body);
     expect(body.data.source).toContain('action: "github.openPr"');
     expect(body.data.source).toContain('effect: require_approval');
+    expect(body.data.explanations).toEqual(
+      expect.arrayContaining(['Require approval for github.openPr.'])
+    );
   });
+
+  it.skipIf(!process.env.RUN_DB_TESTS)(
+    'fuzzy-matches a typo against the connector registry',
+    async () => {
+      const token = `gov_fuzzy_${Date.now()}`;
+      const app = await buildTestApp(async (app) => {
+        await app.register(governanceRoutes, { prefix: '/v1/governance' });
+      });
+
+      await resolveAuthUser(token, `${token}@test.local`);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/governance/policy/translate',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        payload: JSON.stringify({ description: 'Require approval for github.openpr' }),
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.data.source).toContain('action: "github.openPr"');
+    }
+  );
 
   it.skipIf(!process.env.RUN_DB_TESTS)('rejects an untranslatable description', async () => {
     const token = `gov_translate_fail_${Date.now()}`;

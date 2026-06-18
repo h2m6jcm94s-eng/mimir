@@ -1,4 +1,4 @@
-import type { ModelInput, ModelOutput } from '@mimir/shared-types';
+import type { ModelInput, ModelOutput, PolicyRule } from '@mimir/shared-types';
 import { PolicyEngine } from './engine';
 
 export class PolicyTranslationError extends Error {
@@ -11,15 +11,60 @@ export class PolicyTranslationError extends Error {
 export interface TranslatePolicyOptions {
   /** Optional model invoker for descriptions not covered by the heuristic parser. */
   invokeModel?: (input: ModelInput) => Promise<ModelOutput>;
+  /** Optional canonical action dictionary used to fuzzy-match extracted action names. */
+  knownActions?: string[];
+}
+
+export interface TranslatePolicyResult {
+  source: string;
+  explanations: string[];
 }
 
 const CODE_BLOCK_REGEX = /```(?:yaml|yml)?\n([\s\S]*?)```/;
 
-function extractAction(text: string): string | undefined {
+function levenshtein(a: string, b: string): number {
+  const matrix: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost
+      );
+    }
+  }
+  return matrix[a.length][b.length];
+}
+
+function findBestActionMatch(raw: string, candidates: string[]): string | undefined {
+  const normalizedRaw = raw.toLowerCase();
+  let best: string | undefined;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const candidate of candidates) {
+    const distance = levenshtein(normalizedRaw, candidate.toLowerCase());
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = candidate;
+    }
+  }
+  if (!best) return undefined;
+  // Conservative threshold: allow up to 2 edits, and never more than a third of the raw length.
+  if (bestDistance <= 2 && bestDistance <= normalizedRaw.length / 3) return best;
+  return undefined;
+}
+
+function extractAction(text: string, knownActions?: string[]): string | undefined {
   const quoted = text.match(/["']([^"']+)["']/);
-  if (quoted) return quoted[1];
-  const match = text.match(/(?:for|on)\s+(\S+)/);
-  return match?.[1]?.replace(/[.,;:!?]+$/, '');
+  const raw = quoted?.[1] ?? text.match(/(?:for|on)\s+(\S+)/)?.[1];
+  if (!raw) return undefined;
+  const cleaned = raw.replace(/[.,;:!?]+$/, '');
+  if (knownActions && knownActions.length > 0) {
+    const match = findBestActionMatch(cleaned, knownActions);
+    if (match) return match;
+  }
+  return cleaned;
 }
 
 function extractNumber(text: string): number | undefined {
@@ -37,12 +82,12 @@ function extractTier(text: string): 0 | 1 | 2 | undefined {
   return undefined;
 }
 
-function parseSentence(sentence: string): string | undefined {
+function parseSentence(sentence: string, knownActions?: string[]): string | undefined {
   const lower = sentence.toLowerCase().trim();
   if (!lower) return undefined;
 
   if (lower.includes('require approval')) {
-    const action = extractAction(sentence) ?? '*';
+    const action = extractAction(sentence, knownActions) ?? '*';
     return `- action: "${action}"\n  effect: require_approval\n  reason: requires human approval`;
   }
 
@@ -51,7 +96,7 @@ function parseSentence(sentence: string): string | undefined {
   }
 
   if (lower.includes('deny')) {
-    const action = extractAction(sentence);
+    const action = extractAction(sentence, knownActions);
     const tier = extractTier(sentence);
     const amount =
       lower.includes('daily spend') || lower.includes('spend')
@@ -79,19 +124,98 @@ function parseSentence(sentence: string): string | undefined {
   return undefined;
 }
 
-function heuristicTranslate(description: string): string | undefined {
+function heuristicTranslate(description: string, knownActions?: string[]): string | undefined {
   const sentences = description
     .split(/\n|(?:\.\s+)/)
     .map((s) => s.trim())
     .filter(Boolean);
   const rules: string[] = [];
   for (const sentence of sentences) {
-    const rule = parseSentence(sentence);
+    const rule = parseSentence(sentence, knownActions);
     if (rule) rules.push(rule);
   }
   if (rules.length === 0) return undefined;
   return `rules:\n${rules.map((r) => r.replace(/^/gm, '  ')).join('\n')}\n`;
 }
+
+function operatorDescription(expression: string): string {
+  const trimmed = expression.trim();
+  const match = trimmed.match(/^(>=|<=|>|<|==)?\s*([\d.]+)$/);
+  if (!match) return `is ${trimmed}`;
+  const operator = match[1] ?? '==';
+  const amount = match[2];
+  switch (operator) {
+    case '>':
+      return `greater than ${amount}`;
+    case '>=':
+      return `greater than or equal to ${amount}`;
+    case '<':
+      return `less than ${amount}`;
+    case '<=':
+      return `less than or equal to ${amount}`;
+    case '==':
+      return `equals ${amount}`;
+    default:
+      return `is ${trimmed}`;
+  }
+}
+
+function explainRule(rule: PolicyRule): string {
+  const actionLabel =
+    rule.action === '*' || rule.action === undefined ? 'all actions' : rule.action;
+  const parts: string[] = [];
+  if (rule.kind) parts.push(`kind is ${rule.kind}`);
+  if (rule.when?.tier !== undefined) parts.push(`tier is ${rule.when.tier}`);
+  if (rule.when?.dailySpendUsd !== undefined)
+    parts.push(`daily spend is ${operatorDescription(rule.when.dailySpendUsd)}`);
+
+  const condition = parts.length > 0 ? ` when ${parts.join(' and ')}` : '';
+
+  switch (rule.effect) {
+    case 'allow':
+      return `Allow ${actionLabel}${condition}.`;
+    case 'deny':
+      return `Deny ${actionLabel}${condition}.`;
+    case 'require_approval':
+      return `Require approval for ${actionLabel}${condition}.`;
+    default:
+      return `${rule.effect} ${actionLabel}${condition}.`;
+  }
+}
+
+export function explainPolicy(source: string): string[] {
+  const document = new PolicyEngine(source).parse();
+  return document.rules.map(explainRule);
+}
+
+const POLICY_EXAMPLES = `
+Example 1:
+Input: "Require approval for github.openPr"
+Output:
+rules:
+  - action: "github.openPr"
+    effect: require_approval
+    reason: opening a PR requires human approval
+
+Example 2:
+Input: "Deny tier 2 actions when daily spend is greater than 5.00"
+Output:
+rules:
+  - action: "*"
+    effect: deny
+    when:
+      tier: 2
+      dailySpendUsd: '> 5.00'
+    reason: daily cloud spend limit exceeded
+
+Example 3:
+Input: "Allow everything else"
+Output:
+rules:
+  - action: "*"
+    effect: allow
+    reason: default allow
+`;
 
 async function modelTranslate(
   description: string,
@@ -110,7 +234,7 @@ rules:
       dailySpendUsd: '<operator> <amount>' # e.g. '> 1.00'
 
 Rules are evaluated top-down; the first matching rule wins. End with a default allow rule if appropriate.
-
+${POLICY_EXAMPLES}
 Natural-language policy: """${description}"""`;
 
   const output = await invokeModel({ prompt, payload: {} });
@@ -122,8 +246,8 @@ Natural-language policy: """${description}"""`;
 export async function translatePolicy(
   description: string,
   options: TranslatePolicyOptions = {}
-): Promise<string> {
-  let source = heuristicTranslate(description);
+): Promise<TranslatePolicyResult> {
+  let source = heuristicTranslate(description, options.knownActions);
 
   if (!source && options.invokeModel) {
     source = await modelTranslate(description, options.invokeModel);
@@ -140,5 +264,6 @@ export async function translatePolicy(
     throw new PolicyTranslationError(`Translated policy is invalid: ${message}`);
   }
 
-  return source;
+  const explanations = explainPolicy(source);
+  return { source, explanations };
 }

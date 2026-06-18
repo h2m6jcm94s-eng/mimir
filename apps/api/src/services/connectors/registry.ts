@@ -9,6 +9,8 @@ import { connectorActionsCounter } from '../metrics/registry';
 import { airtableHandlers } from './airtable/handlers';
 import { discordHandlers } from './discord/handlers';
 import { facebookHandlers } from './facebook/handlers';
+import { connectorWriteRegistry } from './write-registry';
+import './github/apply';
 import { GitHubClient } from './github/client';
 import { gmailHandlers } from './gmail/handlers';
 import { googleContactsHandlers } from './googleContacts/handlers';
@@ -117,6 +119,19 @@ const handlersByKind: Record<string, Record<string, ConnectorActionHandler>> = {
 };
 
 export class ConnectorRegistry {
+  knownActions(): string[] {
+    const actions = new Set<string>();
+    for (const descriptor of connectorWriteRegistry.values()) {
+      actions.add(`${descriptor.kind}.${descriptor.action}`);
+    }
+    for (const [kind, handlers] of Object.entries(handlersByKind)) {
+      for (const action of Object.keys(handlers)) {
+        actions.add(`${kind}.${action}`);
+      }
+    }
+    return Array.from(actions).sort();
+  }
+
   async runAction(
     ctx: TenantContext,
     actionCtx: ConnectorActionContext

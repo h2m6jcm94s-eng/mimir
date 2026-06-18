@@ -5,6 +5,7 @@ import { Scopes, requireScope } from '../middleware/rbac';
 import { protectedRouteConfig } from '../middleware/route-config';
 import { createAuditEvent } from '../repositories/audit';
 import { getActivePolicy, upsertPolicy } from '../repositories/policy';
+import { connectorRegistry } from '../services/connectors/registry';
 import { PolicyEngine } from '../services/governance/engine';
 import { translatePolicy } from '../services/governance/translator';
 import { ModelRouter } from '../services/models/router';
@@ -86,10 +87,11 @@ export async function governanceRoutes(app: FastifyInstance) {
 
       try {
         const router = new ModelRouter();
-        const source = await translatePolicy(body.description, {
+        const { source, explanations } = await translatePolicy(body.description, {
           invokeModel: (input) => router.invoke(1, input, { maxTokens: 1024 }),
+          knownActions: connectorRegistry.knownActions(),
         });
-        return reply.send({ data: { source } });
+        return reply.send({ data: { source, explanations } });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Translation failed';
         return reply.status(400).send({

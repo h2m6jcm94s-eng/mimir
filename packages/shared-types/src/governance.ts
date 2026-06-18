@@ -87,5 +87,6 @@ export type TranslatePolicyRequest = z.infer<typeof TranslatePolicyRequest>;
 
 export const TranslatePolicyResponse = z.object({
   source: z.string(),
+  explanations: z.array(z.string()).default([]),
 });
 export type TranslatePolicyResponse = z.infer<typeof TranslatePolicyResponse>;
