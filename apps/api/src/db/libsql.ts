@@ -12,6 +12,7 @@ export function getLibSqlClient(): LibSqlClient {
       url,
       syncUrl,
       authToken,
+      encryptionKey: process.env.LIBSQL_ENCRYPTION_KEY,
     });
   }
   return libsql;

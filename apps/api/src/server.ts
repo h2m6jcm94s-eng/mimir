@@ -28,6 +28,7 @@ import { notificationRoutes } from './routes/notifications';
 import { reportRoutes } from './routes/reports';
 import { sandboxRoutes } from './routes/sandbox';
 import { sessionRoutes } from './routes/sessions';
+import { sshCaRoutes } from './routes/ssh-ca';
 import { taskRoutes } from './routes/tasks';
 import { httpRequestsCounter } from './services/metrics/registry';
 import { initializeLibSqlSchema } from './services/state/libsql-schema';
@@ -91,6 +92,7 @@ async function main() {
   app.register(notificationRoutes, { prefix: '/v1/notifications' });
   app.register(reportRoutes, { prefix: '/v1/reports' });
   app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
+  app.register(sshCaRoutes, { prefix: '/v1' });
   app.register(haltRoutes, { prefix: '/v1/halt' });
 
   app.addHook('onResponse', async (request, reply) => {
