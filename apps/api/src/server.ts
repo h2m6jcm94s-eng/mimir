@@ -33,6 +33,7 @@ import { nodeRoutes } from './routes/nodes';
 import { notificationRoutes } from './routes/notifications';
 import { reportRoutes } from './routes/reports';
 import { sandboxRoutes } from './routes/sandbox';
+import { schedulingRoutes } from './routes/scheduling';
 import { sessionRoutes } from './routes/sessions';
 import { sshCaRoutes } from './routes/ssh-ca';
 import { taskRoutes } from './routes/tasks';
@@ -108,6 +109,7 @@ async function main() {
   app.register(notificationRoutes, { prefix: '/v1/notifications' });
   app.register(reportRoutes, { prefix: '/v1/reports' });
   app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
+  app.register(schedulingRoutes, { prefix: '/v1/scheduling' });
   app.register(sshCaRoutes, { prefix: '/v1' });
   app.register(haltRoutes, { prefix: '/v1/halt' });
 

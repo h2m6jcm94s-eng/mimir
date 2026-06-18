@@ -12,4 +12,5 @@ export * from './memory';
 export * from './notification';
 export * from './life-admin';
 export * from './marketing';
+export * from './scheduling';
 export * from './errors';
