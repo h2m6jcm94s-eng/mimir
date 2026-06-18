@@ -6,6 +6,7 @@ import { SourcesChip } from '@/components/ui/SourcesChip';
 import { TierBadge } from '@/components/ui/TierBadge';
 import { TrustBadge } from '@/components/ui/TrustBadge';
 import { cn } from '@/lib/utils';
+import type { AgentRole, Job } from '@mimir/shared-types';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Bot,
@@ -27,14 +28,6 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-interface AgentRole {
-  id: string;
-  kind: string;
-  name: string;
-  provider: string;
-  model?: string;
-}
-
 type Role = 'user' | 'assistant' | 'system';
 
 interface AssistantMessage {
@@ -47,9 +40,11 @@ interface AssistantMessage {
   tier: 0 | 1 | 2;
   sources?: string[];
   needsApproval?: {
+    approvalId: string;
     title: string;
     blastRadius: string;
   };
+  jobId?: string;
 }
 
 interface UserMessage {
@@ -67,39 +62,6 @@ interface SystemMessage {
 
 type Message = UserMessage | AssistantMessage | SystemMessage;
 
-const sampleMessages: Message[] = [
-  {
-    id: 1,
-    role: 'assistant',
-    content:
-      'Good morning. Here is your security brief: 3 low-severity items, no active incidents.',
-    model: 'kimi',
-    confidence: 0.94,
-    cost: 0.003,
-    tier: 1,
-    sources: ['security-report-2026-06-14.md', 'clerk-rotation-log.txt'],
-  },
-  {
-    id: 2,
-    role: 'user',
-    content: 'Deploy the new worker to the cloud node and restart the RAG service.',
-  },
-  {
-    id: 3,
-    role: 'assistant',
-    content:
-      'This action affects production services. Please review the blast radius before approving.',
-    model: 'claude',
-    confidence: 0.91,
-    cost: 0.012,
-    tier: 2,
-    needsApproval: {
-      title: 'Deploy worker + restart RAG service',
-      blastRadius: 'Deploys 1 service · Restarts 1 service · Affects ~12 users',
-    },
-  },
-];
-
 const steps = [
   'Classify request privacy tier',
   'Route to Claude (T2, cloud node)',
@@ -115,36 +77,73 @@ function isSystem(msg: Message): msg is SystemMessage {
   return msg.role === 'system';
 }
 
-async function pollJob(jobId: string): Promise<string> {
+interface PollResult {
+  text: string;
+  status: string;
+  costUsd: number;
+  tier: 0 | 1 | 2;
+  model: string;
+  sources: string[];
+}
+
+function extractSources(job: Job): string[] {
+  const checkpoint = (job.checkpoint ?? {}) as Record<string, unknown>;
+  const result = (checkpoint.build as Record<string, unknown> | undefined)?.result as
+    | Record<string, unknown>
+    | undefined;
+  const artifacts = (result?.artifacts as Record<string, unknown> | undefined) ?? {};
+  const sources = artifacts.sources;
+  if (Array.isArray(sources)) return sources.filter((s): s is string => typeof s === 'string');
+  return [];
+}
+
+async function pollJob(jobId: string): Promise<PollResult> {
   for (let attempt = 0; attempt < 30; attempt++) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/tasks/${jobId}`, {
       credentials: 'include',
     });
     if (!res.ok) continue;
-    const job = (await res.json()) as {
-      status: string;
-      checkpoint?: {
-        build?: {
-          result?: {
-            artifacts?: {
-              model?: { text?: string };
-            };
-          };
-        };
-      };
-    };
+    const job = (await res.json()) as Job;
     if (job.status === 'done' || job.status === 'failed' || job.status === 'needs_attention') {
-      const text = job.checkpoint?.build?.result?.artifacts?.model?.text;
-      return text ?? `Task finished with status: ${job.status}`;
+      const checkpoint = (job.checkpoint ?? {}) as Record<string, unknown>;
+      const result = (checkpoint.build as Record<string, unknown> | undefined)?.result as
+        | Record<string, unknown>
+        | undefined;
+      const artifacts = (result?.artifacts as Record<string, unknown> | undefined) ?? {};
+      const modelOutput = artifacts.model as Record<string, unknown> | undefined;
+      const text =
+        typeof modelOutput?.text === 'string'
+          ? modelOutput.text
+          : `Task finished with status: ${job.status}`;
+      const input = (job.input ?? {}) as Record<string, unknown>;
+      const model =
+        (input.model as string | undefined) ??
+        (input.provider as string | undefined) ??
+        (typeof modelOutput?.provider === 'string' ? modelOutput.provider : 'local');
+      return {
+        text,
+        status: job.status,
+        costUsd: job.costUsd ?? 0,
+        tier: job.tier,
+        model,
+        sources: extractSources(job),
+      };
     }
   }
-  return 'Task is still running. Check the tasks page for the final result.';
+  return {
+    text: 'Task is still running. Check the tasks page for the final result.',
+    status: 'running',
+    costUsd: 0,
+    tier: 1,
+    model: 'local',
+    sources: [],
+  };
 }
 
 export default function ConsolePage() {
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<Message[]>(sampleMessages);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
@@ -171,7 +170,7 @@ export default function ConsolePage() {
   useEffect(() => {
     async function loadRoles() {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/agents/roles`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/agents/`, {
           credentials: 'include',
         });
         if (!res.ok) throw new Error('failed to load roles');
@@ -181,7 +180,16 @@ export default function ConsolePage() {
         setSelectedRole(roles[0] ?? null);
       } catch {
         // fall back to a minimal local role so the UI still renders
-        const fallback: AgentRole = { id: 'local', kind: 'main', name: 'local', provider: 'local' };
+        const fallback = {
+          id: 'local',
+          kind: 'main',
+          name: 'local',
+          provider: 'local',
+          tier: 0,
+          capabilities: [],
+          isDefault: true,
+          priority: 0,
+        } as unknown as AgentRole;
         setAgentRoles([fallback]);
         setSelectedRole(fallback);
       } finally {
@@ -224,18 +232,40 @@ export default function ConsolePage() {
         throw new Error(err.error?.message ?? `HTTP ${res.status}`);
       }
 
-      const { jobId } = (await res.json()) as { jobId: string };
-      const answer = await pollJob(jobId);
+      const body = (await res.json()) as { jobId: string; approvalId?: string; status?: string };
+      const { jobId, approvalId } = body;
+
+      if (res.status === 202 && approvalId) {
+        const assistant: AssistantMessage = {
+          id: Date.now() + 1,
+          role: 'assistant',
+          content: 'This request requires approval before proceeding.',
+          model: selectedRole?.model ?? selectedRole?.provider ?? 'local',
+          confidence: 0.85,
+          cost: 0,
+          tier,
+          jobId,
+          needsApproval: {
+            approvalId,
+            title: text.slice(0, 80),
+            blastRadius: `1 task · ${tier === 0 ? 'private' : tier === 1 ? 'local' : 'cloud'}`,
+          },
+        };
+        setMessages((prev) => [...prev, assistant]);
+        return;
+      }
+
+      const result = await pollJob(jobId);
 
       const assistant: AssistantMessage = {
         id: Date.now() + 1,
         role: 'assistant',
-        content: answer,
-        model: selectedRole?.model ?? selectedRole?.provider ?? 'local',
-        confidence: 0.89,
-        cost: 0.007,
-        tier,
-        sources: ['task-plan.md'],
+        content: result.text,
+        model: result.model,
+        confidence: 0.85,
+        cost: result.costUsd / 1_000_000,
+        tier: result.tier,
+        sources: result.sources,
       };
       setMessages((prev) => [...prev, assistant]);
     } catch (err) {
@@ -258,18 +288,107 @@ export default function ConsolePage() {
     }
   }
 
-  function handleApprove(msgId: number) {
+  async function handleApprove(msgId: number) {
+    const msg = messages.find((m): m is AssistantMessage => isAssistant(m) && m.id === msgId);
+    if (!msg?.needsApproval?.approvalId) return;
+
     setMessages((prev) =>
       prev.map((m) =>
-        isAssistant(m) && m.id === msgId
-          ? { ...m, needsApproval: undefined, content: `${m.content} (approved)` }
-          : m
+        isAssistant(m) && m.id === msgId ? { ...m, content: `${m.content}\n\nApproving…` } : m
       )
     );
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/v1/approvals/${msg.needsApproval.approvalId}/approve`,
+        {
+          method: 'POST',
+          credentials: 'include',
+        }
+      );
+      if (!res.ok) throw new Error('Approval failed');
+
+      if (msg.jobId) {
+        const result = await pollJob(msg.jobId);
+        setMessages((prev) =>
+          prev.map((m) =>
+            isAssistant(m) && m.id === msgId
+              ? {
+                  ...m,
+                  content: result.text,
+                  cost: result.costUsd / 1_000_000,
+                  tier: result.tier,
+                  model: result.model,
+                  sources: result.sources,
+                  needsApproval: undefined,
+                }
+              : m
+          )
+        );
+      } else {
+        setMessages((prev) =>
+          prev.map((m) =>
+            isAssistant(m) && m.id === msgId
+              ? { ...m, content: `${m.content}\n\nApproved.`, needsApproval: undefined }
+              : m
+          )
+        );
+      }
+    } catch (err) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          isAssistant(m) && m.id === msgId
+            ? {
+                ...m,
+                content:
+                  err instanceof Error
+                    ? `${m.content}\n\nApproval error: ${err.message}`
+                    : `${m.content}\n\nApproval error`,
+              }
+            : m
+        )
+      );
+    }
   }
 
-  function handleDeny(msgId: number) {
-    setMessages((prev) => prev.filter((m) => !isAssistant(m) || m.id !== msgId));
+  async function handleDeny(msgId: number) {
+    const msg = messages.find((m): m is AssistantMessage => isAssistant(m) && m.id === msgId);
+    if (!msg?.needsApproval?.approvalId) {
+      setMessages((prev) => prev.filter((m) => !isAssistant(m) || m.id !== msgId));
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/v1/approvals/${msg.needsApproval.approvalId}/deny`,
+        {
+          method: 'POST',
+          credentials: 'include',
+        }
+      );
+      if (!res.ok) throw new Error('Denial failed');
+      setMessages((prev) =>
+        prev.map((m) =>
+          isAssistant(m) && m.id === msgId
+            ? { ...m, content: `${m.content}\n\nDenied.`, needsApproval: undefined }
+            : m
+        )
+      );
+    } catch (err) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          isAssistant(m) && m.id === msgId
+            ? {
+                ...m,
+                content:
+                  err instanceof Error
+                    ? `${m.content}\n\nDenial error: ${err.message}`
+                    : `${m.content}\n\nDenial error`,
+              }
+            : m
+        )
+      );
+    }
   }
 
   return (
