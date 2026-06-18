@@ -36,6 +36,10 @@ vi.mock('../repositories/audit', () => ({
   createAuditEvent: vi.fn(),
 }));
 
+vi.mock('../services/events/publisher', () => ({
+  publishJobEvent: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('../repositories/budget', () => ({
   getBudget: vi.fn().mockResolvedValue(undefined),
   upsertBudget: vi.fn(),

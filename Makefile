@@ -33,3 +33,9 @@ test-integration: ## Run integration tests
 
 build: ## Build all apps/packages
 	pnpm build
+
+backup: ## Run 3-2-1 backup of Postgres + LibSQL
+	./scripts/backup.sh
+
+restore-test: ## Verify latest backup restores cleanly
+	./scripts/restore-test.sh

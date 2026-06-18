@@ -12,6 +12,7 @@ import { approvalRoutes } from './routes/approvals';
 import { auditRoutes } from './routes/audit';
 import { budgetRoutes } from './routes/budget';
 import { connectorRoutes } from './routes/connectors';
+import { fencingRoutes } from './routes/fencing';
 import { governanceRoutes } from './routes/governance';
 import { haltRoutes } from './routes/halt';
 import { healthRoutes } from './routes/health';
@@ -21,6 +22,7 @@ import { nodeRoutes } from './routes/nodes';
 import { reportRoutes } from './routes/reports';
 import { sessionRoutes } from './routes/sessions';
 import { taskRoutes } from './routes/tasks';
+import { initializeLibSqlSchema } from './services/state/libsql-schema';
 import { getTemporalConnection } from './temporal/client';
 
 initSupertokens();
@@ -67,6 +69,7 @@ async function main() {
   app.register(agentRoutes, { prefix: '/v1/agents' });
   app.register(approvalRoutes, { prefix: '/v1/approvals' });
   app.register(budgetRoutes, { prefix: '/v1/budget' });
+  app.register(fencingRoutes, { prefix: '/v1/fencing' });
   app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
   app.register(knowledgeShareRoutes, { prefix: '/v1/knowledge/shares' });
   app.register(reportRoutes, { prefix: '/v1/reports' });
@@ -90,6 +93,13 @@ async function main() {
     app.log.info('Redis connected');
   } catch (err) {
     app.log.warn({ err }, 'Redis connection failed at startup');
+  }
+
+  try {
+    await initializeLibSqlSchema();
+    app.log.info('LibSQL schema initialized');
+  } catch (err) {
+    app.log.warn({ err }, 'LibSQL schema initialization failed at startup');
   }
 
   try {

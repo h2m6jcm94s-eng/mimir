@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "worker": "tsx watch src/temporal/worker.ts",
+    "mesh": "tsx watch src/mesh/index.ts",
     "build": "tsc",
     "generate:openapi": "tsx src/scripts/generate-openapi.ts",
     "start": "node dist/server.js",

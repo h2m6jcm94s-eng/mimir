@@ -1,6 +1,8 @@
 import {
   AgentRoleKind,
+  JobEventListResponse,
   JobStatus,
+  ListJobEventsQuery,
   ProviderId,
   TaskCountsResponse,
   TaskListQuery,
@@ -13,6 +15,7 @@ import { Scopes, requireScope } from '../middleware/rbac';
 import { protectedRouteConfig } from '../middleware/route-config';
 import { createApproval } from '../repositories/approval';
 import { createAuditEvent } from '../repositories/audit';
+import { listJobEvents } from '../repositories/event';
 import {
   countJobsByStatus,
   createJob,
@@ -25,6 +28,8 @@ import {
 } from '../repositories/job';
 import { ClassificationGateway } from '../services/classification/gateway';
 import { BudgetExceededError, BudgetService, BudgetThrottledError } from '../services/cost/budget';
+import { publishJobEvent } from '../services/events/publisher';
+import { StaleEpochError } from '../services/fencing/fencing';
 import { evaluateTenantPolicy } from '../services/governance/engine';
 import { startTaskWorkflow, terminateWorkflow } from '../temporal/client';
 
@@ -52,6 +57,8 @@ const listTasksSchema = TaskListQuery;
 const timelineSchema = z.object({
   hours: z.coerce.number().int().min(1).max(168).default(12),
 });
+
+const listEventsSchema = ListJobEventsQuery;
 
 const manualTransitions: Record<string, Set<string>> = {
   queued: new Set(['blocked']),
@@ -149,6 +156,12 @@ export async function taskRoutes(app: FastifyInstance) {
             input: { prompt: body.prompt, payload: body.payload, attachments: body.attachments },
           });
 
+          await publishJobEvent(ctx, {
+            jobId: job.id,
+            type: 'job.created',
+            payload: { type: body.type, tier: classification.tier },
+          });
+
           if (decision.effect === 'require_approval') {
             const blockedJob = await updateJobStatus(ctx, job.id, 'blocked');
             const approval = await createApproval(ctx, {
@@ -162,6 +175,11 @@ export async function taskRoutes(app: FastifyInstance) {
               tier: classification.tier,
               payload: { approvalId: approval.id, jobId: blockedJob.id },
             });
+            await publishJobEvent(ctx, {
+              jobId: blockedJob.id,
+              type: 'job.approval.requested',
+              payload: { approvalId: approval.id, reason: decision.reason },
+            });
             return {
               job: blockedJob,
               classification,
@@ -173,6 +191,12 @@ export async function taskRoutes(app: FastifyInstance) {
 
           await updateJobStatus(ctx, job.id, 'queued', {
             checkpoint: { classification },
+          });
+
+          await publishJobEvent(ctx, {
+            jobId: job.id,
+            type: 'job.queued',
+            payload: { classification },
           });
 
           await createAuditEvent(ctx, {
@@ -325,8 +349,32 @@ export async function taskRoutes(app: FastifyInstance) {
           return { invalidTransition: true, from: job.status };
         }
 
-        const updated = await updateJobStatus(ctx, jobId, body.status, {
-          ...(body.reason && { errorMessage: body.reason }),
+        let updated: Awaited<ReturnType<typeof updateJobStatus>>;
+        try {
+          updated = await updateJobStatus(
+            ctx,
+            jobId,
+            body.status,
+            {
+              ...(body.reason && { errorMessage: body.reason }),
+            },
+            body.epoch
+          );
+        } catch (error) {
+          if (error instanceof StaleEpochError) {
+            return { staleEpoch: true };
+          }
+          throw error;
+        }
+
+        await publishJobEvent(ctx, {
+          jobId: updated.id,
+          type: 'job.status_updated',
+          payload: {
+            previousStatus: job.status,
+            newStatus: updated.status,
+            reason: body.reason ?? null,
+          },
         });
 
         await createAuditEvent(ctx, {
@@ -355,10 +403,19 @@ export async function taskRoutes(app: FastifyInstance) {
           },
         });
       }
+      if ('staleEpoch' in result) {
+        return reply
+          .status(409)
+          .send({ error: { code: 'STALE_EPOCH', message: 'Stale epoch: write rejected' } });
+      }
 
       return reply.send(result.updated);
     }
   );
+
+  const cancelJobSchema = z.object({
+    epoch: z.coerce.number().int().min(0).optional(),
+  });
 
   app.post<{ Params: { jobId: string } }>(
     '/:jobId/cancel',
@@ -369,6 +426,7 @@ export async function taskRoutes(app: FastifyInstance) {
         return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
 
       const { jobId } = request.params;
+      const cancelBody = cancelJobSchema.parse(request.body);
 
       const result = await withTenantTransaction(user.tenantId, async (ctx) => {
         const job = await getJob(ctx, jobId);
@@ -382,9 +440,32 @@ export async function taskRoutes(app: FastifyInstance) {
           await terminateWorkflow(job.workflowId);
         }
 
-        const updated = await updateJobStatus(ctx, jobId, 'failed', {
-          errorCode: 'cancelled',
-          errorMessage: 'Cancelled by user',
+        let updated: Awaited<ReturnType<typeof updateJobStatus>>;
+        try {
+          updated = await updateJobStatus(
+            ctx,
+            jobId,
+            'failed',
+            {
+              errorCode: 'cancelled',
+              errorMessage: 'Cancelled by user',
+            },
+            cancelBody.epoch
+          );
+        } catch (error) {
+          if (error instanceof StaleEpochError) {
+            return { staleEpoch: true };
+          }
+          throw error;
+        }
+
+        await publishJobEvent(ctx, {
+          jobId: updated.id,
+          type: 'job.cancelled',
+          payload: {
+            previousStatus: job.status,
+            workflowId: job.workflowId ?? null,
+          },
         });
 
         await createAuditEvent(ctx, {
@@ -412,10 +493,19 @@ export async function taskRoutes(app: FastifyInstance) {
           },
         });
       }
+      if ('staleEpoch' in result) {
+        return reply
+          .status(409)
+          .send({ error: { code: 'STALE_EPOCH', message: 'Stale epoch: write rejected' } });
+      }
 
       return reply.send(result.updated);
     }
   );
+
+  const retryJobSchema = z.object({
+    epoch: z.coerce.number().int().min(0).optional(),
+  });
 
   app.post<{ Params: { jobId: string } }>(
     '/:jobId/retry',
@@ -426,6 +516,7 @@ export async function taskRoutes(app: FastifyInstance) {
         return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
 
       const { jobId } = request.params;
+      const retryBody = retryJobSchema.parse(request.body);
 
       const result = await withTenantTransaction(user.tenantId, async (ctx) => {
         const job = await getJob(ctx, jobId);
@@ -439,11 +530,31 @@ export async function taskRoutes(app: FastifyInstance) {
           return { retriesExhausted: true, retryCount: job.retryCount };
         }
 
-        const updated = await updateJobStatus(ctx, jobId, 'queued', {
-          retryCount: job.retryCount + 1,
-          finishedAt: null,
-          errorCode: null,
-          errorMessage: null,
+        let updated: Awaited<ReturnType<typeof updateJobStatus>>;
+        try {
+          updated = await updateJobStatus(
+            ctx,
+            jobId,
+            'queued',
+            {
+              retryCount: job.retryCount + 1,
+              finishedAt: null,
+              errorCode: null,
+              errorMessage: null,
+            },
+            retryBody.epoch
+          );
+        } catch (error) {
+          if (error instanceof StaleEpochError) {
+            return { staleEpoch: true };
+          }
+          throw error;
+        }
+
+        await publishJobEvent(ctx, {
+          jobId: updated.id,
+          type: 'job.retried',
+          payload: { retryCount: updated.retryCount },
         });
 
         return { updated, input: job.input };
@@ -467,6 +578,11 @@ export async function taskRoutes(app: FastifyInstance) {
             message: `Maximum retry count (${result.retryCount}) reached`,
           },
         });
+      }
+      if ('staleEpoch' in result) {
+        return reply
+          .status(409)
+          .send({ error: { code: 'STALE_EPOCH', message: 'Stale epoch: write rejected' } });
       }
 
       const input = result.input as Record<string, unknown> | undefined;
@@ -507,6 +623,31 @@ export async function taskRoutes(app: FastifyInstance) {
       });
 
       return reply.send({ data });
+    }
+  );
+
+  app.get<{ Params: { jobId: string } }>(
+    '/:jobId/events',
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.JOBS_READ) },
+    async (request, reply) => {
+      const user = request.user;
+      if (!user)
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+
+      const { jobId } = request.params;
+      const query = listEventsSchema.parse(request.query);
+
+      const result = await withTenantTransaction(user.tenantId, async (ctx) => {
+        const job = await getJob(ctx, jobId);
+        if (!job) return { notFound: true };
+        return listJobEvents(ctx, { jobId, limit: query.limit, cursor: query.cursor });
+      });
+
+      if ('notFound' in result) {
+        return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Job not found' } });
+      }
+
+      return reply.send(JobEventListResponse.parse(result));
     }
   );
 

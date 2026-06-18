@@ -23,5 +23,6 @@ export type TaskCountsResponse = z.infer<typeof TaskCountsResponse>;
 export const UpdateJobStatusRequest = z.object({
   status: JobStatus,
   reason: z.string().optional(),
+  epoch: z.coerce.number().int().min(0).optional(),
 });
 export type UpdateJobStatusRequest = z.infer<typeof UpdateJobStatusRequest>;

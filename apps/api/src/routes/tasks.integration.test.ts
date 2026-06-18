@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { withTenantTransaction } from '../db/tenant-context';
 import { resolveAuthUser } from '../middleware/auth';
 import { createJob, updateJobStatus } from '../repositories/job';
+import { bumpEpoch, getEpoch } from '../services/fencing/fencing';
 import { buildTestApp } from '../test-helpers/build-app';
 import { taskRoutes } from './tasks';
 
@@ -123,14 +124,15 @@ describe('tasks routes', () => {
   it.skipIf(!process.env.RUN_DB_TESTS)('updates job status with a valid transition', async () => {
     const externalId = `tasks_status_${Date.now()}`;
     const user = await resolveAuthUser(externalId, `${externalId}@test.local`);
-    const { job } = await withTenantTransaction(user.tenantId, async (ctx) => {
+    const { job, epoch } = await withTenantTransaction(user.tenantId, async (ctx) => {
       const created = await createJob(ctx, {
         idempotencyKey: `tasks-status-${Date.now()}`,
         type: 'status-task',
         tier: 1,
         input: { prompt: 'status' },
       });
-      return { job: created };
+      const currentEpoch = await getEpoch(ctx);
+      return { job: created, epoch: currentEpoch };
     });
 
     const app = await buildTestApp(async (app) => {
@@ -141,7 +143,7 @@ describe('tasks routes', () => {
       method: 'PATCH',
       url: `/v1/tasks/${job.id}/status`,
       headers: { authorization: `Bearer ${externalId}`, 'content-type': 'application/json' },
-      payload: JSON.stringify({ status: 'blocked', reason: 'paused for review' }),
+      payload: JSON.stringify({ status: 'blocked', reason: 'paused for review', epoch }),
     });
 
     expect(patchResponse.statusCode).toBe(200);
@@ -152,23 +154,58 @@ describe('tasks routes', () => {
       method: 'PATCH',
       url: `/v1/tasks/${job.id}/status`,
       headers: { authorization: `Bearer ${externalId}`, 'content-type': 'application/json' },
-      payload: JSON.stringify({ status: 'done' }),
+      payload: JSON.stringify({ status: 'done', epoch }),
     });
 
     expect(invalidResponse.statusCode).toBe(409);
   });
 
+  it.skipIf(!process.env.RUN_DB_TESTS)('rejects writes with a stale epoch', async () => {
+    const externalId = `tasks_stale_epoch_${Date.now()}`;
+    const user = await resolveAuthUser(externalId, `${externalId}@test.local`);
+    const { job, epoch } = await withTenantTransaction(user.tenantId, async (ctx) => {
+      const created = await createJob(ctx, {
+        idempotencyKey: `tasks-stale-epoch-${Date.now()}`,
+        type: 'status-task',
+        tier: 1,
+        input: { prompt: 'status' },
+      });
+      const currentEpoch = await getEpoch(ctx);
+      return { job: created, epoch: currentEpoch };
+    });
+
+    await withTenantTransaction(user.tenantId, async (ctx) => {
+      await bumpEpoch(ctx);
+    });
+
+    const app = await buildTestApp(async (app) => {
+      await app.register(taskRoutes, { prefix: '/v1/tasks' });
+    });
+
+    const patchResponse = await app.inject({
+      method: 'PATCH',
+      url: `/v1/tasks/${job.id}/status`,
+      headers: { authorization: `Bearer ${externalId}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ status: 'blocked', epoch }),
+    });
+
+    expect(patchResponse.statusCode).toBe(409);
+    const body = JSON.parse(patchResponse.body);
+    expect(body.error.code).toBe('STALE_EPOCH');
+  });
+
   it.skipIf(!process.env.RUN_DB_TESTS)('cancels a queued job', async () => {
     const externalId = `tasks_cancel_${Date.now()}`;
     const user = await resolveAuthUser(externalId, `${externalId}@test.local`);
-    const { job } = await withTenantTransaction(user.tenantId, async (ctx) => {
+    const { job, epoch } = await withTenantTransaction(user.tenantId, async (ctx) => {
       const created = await createJob(ctx, {
         idempotencyKey: `tasks-cancel-${Date.now()}`,
         type: 'cancel-task',
         tier: 1,
         input: { prompt: 'cancel me' },
       });
-      return { job: created };
+      const currentEpoch = await getEpoch(ctx);
+      return { job: created, epoch: currentEpoch };
     });
 
     const app = await buildTestApp(async (app) => {
@@ -178,7 +215,8 @@ describe('tasks routes', () => {
     const response = await app.inject({
       method: 'POST',
       url: `/v1/tasks/${job.id}/cancel`,
-      headers: { authorization: `Bearer ${externalId}` },
+      headers: { authorization: `Bearer ${externalId}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ epoch }),
     });
 
     expect(response.statusCode).toBe(200);
@@ -190,7 +228,7 @@ describe('tasks routes', () => {
   it.skipIf(!process.env.RUN_DB_TESTS)('retries a failed job', async () => {
     const externalId = `tasks_retry_${Date.now()}`;
     const user = await resolveAuthUser(externalId, `${externalId}@test.local`);
-    const { job } = await withTenantTransaction(user.tenantId, async (ctx) => {
+    const { job, epoch } = await withTenantTransaction(user.tenantId, async (ctx) => {
       const created = await createJob(ctx, {
         idempotencyKey: `tasks-retry-${Date.now()}`,
         type: 'retry-task',
@@ -202,7 +240,8 @@ describe('tasks routes', () => {
         errorCode: 'test_error',
         errorMessage: 'test failure',
       });
-      return { job: created };
+      const currentEpoch = await getEpoch(ctx);
+      return { job: created, epoch: currentEpoch };
     });
 
     const app = await buildTestApp(async (app) => {
@@ -212,7 +251,8 @@ describe('tasks routes', () => {
     const response = await app.inject({
       method: 'POST',
       url: `/v1/tasks/${job.id}/retry`,
-      headers: { authorization: `Bearer ${externalId}` },
+      headers: { authorization: `Bearer ${externalId}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ epoch }),
     });
 
     expect(response.statusCode).toBe(200);

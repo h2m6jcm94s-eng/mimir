@@ -24,6 +24,7 @@ import { evaluateTenantPolicy } from '../services/governance/engine';
 import { ReviewerRouter } from '../services/reviewers/router';
 import { scrubForTier } from '../services/scrubber/scrubber';
 import { throwIfHalted } from '../services/halt/state';
+import { publishJobEvent } from '../services/events/publisher';
 import type { TaskRunInput } from './workflows';
 
 const budgetService = new BudgetService();
@@ -73,6 +74,12 @@ export async function build(input: TaskRunInput): Promise<BuildResult> {
 
     await updateJobStatus(ctx, input.jobId, 'running', {
       checkpoint: { ...existing, step: 'build', startedAt: new Date().toISOString() },
+    });
+
+    await publishJobEvent(ctx, {
+      jobId: input.jobId,
+      type: 'job.running',
+      payload: { step: 'build' },
     });
 
     const scrubbedPayload = input.tier === 2 ? scrubForTier(input.payload, input.tier) : undefined;
@@ -133,6 +140,12 @@ export async function build(input: TaskRunInput): Promise<BuildResult> {
       },
     });
 
+    await publishJobEvent(ctx, {
+      jobId: input.jobId,
+      type: 'job.build.completed',
+      payload: { costUsd: callCostUsd },
+    });
+
     await createAuditEvent(ctx, {
       actor: input.userId,
       action: 'build_completed',
@@ -179,6 +192,12 @@ export async function review(
 
     await updateJobStatus(ctx, input.jobId, result.approved ? 'running' : 'needs_attention', {
       checkpoint: { ...existing, reviews },
+    });
+
+    await publishJobEvent(ctx, {
+      jobId: input.jobId,
+      type: 'job.review.completed',
+      payload: { iteration, approved: result.approved, verdict: result.verdict },
     });
 
     await createAuditEvent(ctx, {
@@ -228,6 +247,12 @@ export async function applyPatch(
 
     await updateJobStatus(ctx, input.jobId, 'running', {
       checkpoint: { ...existing, patches },
+    });
+
+    await publishJobEvent(ctx, {
+      jobId: input.jobId,
+      type: 'job.patch.applied',
+      payload: { iteration, patchHash: hashObject(patch) },
     });
 
     await createAuditEvent(ctx, {
@@ -299,6 +324,18 @@ export async function apply(
       checkpoint: { ...existing, apply: { result, finishedAt: new Date().toISOString() } },
     });
 
+    await publishJobEvent(ctx, {
+      jobId: input.jobId,
+      type: result.applied ? 'job.apply.completed' : 'job.apply.failed',
+      payload: { applied: result.applied, reason: result.reason },
+    });
+
+    await publishJobEvent(ctx, {
+      jobId: input.jobId,
+      type: result.applied ? 'job.done' : 'job.failed',
+      payload: { reason: result.reason },
+    });
+
     await createAuditEvent(ctx, {
       actor: input.userId,
       action: result.applied ? 'apply_completed' : 'apply_failed',
@@ -319,6 +356,11 @@ export async function recordFailure(
     await updateJobStatus(ctx, input.jobId, 'failed', {
       result: { error: code, reason },
     });
+    await publishJobEvent(ctx, {
+      jobId: input.jobId,
+      type: 'job.failed',
+      payload: { error: code, reason },
+    });
   });
 }
 
@@ -330,6 +372,11 @@ export async function recordEscalation(
   await withTenantTransaction(input.tenantId, async (ctx) => {
     await updateJobStatus(ctx, input.jobId, 'needs_attention', {
       result: { error: code, reason },
+    });
+    await publishJobEvent(ctx, {
+      jobId: input.jobId,
+      type: 'job.failed',
+      payload: { error: code, reason, escalation: true },
     });
   });
 }

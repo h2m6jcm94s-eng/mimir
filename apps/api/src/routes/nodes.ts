@@ -4,7 +4,7 @@ import { withTenantTransaction } from '../db/tenant-context';
 import { Scopes, requireScope } from '../middleware/rbac';
 import { protectedRouteConfig } from '../middleware/route-config';
 import { createDevice } from '../repositories/device';
-import { listNodes } from '../repositories/node';
+import { getNode, listNodes, updateNodeHeartbeat } from '../repositories/node';
 
 const enrollNodeSchema = z.object({
   kind: z.enum(['brain', 'desktop', 'cloud', 'phone']),
@@ -53,6 +53,58 @@ export async function nodeRoutes(app: FastifyInstance) {
       });
 
       return reply.status(201).send(device);
+    }
+  );
+
+  app.get<{ Params: { nodeId: string } }>(
+    '/:nodeId',
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.NODES_READ) },
+    async (request, reply) => {
+      const user = request.user;
+      if (!user) {
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+      }
+
+      const found = await withTenantTransaction(user.tenantId, async (ctx) => {
+        return getNode(ctx, request.params.nodeId);
+      });
+
+      if (!found) {
+        return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Node not found' } });
+      }
+
+      return reply.send(found);
+    }
+  );
+
+  const heartbeatSchema = z.object({
+    status: z.enum(['up', 'degraded', 'down']).optional(),
+  });
+
+  app.post<{ Params: { nodeId: string } }>(
+    '/:nodeId/heartbeat',
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.NODES_WRITE) },
+    async (request, reply) => {
+      const user = request.user;
+      if (!user) {
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+      }
+
+      const { nodeId } = request.params;
+      const body = heartbeatSchema.parse(request.body);
+
+      const result = await withTenantTransaction(user.tenantId, async (ctx) => {
+        const node = await getNode(ctx, nodeId);
+        if (!node) return { notFound: true };
+        const updated = await updateNodeHeartbeat(ctx, nodeId, body.status);
+        return { updated };
+      });
+
+      if ('notFound' in result) {
+        return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Node not found' } });
+      }
+
+      return reply.send(result.updated);
     }
   );
 }

@@ -1,0 +1,68 @@
+name: Backup / restore test
+
+on:
+  schedule:
+    - cron: '0 6 * * 0'
+  workflow_dispatch:
+
+jobs:
+  restore-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mimir
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Postgres role
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d mimir -c "CREATE ROLE mimir_app WITH LOGIN PASSWORD 'mimir_app';"
+          psql -h localhost -U postgres -d mimir -c "ALTER DATABASE mimir OWNER TO mimir_app;"
+
+      - name: Apply migrations
+        env:
+          DATABASE_URL: postgresql://mimir_app:mimir_app@localhost:5432/mimir
+        run: |
+          cd apps/api
+          pnpm db:migrate
+
+      - name: Seed some data
+        env:
+          DATABASE_URL: postgresql://mimir_app:mimir_app@localhost:5432/mimir
+        run: |
+          PGPASSWORD=mimir_app psql -h localhost -U mimir_app -d mimir -c "
+            INSERT INTO tenant (id, name, plan) VALUES ('00000000-0000-0000-0000-000000000000', 'restore-test', 'free');
+            INSERT INTO job (id, tenant_id, idempotency_key, type, tier, status) VALUES ('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000000', 'restore-test-key', 'echo', 0, 'queued');
+            INSERT INTO node (id, tenant_id, kind, name, tier, status) VALUES ('22222222-2222-2222-2222-222222222222', '00000000-0000-0000-0000-000000000000', 'brain', 'restore-brain', 0, 'up');
+          "
+
+      - name: Run backup
+        env:
+          DATABASE_URL: postgresql://mimir_app:mimir_app@localhost:5432/mimir
+        run: ./scripts/backup.sh
+
+      - name: Create restore database
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -c "CREATE DATABASE mimir_restore;"
+          psql -h localhost -U postgres -d mimir_restore -c "CREATE ROLE mimir_app WITH LOGIN PASSWORD 'mimir_app';"
+          psql -h localhost -U postgres -d mimir_restore -c "ALTER DATABASE mimir_restore OWNER TO mimir_app;"
+
+      - name: Run restore test
+        env:
+          RESTORE_DATABASE_URL: postgresql://mimir_app:mimir_app@localhost:5432/mimir_restore
+        run: ./scripts/restore-test.sh

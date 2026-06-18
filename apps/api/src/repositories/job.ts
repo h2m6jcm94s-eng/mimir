@@ -1,6 +1,7 @@
 import { and, count, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import type { TenantContext } from '../db/tenant-context';
+import { assertCurrentEpoch } from '../services/fencing/fencing';
 
 export interface CreateJobInput {
   idempotencyKey: string;
@@ -42,8 +43,13 @@ export async function updateJobStatus(
   ctx: TenantContext,
   jobId: string,
   status: (typeof schema.job.$inferSelect)['status'],
-  update: Partial<typeof schema.job.$inferSelect> = {}
+  update: Partial<typeof schema.job.$inferSelect> = {},
+  claimedEpoch?: number
 ) {
+  if (claimedEpoch !== undefined) {
+    await assertCurrentEpoch(ctx, claimedEpoch);
+  }
+
   const existing = await getJob(ctx, jobId);
   const set: Partial<typeof schema.job.$inferSelect> = {
     status,
