@@ -17,6 +17,7 @@ export const JobEventType = z.enum([
   'job.retried',
   'job.status_updated',
   'job.approval.requested',
+  'cloud_worker_returned',
 ]);
 export type JobEventType = z.infer<typeof JobEventType>;
 

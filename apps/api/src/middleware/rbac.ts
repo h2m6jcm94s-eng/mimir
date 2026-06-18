@@ -27,6 +27,7 @@ export const Scopes = {
   SANDBOX_READ: 'sandbox:read',
   COMPANION_READ: 'companion:read',
   COMPANION_WRITE: 'companion:write',
+  CLOUD_WORKERS_ADMIN: 'cloud_workers:admin',
 } as const;
 
 const ROLE_SCOPES: Record<string, string[]> = {
@@ -52,6 +53,7 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.SANDBOX_ANALYZE,
     Scopes.COMPANION_READ,
     Scopes.COMPANION_WRITE,
+    Scopes.CLOUD_WORKERS_ADMIN,
   ],
   viewer: [
     Scopes.CHAT_READ,

@@ -20,6 +20,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-ec2": "^3.1071.0",
     "@fastify/cors": "^9.0.0",
     "@fastify/env": "^4.3.0",
     "@fastify/redis": "^7.0.0",
@@ -42,10 +43,10 @@
   "devDependencies": {
     "@temporalio/testing": "^1.18.1",
     "@types/eslint": "^8.56.10",
-    "@typescript-eslint/parser": "^7.0.0",
     "@types/node": "^20.14.0",
-    "eslint": "^8.57.0",
+    "@typescript-eslint/parser": "^7.0.0",
     "drizzle-kit": "^0.22.0",
+    "eslint": "^8.57.0",
     "tsx": "^4.15.0",
     "typescript": "^5.5.0",
     "vitest": "^1.6.0"

@@ -13,6 +13,7 @@ import { auditRoutes } from './routes/audit';
 import { briefingRoutes } from './routes/briefings';
 import { budgetRoutes } from './routes/budget';
 import { captureRoutes } from './routes/capture';
+import { cloudWorkerRoutes, cloudWorkerWebhookRoutes } from './routes/cloud-workers';
 import { companionRoutes } from './routes/companion';
 import { connectorRoutes } from './routes/connectors';
 import { fencingRoutes } from './routes/fencing';
@@ -60,6 +61,9 @@ async function main() {
   // Public health endpoints
   app.register(healthRoutes, { prefix: '/' });
 
+  // Public webhooks (registered before the auth hook so they skip session checks).
+  app.register(cloudWorkerWebhookRoutes, { prefix: '/webhooks' });
+
   // Protected API routes
   app.addHook('preHandler', async (request, reply) => {
     if (request.url.startsWith('/v1/')) {
@@ -77,6 +81,7 @@ async function main() {
   app.register(approvalRoutes, { prefix: '/v1/approvals' });
   app.register(budgetRoutes, { prefix: '/v1/budget' });
   app.register(companionRoutes, { prefix: '/v1/companion' });
+  app.register(cloudWorkerRoutes, { prefix: '/v1/cloud-workers' });
   app.register(fencingRoutes, { prefix: '/v1/fencing' });
   app.register(briefingRoutes, { prefix: '/v1/briefings' });
   app.register(captureRoutes, { prefix: '/v1/capture' });

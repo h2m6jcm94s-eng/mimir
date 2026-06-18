@@ -1,0 +1,51 @@
+{
+  // Tag-based ACLs for the Mimir mesh.
+  // The cloud worker tag has no route to the private mesh; it can only return
+  // results via a short-lived signed webhook (see apps/api/src/routes/cloud-workers.ts).
+  "groups": {
+    "group:admins": []
+  },
+  "tagOwners": {
+    "tag:brain": ["group:admins"],
+    "tag:desktop": ["group:admins"],
+    "tag:phone": ["group:admins"],
+    "tag:cloud": ["group:admins"],
+    "tag:control": ["group:admins"]
+  },
+  "acls": [
+    // Control surface (phone/browser) reaches brain only.
+    {
+      "action": "accept",
+      "src": ["tag:control"],
+      "dst": ["tag:brain:3001"]
+    },
+    // Brain coordinates desktop and phone workers.
+    {
+      "action": "accept",
+      "src": ["tag:brain"],
+      "dst": ["tag:brain:*", "tag:desktop:*", "tag:phone:*"]
+    },
+    // Desktop and phone can send heartbeats/state to the brain.
+    {
+      "action": "accept",
+      "src": ["tag:desktop", "tag:phone"],
+      "dst": ["tag:brain:*"]
+    },
+    // Cloud worker may only reach the public webhook return endpoint.
+    // The webhook listener is exposed outside the tailnet (e.g. Tailscale funnel
+    // or a separate ingress); return traffic never enters the private mesh.
+    {
+      "action": "accept",
+      "src": ["tag:cloud"],
+      "dst": ["tag:cloud:*"]
+    }
+  ],
+  "ssh": [
+    {
+      "action": "check",
+      "src": ["group:admins"],
+      "dst": ["tag:brain", "tag:desktop", "tag:phone"],
+      "users": ["root", "mimir"]
+    }
+  ]
+}
