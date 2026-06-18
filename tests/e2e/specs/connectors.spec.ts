@@ -14,17 +14,30 @@ test.describe('Connectors', () => {
     await expect(page.getByRole('heading', { name: 'Connectors', level: 2 })).toBeVisible();
     await expect(page.getByText('Gmail')).toBeVisible();
     await expect(page.getByText('GitHub')).toBeVisible();
+    await expect(page.getByText('Discord')).toBeVisible();
+    await expect(page.getByText('Airtable')).toBeVisible();
+    await expect(page.getByText('Google Contacts')).toBeVisible();
+    await expect(page.getByText('Google Docs')).toBeVisible();
+    await expect(page.getByText('Microsoft Outlook')).toBeVisible();
   });
 
   test('category filters show only matching connectors', async ({ page }) => {
     await page.getByRole('button', { name: 'Dev' }).click();
     await expect(page.getByText('GitHub')).toBeVisible();
     await expect(page.getByText('Gmail')).not.toBeVisible();
+
+    await page.getByRole('button', { name: 'Productivity' }).click();
+    await expect(page.getByText('Airtable')).toBeVisible();
+    await expect(page.getByText('GitHub')).not.toBeVisible();
   });
 
   test('search narrows results', async ({ page }) => {
     await page.locator('input[placeholder="Search connectors"]').fill('Notion');
     await expect(page.getByText('Notion')).toBeVisible();
+    await expect(page.getByText('GitHub')).not.toBeVisible();
+
+    await page.locator('input[placeholder="Search connectors"]').fill('Outlook');
+    await expect(page.getByText('Microsoft Outlook')).toBeVisible();
     await expect(page.getByText('GitHub')).not.toBeVisible();
   });
 
