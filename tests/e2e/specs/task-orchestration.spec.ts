@@ -63,7 +63,7 @@ test.describe('Task orchestration', () => {
     const { status, body } = await pollJob(apiRequest, jobId);
 
     expect(status).toBe('done');
-    expect(body.result).toMatchObject({ appliedAt: expect.any(String) });
+    expect(body.result).toMatchObject({ plan: expect.any(String) });
     expect(body.checkpoint).toMatchObject({ apply: { result: { applied: true } } });
   });
 

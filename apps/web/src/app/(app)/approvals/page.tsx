@@ -66,10 +66,12 @@ export default function ApprovalsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/approvals/${id}/${decision}`, {
+      const endpoint = decision === 'approved' ? 'approve' : 'deny';
+      const res = await fetch(`/api/v1/approvals/${id}/${endpoint}`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -147,6 +149,7 @@ export default function ApprovalsPage() {
         {visible.map((approval) => (
           <div
             key={approval.id}
+            data-testid={`approval-${approval.id}`}
             className="rounded-xl bg-[var(--bg-surface)] p-5 shadow-card transition-all duration-200 hover:shadow-hover"
           >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

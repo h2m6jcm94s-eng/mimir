@@ -96,7 +96,7 @@ export async function getJobTimeline(
     .orderBy(sql`date_trunc('hour', ${schema.job.createdAt})`);
 
   return rows.map((row) => {
-    const date = row.bucket;
+    const date = new Date(row.bucket);
     const hour = `${String(date.getUTCHours()).padStart(2, '0')}:00`;
     return { hour, pending: Number(row.total) };
   });

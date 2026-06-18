@@ -1,10 +1,12 @@
 import { expect, test } from '@playwright/test';
+import { signInAsTestUser } from '../fixtures/auth';
 
 /**
  * Connectors page tests.
  */
 test.describe('Connectors', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context }) => {
+    await signInAsTestUser(context);
     await page.goto('/connectors');
   });
 
@@ -27,9 +29,9 @@ test.describe('Connectors', () => {
   });
 
   test('connect button toggles connector status', async ({ page }) => {
-    const figma = page.getByTestId('connector-figma');
-    await expect(figma.getByTestId('connector-status')).toHaveText('Disconnected');
-    await figma.getByTestId('connector-toggle').click();
-    await expect(figma.getByTestId('connector-status')).toHaveText('Connected');
+    const github = page.getByTestId('connector-github');
+    await expect(github.getByTestId('connector-status')).toHaveText('Disconnected');
+    await github.getByTestId('connector-toggle').click();
+    await expect(github.getByTestId('connector-status')).toHaveText('Connected');
   });
 });

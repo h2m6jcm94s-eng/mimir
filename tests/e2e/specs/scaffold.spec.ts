@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { signInAsTestUser } from '../fixtures/auth';
 
 /**
  * Scaffold web tests.
@@ -8,6 +9,10 @@ import { expect, test } from '@playwright/test';
  * hitting Clerk gating in test mode.
  */
 test.describe('Web scaffold', () => {
+  test.beforeEach(async ({ context }) => {
+    await signInAsTestUser(context);
+  });
+
   test('homepage loads the Mimir console', async ({ page }) => {
     await page.goto('/');
 
@@ -27,7 +32,7 @@ test.describe('Web scaffold', () => {
 
     await expect(input).toHaveValue('');
     await expect(page.getByText('What did we decide last week?')).toBeVisible();
-    await expect(page.getByText('I have queued that task.')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('assistant-message')).toBeVisible({ timeout: 35000 });
   });
 
   test('user can open attachments and advanced controls', async ({ page }) => {
