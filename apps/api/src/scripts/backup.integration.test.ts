@@ -17,7 +17,7 @@ describe('backup scripts', () => {
     expect(output.trim()).toBe('OK');
   });
 
-  it('backup.sh creates a backup directory when run', () => {
+  it.skipIf(!process.env.RUN_DB_TESTS)('backup.sh creates a backup directory when run', () => {
     if (!isPgDumpAvailable()) {
       console.log('pg_dump not available; skipping backup run');
       return;
@@ -25,7 +25,7 @@ describe('backup scripts', () => {
 
     const backupDir = `backups-test-${Date.now()}`;
     execSync(
-      `BACKUP_DIR=${backupDir} DATABASE_URL=postgresql://mimir_app:mimir_app@localhost:5432/mimir ../../../scripts/backup.sh`,
+      `BACKUP_DIR=${backupDir} DATABASE_URL=postgresql://mimir_app:mimir_app@localhost:5432/mimir ${resolve(scriptsDir, 'backup.sh')}`,
       {
         stdio: 'pipe',
       }

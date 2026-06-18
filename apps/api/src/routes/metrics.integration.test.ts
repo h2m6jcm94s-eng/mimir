@@ -17,7 +17,7 @@ describe('metrics routes', () => {
     expect(response.statusCode).toBe(401);
   });
 
-  it('exposes prometheus exposition format', async () => {
+  it.skipIf(!process.env.RUN_DB_TESTS)('exposes prometheus exposition format', async () => {
     const externalId = `metrics_user_${Date.now()}`;
     await resolveAuthUser(externalId, `${externalId}@test.local`);
 

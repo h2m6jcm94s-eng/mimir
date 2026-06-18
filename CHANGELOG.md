@@ -78,6 +78,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Hardened e2e global setup: it now provisions a deterministic test identity, drops the previous test tenant (cascading all tenant-scoped data), and creates a fresh tenant so every full e2e run starts from a clean slate. This removed cross-run flakiness from accumulated briefings, notifications, memory checkpoints, and life-admin rows.
 - Updated the Memory e2e spec to seed its own node/checkpoint data and run serially, giving the time-machine and graph views deterministic content without relying on stale fixtures.
 - Relaxed Notifications filter-tab selectors (`/^Unread/` and `/^All/`) so they match buttons that include an unread-count badge.
+- Fixed CI-only `pnpm test` failures by gating DB-dependent tests behind `RUN_DB_TESTS`:
+  - `src/services/connectors/github/apply.test.ts` first test now skips without `RUN_DB_TESTS`.
+  - `src/routes/metrics.integration.test.ts` Prometheus exposition test now skips without `RUN_DB_TESTS`.
+  - `src/scripts/backup.integration.test.ts` backup-run test now skips without `RUN_DB_TESTS` and uses an absolute path to `backup.sh` so it resolves regardless of the test runner's cwd.
 
 ### Changed
 
