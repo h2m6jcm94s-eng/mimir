@@ -5,12 +5,20 @@ import { createAuditEvent } from '../../repositories/audit';
 import { findConnectorByKind } from '../../repositories/connector';
 import { evaluateTenantPolicy } from '../governance/engine';
 import { ingestDocument } from '../knowledge/ingest';
+import { connectorActionsCounter } from '../metrics/registry';
+import { airtableHandlers } from './airtable/handlers';
+import { discordHandlers } from './discord/handlers';
 import { facebookHandlers } from './facebook/handlers';
 import { GitHubClient } from './github/client';
+import { gmailHandlers } from './gmail/handlers';
+import { googleContactsHandlers } from './googleContacts/handlers';
+import { googleDocsHandlers } from './googleDocs/handlers';
 import { instagramHandlers } from './instagram/handlers';
 import { lemonSqueezyHandlers } from './lemon-squeezy/handlers';
+import { microsoftGraphHandlers } from './microsoftGraph/handlers';
 import { paddleHandlers } from './paddle/handlers';
 import { pinterestHandlers } from './pinterest/handlers';
+import { slackHandlers } from './slack/handlers';
 import { stripeHandlers } from './stripe/handlers';
 import { telegramHandlers } from './telegram/handlers';
 import { whatsappHandlers } from './whatsapp/handlers';
@@ -99,6 +107,13 @@ const handlersByKind: Record<string, Record<string, ConnectorActionHandler>> = {
   stripe: stripeHandlers,
   lemonSqueezy: lemonSqueezyHandlers,
   paddle: paddleHandlers,
+  gmail: gmailHandlers,
+  microsoftGraph: microsoftGraphHandlers,
+  airtable: airtableHandlers,
+  googleContacts: googleContactsHandlers,
+  googleDocs: googleDocsHandlers,
+  discord: discordHandlers,
+  slack: slackHandlers,
 };
 
 export class ConnectorRegistry {
@@ -154,6 +169,12 @@ export class ConnectorRegistry {
       success = false;
       result = { error: error instanceof Error ? error.message : String(error) };
     }
+
+    connectorActionsCounter.inc({
+      kind: actionCtx.kind,
+      action: actionCtx.action,
+      success: String(success),
+    });
 
     await createAuditEvent(ctx, {
       actor: actionCtx.actor,

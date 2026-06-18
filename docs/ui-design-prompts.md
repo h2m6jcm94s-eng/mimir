@@ -76,6 +76,24 @@ Use these prompts with Kimi, Midjourney, Figma AI, or any design assistant. Each
 
 ---
 
+## 11. Second brain / Capture
+
+**Prompt:**
+> Design a quick-capture surface for Mimir's second brain. Default state is a single empty input box that accepts plain text with `[[wiki-links]]`. After capture, show a confirmation toast with the note's privacy tier badge and a count of new links created. The note gallery shows cards with title, tier badge, tags, timestamp, and linked-note count. Include a force-directed graph view where selecting a node focuses it and fades non-linked notes. Empty states invite the user to capture their first idea. Search filters: tag, tier, date, link depth.
+
+**States to design:** empty, capture input, note saved, linked stub created, graph view, search results.
+
+---
+
+## 12. Daily briefings
+
+**Prompt:**
+> Design a daily-briefing surface that feels like a personal assistant's morning summary. The page opens with a "Generate" button and a last-updated timestamp. Generated briefings appear as cards grouped by kind: important, emails, meetings. Each card shows title, summary, source count, tier mix, confidence score, and one-tap actions (email, task, meeting). Filter tabs let the user narrow by kind; a search box filters by title or summary. Pinned briefings stay at the top. Empty state explains that Mimir needs tasks/knowledge/notifications to summarize.
+
+**States to design:** empty, loading, generated, filtered, searched, pinned, action-triggered.
+
+---
+
 ## Design system constraints
 
 Across all surfaces:

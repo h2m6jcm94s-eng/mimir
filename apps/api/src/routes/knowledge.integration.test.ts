@@ -3,6 +3,7 @@ import { withTenantTransaction } from '../db/tenant-context';
 import { resolveAuthUser } from '../middleware/auth';
 import { listAuditEvents } from '../repositories/audit';
 import { buildTestApp } from '../test-helpers/build-app';
+import { captureRoutes } from './capture';
 import { knowledgeRoutes } from './knowledge';
 
 describe('knowledge routes', () => {
@@ -121,4 +122,140 @@ describe('knowledge routes', () => {
       expect(decision?.tier).toBe(2);
     }
   );
+
+  it.skipIf(!process.env.RUN_DB_TESTS)('creates and lists notes', async () => {
+    const token = `knowledge_notes_${Date.now()}`;
+    const app = await buildTestApp(async (app) => {
+      await app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
+    });
+
+    const createResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/knowledge/notes',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        title: 'Idea: memory graph',
+        content: 'Build a graph of linked ideas so Mimir can traverse memory.',
+        tags: ['idea', 'memory'],
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(201);
+    const createBody = JSON.parse(createResponse.body);
+    expect(createBody.itemId).toBeDefined();
+    expect(createBody.chunks).toBeGreaterThan(0);
+
+    const listResponse = await app.inject({
+      method: 'GET',
+      url: '/v1/knowledge/notes',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    const listBody = JSON.parse(listResponse.body);
+    expect(listBody.data.length).toBeGreaterThan(0);
+    expect(listBody.data[0].meta.title).toBe('Idea: memory graph');
+  });
+
+  it.skipIf(!process.env.RUN_DB_TESTS)(
+    'captures a note with [[link]] syntax and returns related notes',
+    async () => {
+      const token = `knowledge_capture_${Date.now()}`;
+      const app = await buildTestApp(async (app) => {
+        await app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
+        await app.register(captureRoutes, { prefix: '/v1/capture' });
+      });
+
+      const captureResponse = await app.inject({
+        method: 'POST',
+        url: '/v1/capture',
+        headers: { authorization: `Bearer ${token}` },
+        payload: {
+          content: 'Meeting notes: discuss the [[Q3 roadmap]] with the team.',
+          tags: ['meeting'],
+        },
+      });
+
+      expect(captureResponse.statusCode).toBe(201);
+      const captureBody = JSON.parse(captureResponse.body);
+      expect(captureBody.itemId).toBeDefined();
+      expect(captureBody.links.length).toBe(1);
+      expect(captureBody.links[0].title).toBe('Q3 roadmap');
+
+      const relatedResponse = await app.inject({
+        method: 'GET',
+        url: `/v1/capture/${captureBody.itemId}/related`,
+        headers: { authorization: `Bearer ${token}` },
+      });
+
+      expect(relatedResponse.statusCode).toBe(200);
+      const relatedBody = JSON.parse(relatedResponse.body);
+      expect(relatedBody.outbound.length).toBe(1);
+      expect(relatedBody.outbound[0].meta.title).toBe('Q3 roadmap');
+    }
+  );
+
+  it.skipIf(!process.env.RUN_DB_TESTS)('links knowledge items and returns a graph', async () => {
+    const token = `knowledge_links_${Date.now()}`;
+    const app = await buildTestApp(async (app) => {
+      await app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
+    });
+
+    const noteA = await app.inject({
+      method: 'POST',
+      url: '/v1/knowledge/notes',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { title: 'Note A', content: 'First idea.' },
+    });
+    const noteB = await app.inject({
+      method: 'POST',
+      url: '/v1/knowledge/notes',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { title: 'Note B', content: 'Second idea.' },
+    });
+
+    const aId = JSON.parse(noteA.body).itemId;
+    const bId = JSON.parse(noteB.body).itemId;
+
+    const linkResponse = await app.inject({
+      method: 'POST',
+      url: `/v1/knowledge/items/${aId}/links`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: { targetId: bId, kind: 'relates_to' },
+    });
+
+    expect(linkResponse.statusCode).toBe(201);
+    const linkBody = JSON.parse(linkResponse.body);
+    expect(linkBody.link.targetId).toBe(bId);
+
+    const linksResponse = await app.inject({
+      method: 'GET',
+      url: `/v1/knowledge/items/${aId}/links`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(linksResponse.statusCode).toBe(200);
+    const linksBody = JSON.parse(linksResponse.body);
+    expect(linksBody.outbound.length).toBe(1);
+    expect(linksBody.outbound[0].targetId).toBe(bId);
+
+    const graphResponse = await app.inject({
+      method: 'GET',
+      url: '/v1/knowledge/graph',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(graphResponse.statusCode).toBe(200);
+    const graphBody = JSON.parse(graphResponse.body);
+    expect(graphBody.nodes.length).toBeGreaterThanOrEqual(2);
+    expect(graphBody.edges.length).toBeGreaterThanOrEqual(1);
+
+    const deleteResponse = await app.inject({
+      method: 'DELETE',
+      url: `/v1/knowledge/items/${aId}/links/${linkBody.link.id}`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(deleteResponse.statusCode).toBe(204);
+  });
 });

@@ -13,14 +13,15 @@ import {
   MoreHorizontal,
   Pin,
   Plus,
+  RefreshCw,
   Search,
   Star,
   Users,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type BriefingBase = {
-  id: number;
+  id: string;
   title: string;
   summary: string;
   tier: 0 | 1 | 2;
@@ -31,7 +32,7 @@ type BriefingBase = {
 
 type ImportantBriefing = BriefingBase & {
   kind: 'briefing';
-  sources: number;
+  sources?: number | null;
   actions: ('Email' | 'Meeting' | 'Task')[];
 };
 
@@ -50,80 +51,6 @@ type MeetingBriefing = BriefingBase & {
 };
 
 type Briefing = ImportantBriefing | EmailBriefing | MeetingBriefing;
-
-const briefings: Briefing[] = [
-  {
-    id: 1,
-    kind: 'briefing',
-    title: 'Daily Security Brief',
-    summary: 'Three low-severity items flagged overnight; no active incidents.',
-    sources: 8,
-    tier: 0,
-    confidence: 0.94,
-    when: 'Today, 08:00',
-    pinned: true,
-    actions: ['Email', 'Meeting', 'Task'],
-  },
-  {
-    id: 2,
-    kind: 'briefing',
-    title: 'Weekly Engineering Digest',
-    summary: 'Dependency drift, two flaky tests, and a merged Temporal worker PR.',
-    sources: 14,
-    tier: 1,
-    confidence: 0.89,
-    when: 'Today, 07:30',
-    actions: ['Email', 'Task'],
-  },
-  {
-    id: 3,
-    kind: 'briefing',
-    title: 'Important: Clerk Key Rotation',
-    summary: 'Signing key rotated successfully; verify downstream services.',
-    sources: 3,
-    tier: 2,
-    confidence: 0.99,
-    when: 'Yesterday',
-    pinned: true,
-    actions: ['Task'],
-  },
-  {
-    id: 4,
-    kind: 'email',
-    title: 'Fwd: Q3 Budget Review',
-    summary: 'Finance shared the Q3 draft; key variance is 12% over in cloud spend.',
-    from: 'finance@example.com',
-    to: 'you@mimir.local',
-    tier: 1,
-    confidence: 0.92,
-    when: 'Today, 09:14',
-    actions: ['Reply', 'Task'],
-  },
-  {
-    id: 5,
-    kind: 'meeting',
-    title: 'Design Sync — Kimi/Hermes UI',
-    summary: 'Review porting plan, token mapping, and component coverage.',
-    attendees: 4,
-    duration: '30 min',
-    tier: 0,
-    confidence: 0.98,
-    when: 'Today, 14:00',
-    actions: ['Join', 'Agenda'],
-  },
-  {
-    id: 6,
-    kind: 'meeting',
-    title: 'Security Retro',
-    summary: 'Post-incident review of last week’s dependency drift.',
-    attendees: 6,
-    duration: '60 min',
-    tier: 2,
-    confidence: 0.97,
-    when: 'Tomorrow, 10:00',
-    actions: ['Join', 'Agenda', 'Decline'],
-  },
-];
 
 const actionIcons = {
   Email: Mail,
@@ -149,10 +76,109 @@ const filters = [
   { key: 'meeting', label: 'Meetings' },
 ];
 
+async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...options,
+    credentials: 'include',
+    headers: {
+      ...(options?.headers ?? {}),
+      ...(options?.body && { 'content-type': 'application/json' }),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`${res.status}: ${text}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+function formatWhen(date: string): string {
+  const d = new Date(date);
+  return d.toLocaleString();
+}
+
+function mapApiToBriefing(row: Record<string, unknown>): Briefing {
+  const base: BriefingBase = {
+    id: row.id as string,
+    title: (row.title as string) ?? 'Untitled',
+    summary: (row.summary as string) ?? '',
+    tier: (row.tier as 0 | 1 | 2) ?? 1,
+    confidence: (row.confidence as number) ?? 0.9,
+    when: formatWhen(row.createdAt as string),
+    pinned: row.pinned === 'pinned',
+  };
+
+  const kind = row.kind as 'briefing' | 'email' | 'meeting';
+  const payload = (row.payload as Record<string, unknown>) ?? {};
+
+  if (kind === 'email') {
+    return {
+      ...base,
+      kind: 'email',
+      from: (payload.from as string) ?? 'unknown',
+      to: (payload.to as string) ?? 'you',
+      actions: ['Reply', 'Task'],
+    };
+  }
+
+  if (kind === 'meeting') {
+    return {
+      ...base,
+      kind: 'meeting',
+      attendees: (payload.attendees as number) ?? 1,
+      duration: (payload.duration as string) ?? '15 min',
+      actions: ['Join', 'Agenda'],
+    };
+  }
+
+  return {
+    ...base,
+    kind: 'briefing',
+    sources: (row.sources as number) ?? undefined,
+    actions: ['Email', 'Task'],
+  };
+}
+
 export default function BriefingsPage() {
   const [active, setActive] = useState('all');
   const [query, setQuery] = useState('');
-  const [items, setItems] = useState<Briefing[]>(briefings);
+  const [items, setItems] = useState<Briefing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    try {
+      setLoading(true);
+      const response = await fetchJson<{ data: Record<string, unknown>[] }>(
+        '/api/v1/briefings?limit=50'
+      );
+      setItems(response.data.map(mapApiToBriefing));
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function generate() {
+    try {
+      setLoading(true);
+      await fetchJson('/api/v1/briefings/generate', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setLoading(false);
+    }
+  }
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: load only on mount to avoid re-fetch loops
+  useEffect(() => {
+    load();
+  }, []);
 
   const visible = items
     .filter((b) => active === 'all' || b.kind === active)
@@ -163,7 +189,7 @@ export default function BriefingsPage() {
     )
     .sort((a, b) => Number(b.pinned) - Number(a.pinned));
 
-  function togglePin(id: number) {
+  function togglePin(id: string) {
     setItems((prev) => prev.map((b) => (b.id === id ? { ...b, pinned: !b.pinned } : b)));
   }
 
@@ -175,15 +201,27 @@ export default function BriefingsPage() {
       >
         <button
           type="button"
+          onClick={generate}
+          disabled={loading}
           className={cn(
             'inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
-            'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90'
+            'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90 disabled:opacity-50'
           )}
         >
-          <Plus className="h-3.5 w-3.5" />
-          New
+          {loading ? (
+            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Plus className="h-3.5 w-3.5" />
+          )}
+          Generate
         </button>
       </PageHeader>
+
+      {error && (
+        <div className="rounded-lg border border-[var(--border-danger)] bg-[var(--bg-danger)] px-4 py-3 text-sm text-[var(--text-danger)]">
+          {error}
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
@@ -279,7 +317,7 @@ export default function BriefingsPage() {
                 {briefing.kind === 'briefing' && (
                   <div className="mt-3 flex items-center gap-1 text-xs text-[var(--text-muted)]">
                     <Star className="h-3 w-3 text-[var(--accent-gold)]" />
-                    {briefing.sources} sources
+                    {briefing.sources ?? 0} sources
                   </div>
                 )}
 
@@ -307,13 +345,13 @@ export default function BriefingsPage() {
         </AnimatePresence>
       </motion.div>
 
-      {visible.length === 0 && (
+      {!loading && visible.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border-subtle-solid)] bg-[var(--bg-surface)] py-12 text-center">
           <FileText className="h-8 w-8 text-[var(--text-muted)]" />
           <p className="mt-3 text-sm font-medium text-[var(--text-secondary)]">
             No briefings found
           </p>
-          <p className="text-xs text-[var(--text-muted)]">Try a different filter or search term.</p>
+          <p className="text-xs text-[var(--text-muted)]">Try generating a new briefing.</p>
         </div>
       )}
     </div>

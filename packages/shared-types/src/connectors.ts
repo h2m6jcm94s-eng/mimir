@@ -8,8 +8,12 @@ export const ConnectorKind = z.enum([
   'facebook',
   'pinterest',
   'gmail',
+  'microsoftGraph',
   'slack',
+  'discord',
   'airtable',
+  'googleContacts',
+  'googleDocs',
   'stripe',
   'lemonSqueezy',
   'paddle',
@@ -251,3 +255,131 @@ export const GoogleSheetsExportInput = z.object({
   to: z.string().datetime().optional(),
 });
 export type GoogleSheetsExportInput = z.infer<typeof GoogleSheetsExportInput>;
+
+// Gmail
+export const GmailListMessagesInput = z.object({
+  maxResults: z.number().int().min(1).max(100).default(25),
+  query: z.string().default(''),
+});
+export type GmailListMessagesInput = z.infer<typeof GmailListMessagesInput>;
+
+export const GmailGetMessageInput = z.object({
+  id: z.string().min(1),
+});
+export type GmailGetMessageInput = z.infer<typeof GmailGetMessageInput>;
+
+export const GmailSendMessageInput = z.object({
+  to: z.string().min(1),
+  subject: z.string().default(''),
+  body: z.string().min(1),
+});
+export type GmailSendMessageInput = z.infer<typeof GmailSendMessageInput>;
+
+// Microsoft Graph (Outlook)
+export const MicrosoftGraphListMessagesInput = z.object({
+  top: z.number().int().min(1).max(100).default(25),
+  filter: z.string().optional(),
+});
+export type MicrosoftGraphListMessagesInput = z.infer<typeof MicrosoftGraphListMessagesInput>;
+
+export const MicrosoftGraphGetMessageInput = z.object({
+  id: z.string().min(1),
+});
+export type MicrosoftGraphGetMessageInput = z.infer<typeof MicrosoftGraphGetMessageInput>;
+
+export const MicrosoftGraphSendMessageInput = z.object({
+  to: z.string().min(1),
+  subject: z.string().default(''),
+  body: z.string().min(1),
+});
+export type MicrosoftGraphSendMessageInput = z.infer<typeof MicrosoftGraphSendMessageInput>;
+
+// Airtable
+export const AirtableListBasesInput = z.object({
+  offset: z.string().optional(),
+});
+export type AirtableListBasesInput = z.infer<typeof AirtableListBasesInput>;
+
+export const AirtableListRecordsInput = z.object({
+  baseId: z.string().min(1),
+  tableId: z.string().min(1),
+  maxRecords: z.number().int().min(1).max(100).default(25),
+  offset: z.string().optional(),
+});
+export type AirtableListRecordsInput = z.infer<typeof AirtableListRecordsInput>;
+
+export const AirtableGetRecordInput = z.object({
+  baseId: z.string().min(1),
+  tableId: z.string().min(1),
+  recordId: z.string().min(1),
+});
+export type AirtableGetRecordInput = z.infer<typeof AirtableGetRecordInput>;
+
+// Google Contacts
+export const GoogleContactsListContactsInput = z.object({
+  pageSize: z.number().int().min(1).max(100).default(25),
+  pageToken: z.string().optional(),
+});
+export type GoogleContactsListContactsInput = z.infer<typeof GoogleContactsListContactsInput>;
+
+export const GoogleContactsGetContactInput = z.object({
+  resourceName: z.string().min(1),
+});
+export type GoogleContactsGetContactInput = z.infer<typeof GoogleContactsGetContactInput>;
+
+export const GoogleContactsCreateContactInput = z.object({
+  givenName: z.string().min(1),
+  familyName: z.string().optional(),
+  email: z.string().email().optional(),
+  phoneNumber: z.string().optional(),
+});
+export type GoogleContactsCreateContactInput = z.infer<typeof GoogleContactsCreateContactInput>;
+
+// Google Docs
+export const GoogleDocsGetDocumentInput = z.object({
+  documentId: z.string().min(1),
+});
+export type GoogleDocsGetDocumentInput = z.infer<typeof GoogleDocsGetDocumentInput>;
+
+export const GoogleDocsCreateDocumentInput = z.object({
+  title: z.string().min(1),
+});
+export type GoogleDocsCreateDocumentInput = z.infer<typeof GoogleDocsCreateDocumentInput>;
+
+// Discord
+export const DiscordListChannelsInput = z.object({
+  guildId: z.string().min(1),
+});
+export type DiscordListChannelsInput = z.infer<typeof DiscordListChannelsInput>;
+
+export const DiscordGetMessagesInput = z.object({
+  channelId: z.string().min(1),
+  limit: z.number().int().min(1).max(100).default(25),
+  before: z.string().optional(),
+});
+export type DiscordGetMessagesInput = z.infer<typeof DiscordGetMessagesInput>;
+
+export const DiscordSendMessageInput = z.object({
+  channelId: z.string().min(1),
+  content: z.string().min(1),
+});
+export type DiscordSendMessageInput = z.infer<typeof DiscordSendMessageInput>;
+
+// Slack
+export const SlackListChannelsInput = z.object({
+  types: z.string().default('public_channel'),
+  limit: z.number().int().min(1).max(200).default(100),
+});
+export type SlackListChannelsInput = z.infer<typeof SlackListChannelsInput>;
+
+export const SlackGetMessagesInput = z.object({
+  channelId: z.string().min(1),
+  limit: z.number().int().min(1).max(200).default(100),
+});
+export type SlackGetMessagesInput = z.infer<typeof SlackGetMessagesInput>;
+
+export const SlackSendMessageInput = z.object({
+  channelId: z.string().min(1),
+  text: z.string().min(1),
+});
+export type SlackSendMessageInput = z.infer<typeof SlackSendMessageInput>;

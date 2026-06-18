@@ -2,6 +2,7 @@ import { and, count, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import type { TenantContext } from '../db/tenant-context';
 import { assertCurrentEpoch } from '../services/fencing/fencing';
+import { jobsStatusChangedCounter } from '../services/metrics/registry';
 
 export interface CreateJobInput {
   idempotencyKey: string;
@@ -69,6 +70,9 @@ export async function updateJobStatus(
     .set(set)
     .where(eq(schema.job.id, jobId))
     .returning();
+
+  jobsStatusChangedCounter.inc({ status });
+
   return updated;
 }
 

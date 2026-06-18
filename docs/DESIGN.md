@@ -78,6 +78,7 @@ A dark variant (`data-theme="dark"`) and a premium "Liquid Gold" variant (`data-
 ### Secondary navigation
 
 - **Knowledge** — RAG sources, documents, screenshots
+- **Second brain / Capture** — quick notes with `[[wiki-links]]`; idea graph
 - **Memory** — time machine, checkpoints, diff viewer
 - **Governance** — audit log, policies, privacy rules
 - **Cost** — burn rate, budget, per-task cost
@@ -132,6 +133,14 @@ A persistent shell wraps every authenticated page:
 - Cards for daily/weekly/important briefings.
 - Each briefing shows source count, tier mix, confidence, actions.
 - One-tap actions: send to email, schedule meeting, create task.
+- Live data: aggregated from recent tasks, knowledge, and notifications.
+
+### Second brain / Capture
+- One-box quick-capture input (console or dedicated page).
+- Notes support `[[wiki-links]]` that auto-create linked note stubs and graph edges.
+- Note cards show title, tier badge, tags, linked-note count, and timestamp.
+- Graph view: force-directed idea graph with selected-note focus.
+- Search filters: tag, tier, date, link depth.
 
 ### Meetings
 - List of upcoming/past meetings.

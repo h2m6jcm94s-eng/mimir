@@ -21,6 +21,7 @@ export const Scopes = {
   HALT_READ: 'halt:read',
   HALT_WRITE: 'halt:write',
   REPORTS_READ: 'reports:read',
+  METRICS_READ: 'metrics:read',
 } as const;
 
 const ROLE_SCOPES: Record<string, string[]> = {
@@ -42,6 +43,7 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.BUDGET_READ,
     Scopes.HALT_READ,
     Scopes.REPORTS_READ,
+    Scopes.METRICS_READ,
   ],
   viewer: [
     Scopes.CHAT_READ,
@@ -53,6 +55,7 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.BUDGET_READ,
     Scopes.HALT_READ,
     Scopes.REPORTS_READ,
+    Scopes.METRICS_READ,
   ],
 };
 

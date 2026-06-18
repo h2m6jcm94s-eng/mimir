@@ -10,7 +10,9 @@ import { authMiddleware, registerAuth } from './middleware/auth';
 import { agentRoutes } from './routes/agents';
 import { approvalRoutes } from './routes/approvals';
 import { auditRoutes } from './routes/audit';
+import { briefingRoutes } from './routes/briefings';
 import { budgetRoutes } from './routes/budget';
+import { captureRoutes } from './routes/capture';
 import { connectorRoutes } from './routes/connectors';
 import { fencingRoutes } from './routes/fencing';
 import { governanceRoutes } from './routes/governance';
@@ -18,10 +20,13 @@ import { haltRoutes } from './routes/halt';
 import { healthRoutes } from './routes/health';
 import { knowledgeRoutes } from './routes/knowledge';
 import { knowledgeShareRoutes } from './routes/knowledge-shares';
+import { metricsRoutes } from './routes/metrics';
 import { nodeRoutes } from './routes/nodes';
+import { notificationRoutes } from './routes/notifications';
 import { reportRoutes } from './routes/reports';
 import { sessionRoutes } from './routes/sessions';
 import { taskRoutes } from './routes/tasks';
+import { httpRequestsCounter } from './services/metrics/registry';
 import { initializeLibSqlSchema } from './services/state/libsql-schema';
 import { getTemporalConnection } from './temporal/client';
 
@@ -70,10 +75,23 @@ async function main() {
   app.register(approvalRoutes, { prefix: '/v1/approvals' });
   app.register(budgetRoutes, { prefix: '/v1/budget' });
   app.register(fencingRoutes, { prefix: '/v1/fencing' });
+  app.register(briefingRoutes, { prefix: '/v1/briefings' });
+  app.register(captureRoutes, { prefix: '/v1/capture' });
   app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
   app.register(knowledgeShareRoutes, { prefix: '/v1/knowledge/shares' });
+  app.register(metricsRoutes, { prefix: '/v1/metrics' });
+  app.register(notificationRoutes, { prefix: '/v1/notifications' });
   app.register(reportRoutes, { prefix: '/v1/reports' });
   app.register(haltRoutes, { prefix: '/v1/halt' });
+
+  app.addHook('onResponse', async (request, reply) => {
+    const path = request.routeOptions.url ?? request.url.split('?')[0] ?? '/';
+    httpRequestsCounter.inc({
+      method: request.method,
+      status: reply.statusCode,
+      path,
+    });
+  });
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error(error);

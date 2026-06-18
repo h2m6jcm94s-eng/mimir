@@ -393,6 +393,8 @@ Deep architecture: `ROADMAP.md` §3, §5.1, §6–§14.
 | **Reports** | Browse + **full‑text and semantic search**; 4‑channel delivery (toast / chat / web / email). |
 | **Knowledge / Docs** | Ingest docs & codebases for RAG; **screenshots‑as‑references** gallery for "look at my screen." |
 | **Knowledge sharing** | Request, approve, and revoke cross‑tenant knowledge shares; copied on approval, tier‑preserving, unified search. |
+| **Second brain / Capture** | Quick notes with `[[wiki-link]]` syntax become classified, searchable `knowledge_item` notes and bidirectional graph edges. |
+| **Daily briefings** | Morning PA-style digest of recent tasks, knowledge, and notifications; generate on demand from the web or API. |
 | **Memory** | **Time‑machine** (branch/rewind) + an interactive **graph‑memory** viewer. |
 | **Governance / Audit** | Policy‑as‑code editor + a tamper‑evident **hash‑chain audit log** with temporal replay. |
 | **Cost / Budget** | Live burn‑rate, budgets, auto‑throttle; per‑task pre‑flight cost estimate. |
@@ -493,6 +495,8 @@ UI — because Mimir is built for humans first.
 | Check your budget / burn | *"What did I spend today?"* | Cost widget (always visible) |
 | Analyze revenue | *"Build a revenue report from Stripe for last month."* | Connectors → Stripe → **Sales report** |
 | Rewind memory | *"What did I know last Tuesday?"* | Memory → Time‑machine → pick checkpoint |
+| Capture an idea | *"Note: the [[Q3 roadmap]] depends on the new vector store."* | Capture (API) or Console → **Capture idea** |
+| Get your daily briefing | *"What's my morning brief?"* | Briefings → **Generate** |
 | Share knowledge across meshes | *"Ask Finance to share the expense policy with Sales."* | Knowledge → Shared → request / approve / revoke |
 | Approve a risky action | reply *"approve 7‑A4F"* in chat | Approvals → tap **Approve** (PIN) |
 
@@ -505,10 +509,11 @@ GitHub · Mail (Gmail / MS Graph) · Airtable · Contacts · Docs · Screenshots
 an embedded surface inside Mimir). Each connector declares the **privacy tier** its data is treated
 as. Detailed per‑connector specs: `ROADMAP.md` §Connectors.
 
-**Shipped:** **GitHub** (F‑018) is the first connector. It stores a fine‑grained PAT through the
-existing secret resolver, supports read actions (`listRepos`, `getIssue`, `getPullRequest`,
-`ingestFile`), and routes `openPr` through Mimir's review loop so a PR is only opened after
-explicit approval.
+**Shipped:** **GitHub** (F‑018) with read actions and review‑gated `openPr`; **Mail** (Gmail / MS
+Graph), **Airtable**, **Google Contacts**, **Google Docs**, **Discord**, **Slack**, and messaging &
+social connectors (**Telegram**, **WhatsApp**, **Instagram**, **Facebook**, **Pinterest**). Each
+connector declares its privacy tier, vaults credentials, and routes write actions through Mimir's
+approval‑gated write framework.
 
 ---
 
@@ -591,7 +596,11 @@ gate — is in **[`ROADMAP.md`](./ROADMAP.md)**.
 - Generic connector write framework with approval-gated actions.
 - Emergency halt and cost-governance foundation.
 - Web app screens for console, status, tasks, approvals, knowledge, memory/time-machine, governance,
-  cost, connectors, and settings.
+  cost, connectors, settings, and briefings.
+- Daily briefing generator (F-063) that aggregates tasks, knowledge, and notifications into a
+  privacy-tiered morning digest.
+- Second brain / idea capture (F-071) with `POST /v1/capture`, `[[wiki-link]]` parsing, bidirectional
+  `knowledge_link` edges, and a graph API.
 - Model router with failover, circuit breaking, and Kimi/Groq/OpenAI/Anthropic/Qwen/Ollama adapters.
 
 See `CHANGELOG.md` for details and `ROADMAP.md` §23 for the full feature status table.

@@ -1939,7 +1939,7 @@ Airtable base when M6 lands (F‑020).
 | F‑060 | HR/people partner: 1:1 prep, feedback drafting, hiring pipeline memory | Pro | P2 | ⬜ | api | 2027‑01 | M7 |
 | F‑061 | CEO/operator dashboard: burn, revenue, task health, risk rollup, decision briefings | Pro | P0 | ✅ | api/web | 2026‑12 | M5/M6 |
 | F‑062 | Document bonding & record unification: cross‑connector entity resolution (customer, vendor, project) | Pro | P1 | 🟦 | api | 2026‑12 | M6 |
-| F‑063 | Daily briefing & morning companion | Free | P1 | ⬜ | api/web | 2027‑Q1 | M7 |
+| F‑063 | Daily briefing & morning companion | Free | P1 | ✅ | api/web | 2027‑Q1 | M7 |
 | F‑064 | Emotional check‑in & private mood journal | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
 | F‑065 | Relationship memory (birthdays, preferences, conversation follow‑ups) | Free | P2 | ⬜ | api | 2027‑Q1 | M7 |
 | F‑066 | Nutrition & meal planner with grocery list | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
@@ -1947,7 +1947,7 @@ Airtable base when M6 lands (F‑020).
 | F‑068 | Life admin tracker (home, car, insurance, renewals, warranties) | Free | P2 | ⬜ | api | 2027‑Q1 | M7 |
 | F‑069 | Travel planner & itinerary assistant | Free | P2 | ⬜ | api/web | 2027‑Q2 | M8 |
 | F‑070 | Adaptive tutor & learning paths | Free | P1 | ⬜ | api/web | 2027‑Q1 | M7 |
-| F‑071 | Second brain / idea capture with bidirectional links | Free | P1 | ⬜ | api/web | 2026‑12 | M6 |
+| F‑071 | Second brain / idea capture with bidirectional links | Free | P1 | ✅ | api/web | 2026‑12 | M6 |
 | F‑072 | Meeting prep & automated follow‑up drafts | Pro | P1 | ⬜ | api | 2027‑Q1 | M7 |
 | F‑073 | Inbox Zero assistant (triage, draft replies, priorities) | Pro | P1 | ⬜ | api | 2027‑Q1 | M7 |
 | F‑074 | Conversational memory search across all chats | Free | P1 | ✅ | api | 2026‑11 | M4 |

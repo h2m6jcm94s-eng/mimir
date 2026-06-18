@@ -1363,6 +1363,35 @@ This is enforced by the review loop. The reviewer checks that every factual clai
 a corresponding source. If a claim lacks a source, the reviewer rejects the output and asks the
 workhorse to revise or abstain.
 
+### 8.6 Second brain / Capture
+
+Capture is Mimir's idea inbox and personal Zettelkasten. A quick note is classified by the privacy
+gateway, stored as a `knowledge_item` of kind `note`, chunked, and embedded for search.
+
+Notes can contain `[[wiki-links]]`. When a note is captured:
+
+1. The link text is extracted (`[[Q3 roadmap]]` → `Q3 roadmap`).
+2. If no note with that title exists, a stub note is created.
+3. A bidirectional `knowledge_link` edge is created from the captured note to the target.
+4. The graph can be walked via `GET /v1/capture/:id/related` or exported as a whole via
+   `GET /v1/knowledge/graph`.
+
+This lets a user build an associative knowledge graph one sentence at a time without leaving the
+chat or capture box. Stubs keep the graph connected even before the linked idea is fully written.
+
+Example:
+
+```
+User: /capture The new [[cache strategy]] should use tenant-prefixed keys like [[ADR-0007]] proposed.
+
+Stored:
+  note-1: "The new cache strategy..." (links to note-2 and note-3)
+  note-2: "cache strategy" (stub)
+  note-3: "ADR-0007" (stub)
+
+Related query on note-1 returns note-2 and note-3.
+```
+
 ---
 
 ## Part VIII — Orchestration

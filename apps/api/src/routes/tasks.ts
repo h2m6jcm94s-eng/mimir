@@ -31,6 +31,7 @@ import { BudgetExceededError, BudgetService, BudgetThrottledError } from '../ser
 import { publishJobEvent } from '../services/events/publisher';
 import { StaleEpochError } from '../services/fencing/fencing';
 import { evaluateTenantPolicy } from '../services/governance/engine';
+import { jobsCreatedCounter } from '../services/metrics/registry';
 import { startTaskWorkflow, terminateWorkflow } from '../temporal/client';
 
 const attachmentSchema = z.object({
@@ -155,6 +156,8 @@ export async function taskRoutes(app: FastifyInstance) {
             tier: classification.tier,
             input: { prompt: body.prompt, payload: body.payload, attachments: body.attachments },
           });
+
+          jobsCreatedCounter.inc();
 
           await publishJobEvent(ctx, {
             jobId: job.id,

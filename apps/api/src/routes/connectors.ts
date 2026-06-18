@@ -15,11 +15,18 @@ import {
 } from '../repositories/connector';
 import { createJob, updateJobStatus } from '../repositories/job';
 import { ClassificationGateway } from '../services/classification/gateway';
+import '../services/connectors/airtable/handlers';
+import '../services/connectors/discord/handlers';
 import '../services/connectors/facebook/handlers';
 import '../services/connectors/github/apply';
+import '../services/connectors/gmail/handlers';
+import '../services/connectors/googleContacts/handlers';
+import '../services/connectors/googleDocs/handlers';
 import '../services/connectors/instagram/handlers';
+import '../services/connectors/microsoftGraph/handlers';
 import { connectorRegistry } from '../services/connectors/registry';
 import '../services/connectors/pinterest/handlers';
+import '../services/connectors/slack/handlers';
 import '../services/connectors/telegram/handlers';
 import '../services/connectors/whatsapp/handlers';
 import { connectorWriteRegistry } from '../services/connectors/write-registry';
