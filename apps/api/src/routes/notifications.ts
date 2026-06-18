@@ -1,5 +1,5 @@
+import { CreateNotificationRequest, ListNotificationsQuery } from '@mimir/shared-types';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { z } from 'zod';
 import { withTenantTransaction } from '../db/tenant-context';
 import { Scopes, requireScope } from '../middleware/rbac';
 import { protectedRouteConfig } from '../middleware/route-config';
@@ -10,30 +10,16 @@ import {
 } from '../repositories/notification';
 import { notify } from '../services/notifications/delivery';
 
-const createNotificationSchema = z.object({
-  kind: z.string().min(1),
-  title: z.string().min(1),
-  body: z.string().min(1),
-  priority: z.enum(['low', 'normal', 'high']).optional(),
-  dedupKey: z.string().optional(),
-  payload: z.record(z.unknown()).optional(),
-  channels: z.array(z.enum(['in_app', 'email', 'slack', 'webhook'])).default(['in_app']),
-});
-
-const listQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-});
-
 export async function notificationRoutes(app: FastifyInstance) {
   app.get(
     '/',
-    { config: protectedRouteConfig, preHandler: requireScope(Scopes.JOBS_READ) },
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.NOTIFICATIONS_READ) },
     async (request: FastifyRequest, reply) => {
       const user = request.user;
       if (!user)
         return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
 
-      const query = listQuerySchema.parse(request.query);
+      const query = ListNotificationsQuery.parse(request.query);
       const data = await withTenantTransaction(user.tenantId, async (ctx) => {
         return listNotifications(ctx, query.limit);
       });
@@ -42,15 +28,32 @@ export async function notificationRoutes(app: FastifyInstance) {
     }
   );
 
-  app.post(
-    '/',
-    { config: protectedRouteConfig, preHandler: requireScope(Scopes.JOBS_WRITE) },
+  app.get(
+    '/unread-count',
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.NOTIFICATIONS_READ) },
     async (request: FastifyRequest, reply) => {
       const user = request.user;
       if (!user)
         return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
 
-      const body = createNotificationSchema.parse(request.body);
+      const count = await withTenantTransaction(user.tenantId, async (ctx) => {
+        const notifications = await listNotifications(ctx, 1000);
+        return notifications.filter((n) => n.readAt === null).length;
+      });
+
+      return reply.send({ count });
+    }
+  );
+
+  app.post(
+    '/',
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.NOTIFICATIONS_WRITE) },
+    async (request: FastifyRequest, reply) => {
+      const user = request.user;
+      if (!user)
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+
+      const body = CreateNotificationRequest.parse(request.body);
       const result = await withTenantTransaction(user.tenantId, async (ctx) => {
         return notify(ctx, body);
       });
@@ -61,7 +64,7 @@ export async function notificationRoutes(app: FastifyInstance) {
 
   app.post<{ Params: { id: string } }>(
     '/:id/read',
-    { config: protectedRouteConfig, preHandler: requireScope(Scopes.JOBS_WRITE) },
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.NOTIFICATIONS_WRITE) },
     async (request, reply) => {
       const user = request.user;
       if (!user)

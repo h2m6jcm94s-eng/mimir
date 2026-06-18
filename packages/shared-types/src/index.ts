@@ -9,4 +9,5 @@ export * from './budget';
 export * from './tasks';
 export * from './events';
 export * from './memory';
+export * from './notification';
 export * from './errors';

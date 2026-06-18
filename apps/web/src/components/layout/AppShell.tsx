@@ -26,6 +26,7 @@ const pageTitles: Record<string, string> = {
   '/routines': 'Routines',
   '/reports': 'Reports',
   '/marketplace': 'Marketplace',
+  '/notifications': 'Notifications',
   '/skills': 'Skills',
   '/skills/builder': 'Skill Builder',
   '/skills/macos': 'macOS Skills',

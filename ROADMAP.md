@@ -1900,7 +1900,7 @@ Airtable base when M6 lands (F‑020).
 | F‑022 | Web: console, status topology, tasks | Free | P0 | ✅ | web | 2026‑12 | M2/M3 |
 | F‑023 | Web: approvals, reports, knowledge, memory | Pro | P1 | 🟦 | web | 2027‑01 | M4/M7 |
 | F‑024 | Web: governance/audit, cost, settings | Pro | P1 | 🟦 | web | 2027‑01 | M5/M7 |
-| F‑025 | 4‑channel delivery + notification tiers + dedup | Free | P1 | ⬜ | gateway | 2027‑01 | M8 |
+| F‑025 | 4‑channel delivery + notification tiers + dedup (Phase 1: in‑app notifications with unread count, bell badge, and job‑event wiring) | Free | P1 | ✅ Phase 1 | gateway/api/web | 2027‑01 | M8 |
 | F‑026 | Emergency halt + auto circuit‑breaker | Free | P0 | ✅ | web/api | 2026‑12 | M5/M8 |
 | F‑027 | Cost governance: budgets + auto‑throttle + forecast | Pro | P0 | ✅ | api | 2026‑06 | M5/M9 |
 | F‑028 | Observability: metrics/traces/logs (tier‑redacted) | Pro | P1 | ⬜ | infra | 2027‑02 | M9 |

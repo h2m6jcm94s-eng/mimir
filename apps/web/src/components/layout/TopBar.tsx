@@ -4,7 +4,9 @@ import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { CostChip } from '@/components/ui/CostChip';
 import { HaltButton } from '@/components/ui/HaltButton';
 import { cn } from '@/lib/utils';
-import { Search, WifiOff } from 'lucide-react';
+import { Bell, Search, WifiOff } from 'lucide-react';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 interface TopBarProps {
   pageTitle: string;
@@ -13,7 +15,36 @@ interface TopBarProps {
   className?: string;
 }
 
+async function fetchJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`${res.status}: ${text}`);
+  }
+  return res.json() as Promise<T>;
+}
+
 export function TopBar({ pageTitle, offline, onSearchClick, className }: TopBarProps) {
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        const { count } = await fetchJson<{ count: number }>('/api/v1/notifications/unread-count');
+        if (mounted) setUnreadCount(count);
+      } catch {
+        // Best-effort; don't break the UI if notifications are unavailable.
+      }
+    }
+    load();
+    const interval = setInterval(load, 30_000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
   return (
     <header
       className={cn(
@@ -48,6 +79,23 @@ export function TopBar({ pageTitle, offline, onSearchClick, className }: TopBarP
         </div>
         <CostChip amount={0.0} />
         <HaltButton />
+
+        <Link
+          href="/notifications"
+          data-testid="notifications-bell"
+          className="relative flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-surface-raised)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+          aria-label="Notifications"
+        >
+          <Bell className="h-4 w-4" />
+          {unreadCount > 0 && (
+            <span
+              data-testid="notifications-badge"
+              className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--accent-danger)] px-1 text-[10px] font-medium text-white"
+            >
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </Link>
 
         <div className="h-8 w-8 rounded-full bg-[var(--bg-surface-raised)]" />
       </div>
