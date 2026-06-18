@@ -58,6 +58,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Multi‑device pilot helpers: API key node heartbeat at `/health/nodes/:nodeId/heartbeat`, `POST /v1/nodes/:id/rotate-key`, `POST /v1/nodes/:id/ping`; `scripts/enroll-node.sh`, `scripts/heartbeat.sh`, and `scripts/agent-install.sh`; dev guide `docs/guides/multi-device-pilot.md`.
 - F-015 RAG screenshot citations: `POST /v1/knowledge` now requires a valid `uri` for `kind: "screenshot"` and treats it as a citation link; `GET /v1/knowledge/search` returns a `citation` field alongside `uri` so RAG answers can hyperlink to the original source instead of embedding the image; web Knowledge page renders screenshot cards and lightbox with "Source" / "Open source" links; integration tests cover missing-uri rejection and citation retrieval.
 - F-025 in-app notification system (Phase 1): shared Zod types for notifications/deliveries; RBAC scopes `notifications:read` and `notifications:write`; `GET /v1/notifications/unread-count`; job-event wiring so `job.approval.requested`, `job.failed`, `job.done`, and `cloud_worker_returned` automatically create in-app notifications with dedup keys; new `/notifications` web page with all/unread filters and mark-read; notification bell with unread badge in the TopBar; integration and Playwright e2e coverage.
+- F-078 accessibility assistant (Phase 1): new `/accessibility` web page with browser text-to-speech, heuristic text simplification, font-size control, and high-contrast preview; added to app sidebar; Playwright e2e coverage.
 
 ### Fixed
 

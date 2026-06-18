@@ -402,6 +402,7 @@ Deep architecture: `ROADMAP.md` §3, §5.1, §6–§14.
 | **Connectors** | One place to connect GitHub, mail, Airtable, contacts, docs, screenshots + Discord/Slack/Telegram. Mimir implements the connector engines (design inspired by Hermes) and adds tier labels, credential vaulting, and approval gating. |
 | **Skills / Tools / Subagents** | Reusable capabilities, custom tools, and delegated subagent runs — executed by Mimir's own engine, discovered, versioned, and governed inside Mimir. |
 | **Media generation & speech** | Image/video generation, text‑to‑speech, speech‑to‑text — routed by Mimir's tier and budget rules. |
+| **Accessibility** | Read-aloud, text simplification, and display adjustments so Mimir works for more people and contexts. |
 | **Emergency HALT** | Always‑one‑tap kill switch (and auto circuit‑breaker on runaway cost/spawn). |
 
 ### Human‑centric feature patterns

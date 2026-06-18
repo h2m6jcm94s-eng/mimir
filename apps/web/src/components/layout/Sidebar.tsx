@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import {
+  Accessibility,
   Activity,
   BarChart3,
   BrainCircuit,
@@ -50,6 +51,7 @@ const tertiary = [
   { href: '/routines', label: 'Routines', icon: Command },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
   { href: '/marketplace', label: 'Marketplace', icon: Package },
+  { href: '/accessibility', label: 'Accessibility', icon: Accessibility },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 

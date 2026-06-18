@@ -117,6 +117,7 @@ describe('notifications routes', () => {
         idempotencyKey: `notification-test-${Date.now()}`,
         type: 'test',
         tier: 0,
+        input: {},
       });
     });
 
