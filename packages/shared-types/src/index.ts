@@ -8,4 +8,5 @@ export * from './governance';
 export * from './budget';
 export * from './tasks';
 export * from './events';
+export * from './memory';
 export * from './errors';

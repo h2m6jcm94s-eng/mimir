@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { withTenantTransaction } from '../db/tenant-context';
 import { Scopes, requireScope } from '../middleware/rbac';
 import { protectedRouteConfig } from '../middleware/route-config';
-import { createDevice } from '../repositories/device';
+import { createDevice, rotateApiKey } from '../repositories/device';
 import { getNode, listNodes, updateNodeHeartbeat } from '../repositories/node';
 
 const enrollNodeSchema = z.object({
@@ -105,6 +105,53 @@ export async function nodeRoutes(app: FastifyInstance) {
       }
 
       return reply.send(result.updated);
+    }
+  );
+
+  app.post<{ Params: { nodeId: string } }>(
+    '/:nodeId/rotate-key',
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.NODES_WRITE) },
+    async (request, reply) => {
+      const user = request.user;
+      if (!user) {
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+      }
+
+      const { nodeId } = request.params;
+      const result = await withTenantTransaction(user.tenantId, async (ctx) => {
+        const node = await getNode(ctx, nodeId);
+        if (!node) return { notFound: true };
+        const { apiKey } = await rotateApiKey(ctx, nodeId);
+        return { apiKey };
+      });
+
+      if ('notFound' in result) {
+        return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Node not found' } });
+      }
+
+      return reply.send({ data: { apiKey: result.apiKey } });
+    }
+  );
+
+  app.post<{ Params: { nodeId: string } }>(
+    '/:nodeId/ping',
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.NODES_READ) },
+    async (request, reply) => {
+      const user = request.user;
+      if (!user) {
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+      }
+
+      const { nodeId } = request.params;
+      const node = await withTenantTransaction(user.tenantId, async (ctx) => {
+        return getNode(ctx, nodeId);
+      });
+
+      if (!node) {
+        return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Node not found' } });
+      }
+
+      return reply.send({ data: { nodeId, status: node.status, lastSeen: node.lastSeen } });
     }
   );
 }

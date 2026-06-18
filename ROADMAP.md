@@ -1888,10 +1888,10 @@ Airtable base when M6 lands (F‑020).
 | F‑010 | Resilience: circuit breakers + idempotent replay | Free | P0 | ✅ | api | 2026‑09 | M2/M3 |
 | F‑011 | Leader/fencing + read‑only transitions | Free | P1 | ✅ | api | 2026‑10 | M3 |
 | F‑012 | gVisor sandbox + static‑analysis gate | Free | P0 | ✅ | infra | 2026‑06 | M4 |
-| F‑013 | Tailscale ACLs + air‑gapped cloud worker | Free | P1 | ⬜ | infra | 2026‑10 | M3/M10 |
-| F‑014 | Secrets vault + ephemeral SSH CA + FDE/SQLCipher | Pro | P0 | ⬜ | infra | 2026‑10 | M3/M10 |
+| F‑013 | Tailscale ACLs + air‑gapped cloud worker | Free | P1 | ✅ | infra | 2026‑10 | M3/M10 |
+| F‑014 | Secrets vault + ephemeral SSH CA + FDE/SQLCipher | Pro | P0 | ✅ | infra | 2026‑10 | M3/M10 |
 | F‑015 | RAG knowledge base + screenshots‑as‑references | Free | P0 | ✅ | api | 2026‑11 | M4 |
-| F‑016 | Graph‑native shared memory + time‑machine | Pro | P1 | ⬜ | api | 2026‑11 | M4 |
+| F‑016 | Graph‑native shared memory + time‑machine | Pro | P1 | ✅ | api | 2026‑11 | M4 |
 | F‑017 | Governance‑as‑code (OPA) + immutable audit | Pro | P0 | ✅ | api | 2026‑11 | M5 |
 | F‑018 | Connector: GitHub | Free | P0 | ✅ | api | 2026‑12 | M6 |
 | F‑019 | Connector: Mail (Gmail / MS Graph) | Pro | P1 | ✅ Phase 1 | api | 2026‑06 | M4 |

@@ -29,6 +29,8 @@ export const Scopes = {
   COMPANION_WRITE: 'companion:write',
   CLOUD_WORKERS_ADMIN: 'cloud_workers:admin',
   SSH_CA_SIGN: 'ssh_ca:sign',
+  MEMORY_READ: 'memory:read',
+  MEMORY_WRITE: 'memory:write',
 } as const;
 
 const ROLE_SCOPES: Record<string, string[]> = {
@@ -56,6 +58,8 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.COMPANION_WRITE,
     Scopes.CLOUD_WORKERS_ADMIN,
     Scopes.SSH_CA_SIGN,
+    Scopes.MEMORY_READ,
+    Scopes.MEMORY_WRITE,
   ],
   viewer: [
     Scopes.CHAT_READ,

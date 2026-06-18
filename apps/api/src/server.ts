@@ -22,7 +22,9 @@ import { haltRoutes } from './routes/halt';
 import { healthRoutes } from './routes/health';
 import { knowledgeRoutes } from './routes/knowledge';
 import { knowledgeShareRoutes } from './routes/knowledge-shares';
+import { memoryRoutes } from './routes/memory';
 import { metricsRoutes } from './routes/metrics';
+import { nodeHealthRoutes } from './routes/node-health';
 import { nodeRoutes } from './routes/nodes';
 import { notificationRoutes } from './routes/notifications';
 import { reportRoutes } from './routes/reports';
@@ -64,6 +66,7 @@ async function main() {
 
   // Public webhooks (registered before the auth hook so they skip session checks).
   app.register(cloudWorkerWebhookRoutes, { prefix: '/webhooks' });
+  app.register(nodeHealthRoutes, { prefix: '/health/nodes' });
 
   // Protected API routes
   app.addHook('preHandler', async (request, reply) => {
@@ -89,6 +92,7 @@ async function main() {
   app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
   app.register(knowledgeShareRoutes, { prefix: '/v1/knowledge/shares' });
   app.register(metricsRoutes, { prefix: '/v1/metrics' });
+  app.register(memoryRoutes, { prefix: '/v1/memory' });
   app.register(notificationRoutes, { prefix: '/v1/notifications' });
   app.register(reportRoutes, { prefix: '/v1/reports' });
   app.register(sandboxRoutes, { prefix: '/v1/sandbox' });

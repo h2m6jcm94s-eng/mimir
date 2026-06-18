@@ -17,3 +17,4 @@ export * from './mesh-meta';
 export * from './notifications';
 export * from './briefings';
 export * from './companion-check-in';
+export * from './memory';

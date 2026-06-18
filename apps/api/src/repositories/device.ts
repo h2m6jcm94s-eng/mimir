@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
+import { db } from '../db/client';
 import * as schema from '../db/schema';
 import type { TenantContext } from '../db/tenant-context';
 
@@ -43,4 +44,19 @@ export async function findDeviceByApiKey(ctx: TenantContext, apiKey: string) {
   return ctx.tenantScopedDb.query.node.findFirst({
     where: eq(schema.node.apiKeyHash, hashApiKey(apiKey)),
   });
+}
+
+export async function findDeviceByApiKeyHash(apiKeyHash: string) {
+  return db.query.node.findFirst({
+    where: eq(schema.node.apiKeyHash, apiKeyHash),
+  });
+}
+
+export async function rotateApiKey(ctx: TenantContext, nodeId: string) {
+  const apiKey = generateApiKey();
+  await ctx.tenantScopedDb
+    .update(schema.node)
+    .set({ apiKeyHash: hashApiKey(apiKey) })
+    .where(eq(schema.node.id, nodeId));
+  return { apiKey };
 }
