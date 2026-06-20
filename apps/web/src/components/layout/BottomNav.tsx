@@ -18,6 +18,7 @@ import {
   Scale,
   Settings,
   ShieldCheck,
+  Target,
   Wand2,
   X,
 } from 'lucide-react';
@@ -42,6 +43,7 @@ const more = [
   { href: '/connectors', label: 'Connectors', icon: Puzzle },
   { href: '/routines', label: 'Routines', icon: Command },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
+  { href: '/values', label: 'Values', icon: Target },
   { href: '/marketplace', label: 'Marketplace', icon: Package },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];

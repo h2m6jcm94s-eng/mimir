@@ -20,4 +20,5 @@ export * from './reports';
 export * from './routines';
 export * from './sessions';
 export * from './email-digest';
+export * from './values';
 export * from './errors';

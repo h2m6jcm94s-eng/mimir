@@ -47,6 +47,8 @@ export const Scopes = {
   LOCAL_MODELS_WRITE: 'local_models:write',
   ROUTINES_READ: 'routines:read',
   ROUTINES_WRITE: 'routines:write',
+  VALUES_READ: 'values:read',
+  VALUES_WRITE: 'values:write',
 } as const;
 
 const ROLE_SCOPES: Record<string, string[]> = {
@@ -93,6 +95,8 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.LOCAL_MODELS_WRITE,
     Scopes.ROUTINES_READ,
     Scopes.ROUTINES_WRITE,
+    Scopes.VALUES_READ,
+    Scopes.VALUES_WRITE,
   ],
   viewer: [
     Scopes.CHAT_READ,
@@ -112,6 +116,7 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.SSO_READ,
     Scopes.LOCAL_MODELS_READ,
     Scopes.ROUTINES_READ,
+    Scopes.VALUES_READ,
   ],
 };
 

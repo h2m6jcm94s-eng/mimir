@@ -1955,7 +1955,7 @@ Airtable base when M6 lands (F‑020).
 | F‑076 | Voice‑first hands‑free companion mode | Free | P2 | ⬜ | gateway | 2027‑Q2 | M8 |
 | F‑077 | Life documentation & legacy memory (stories, recipes, memoirs) | Free | P2 | ⬜ | api/web | 2027‑Q3 | post‑M10 |
 | F‑078 | Accessibility assistant (read aloud, describe images, simplify text) (Phase 1: text‑to‑speech, simplification heuristic, font/contrast controls) | Free | P1 | ✅ Phase 1 | web | 2027‑Q1 | M7 |
-| F‑079 | Values & decision journal with outcome tracking | Pro | P2 | ⬜ | api | 2027‑Q2 | M8 |
+| F‑079 | Values & decision journal with outcome tracking | Pro | P2 | ✅ | api | 2027‑Q2 | M8 |
 | F‑080 | Screen‑time & digital wellbeing coach | Free | P2 | ⬜ | web | 2027‑Q2 | M8 |
 | F‑081 | Difficult conversation coach (role‑play, drafts, de‑escalation) | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
 | F‑082 | Family mesh / household coordination | Free | P2 | ⬜ | api | 2027‑Q3 | post‑M10 |

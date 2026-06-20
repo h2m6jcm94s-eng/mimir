@@ -22,6 +22,7 @@ import {
   Settings,
   Share2,
   ShieldCheck,
+  Target,
   Wand2,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -58,6 +59,7 @@ const tertiary = [
   { href: '/marketing', label: 'Marketing', icon: Megaphone },
   { href: '/scheduling', label: 'Scheduling', icon: CalendarClock },
   { href: '/tools', label: 'Tools', icon: Hammer },
+  { href: '/values', label: 'Values', icon: Target },
   { href: '/marketplace', label: 'Marketplace', icon: Package },
   { href: '/accessibility', label: 'Accessibility', icon: Accessibility },
   { href: '/settings', label: 'Settings', icon: Settings },
