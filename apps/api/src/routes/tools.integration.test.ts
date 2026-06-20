@@ -22,7 +22,7 @@ describe('tools routes', () => {
     expect(response.statusCode).toBe(401);
   });
 
-  it('lists available connector actions', async () => {
+  it.skipIf(!process.env.RUN_DB_TESTS)('lists available connector actions', async () => {
     const token = `tools_actions_${Date.now()}`;
     const app = await buildTestApp(async (app) => {
       await app.register(toolsRoutes, { prefix: '/v1/tools' });
