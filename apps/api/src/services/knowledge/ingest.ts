@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type { TenantContext } from '../../db/tenant-context';
 import { createEmbeddings, createKnowledgeItem } from '../../repositories/knowledge';
 import { ClassificationGateway } from '../classification/gateway';
+import { LocalModelRuntime } from '../models/local-runtime';
 
 export interface ChunkOptions {
   chunkSize?: number;
@@ -127,13 +128,15 @@ export async function ingestDocument(
     return { itemId: item.id, chunks: 0, tier: classification.tier, classification };
   }
 
-  const embeddings = chunks.map((text, idx) => ({
-    knowledgeItemId: item.id,
-    chunkIdx: idx,
-    text,
-    vector: generateFakeEmbedding(text),
-    meta: {},
-  }));
+  const embeddings = await Promise.all(
+    chunks.map(async (text, idx) => ({
+      knowledgeItemId: item.id,
+      chunkIdx: idx,
+      text,
+      vector: await generateEmbeddingForTier(ctx, text, classification.tier),
+      meta: {},
+    }))
+  );
 
   await createEmbeddings(ctx, embeddings);
 
@@ -143,6 +146,27 @@ export async function ingestDocument(
     tier: classification.tier,
     classification,
   };
+}
+
+async function generateEmbeddingForTier(
+  ctx: TenantContext,
+  text: string,
+  tier: 0 | 1 | 2
+): Promise<number[]> {
+  if (tier === 0) {
+    try {
+      const runtime = new LocalModelRuntime(ctx);
+      const result = await runtime.embed(text);
+      return result.vector;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[ingest] T0 local embedding failed, falling back to fake embedding: ${message}`
+      );
+    }
+  }
+  return generateFakeEmbedding(text);
 }
 
 // Unused but exported for clarity: embedding generation should call a real model.

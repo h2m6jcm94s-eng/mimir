@@ -9,6 +9,8 @@ import { budgetRoutes } from '../routes/budget';
 import { connectorRoutes } from '../routes/connectors';
 import { governanceRoutes } from '../routes/governance';
 import { healthRoutes } from '../routes/health';
+import { localModelRoutes } from '../routes/local-models';
+import { routineRoutes } from '../routes/routines';
 import { sessionRoutes } from '../routes/sessions';
 import { taskRoutes } from '../routes/tasks';
 
@@ -37,6 +39,8 @@ async function main() {
   });
 
   app.register(healthRoutes, { prefix: '/' });
+  app.register(localModelRoutes, { prefix: '/v1/models/local' });
+  app.register(routineRoutes, { prefix: '/v1/routines' });
   app.register(sessionRoutes, { prefix: '/v1/sessions' });
   app.register(taskRoutes, { prefix: '/v1/tasks' });
   app.register(auditRoutes, { prefix: '/v1/audit' });

@@ -17,4 +17,5 @@ export * from './tools';
 export * from './sso';
 export * from './users';
 export * from './reports';
+export * from './routines';
 export * from './errors';

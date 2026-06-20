@@ -288,6 +288,27 @@
       "when": 1781980586301,
       "tag": "0041_cloud_worker_returned_event",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1781987857554,
+      "tag": "0042_local_model_config",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1781988959273,
+      "tag": "0043_routines",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1781992871000,
+      "tag": "0044_routine_cron_default",
+      "breakpoints": true
     }
   ]
 }

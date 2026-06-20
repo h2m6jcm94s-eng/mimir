@@ -43,6 +43,10 @@ export const Scopes = {
   SSH_CA_SIGN: 'ssh_ca:sign',
   MEMORY_READ: 'memory:read',
   MEMORY_WRITE: 'memory:write',
+  LOCAL_MODELS_READ: 'local_models:read',
+  LOCAL_MODELS_WRITE: 'local_models:write',
+  ROUTINES_READ: 'routines:read',
+  ROUTINES_WRITE: 'routines:write',
 } as const;
 
 const ROLE_SCOPES: Record<string, string[]> = {
@@ -85,6 +89,10 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.SSH_CA_SIGN,
     Scopes.MEMORY_READ,
     Scopes.MEMORY_WRITE,
+    Scopes.LOCAL_MODELS_READ,
+    Scopes.LOCAL_MODELS_WRITE,
+    Scopes.ROUTINES_READ,
+    Scopes.ROUTINES_WRITE,
   ],
   viewer: [
     Scopes.CHAT_READ,
@@ -102,6 +110,8 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.SCHEDULING_READ,
     Scopes.TOOLS_READ,
     Scopes.SSO_READ,
+    Scopes.LOCAL_MODELS_READ,
+    Scopes.ROUTINES_READ,
   ],
 };
 

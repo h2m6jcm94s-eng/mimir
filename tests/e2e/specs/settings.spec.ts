@@ -1,5 +1,45 @@
+import http from 'node:http';
 import { signInAsTestUser } from '../fixtures/auth';
 import { apiRequestHeaders, expect, test } from '../fixtures/base';
+
+function startMockOllama(): Promise<{ baseUrl: string; close: () => Promise<void> }> {
+  return new Promise((resolve, reject) => {
+    const server = http.createServer((req, res) => {
+      if (req.url === '/api/tags' && req.method === 'GET') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            models: [{ name: 'llama3.1:latest' }, { name: 'nomic-embed-text:latest' }],
+          })
+        );
+        return;
+      }
+      if (req.url === '/api/pull' && req.method === 'POST') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ status: 'success' }));
+        return;
+      }
+      res.writeHead(404);
+      res.end('not found');
+    });
+
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      if (!address || typeof address === 'string') {
+        reject(new Error('Invalid server address'));
+        return;
+      }
+      resolve({
+        baseUrl: `http://127.0.0.1:${address.port}`,
+        close: () =>
+          new Promise((res, rej) => {
+            server.close((err) => (err ? rej(err) : res()));
+          }),
+      });
+    });
+    server.on('error', reject);
+  });
+}
 
 /**
  * Settings page tests.
@@ -115,5 +155,39 @@ test.describe('Settings', () => {
     await page.getByTestId('monthly-budget-input').fill('10000');
     await page.getByTestId('save-budget').click();
     await expect(page.getByTestId('save-budget')).toHaveText('Save budget');
+  });
+
+  test('local models tab loads and shows offline status by default', async ({ page }) => {
+    await page.getByRole('button', { name: 'Local models' }).click();
+    await expect(page.getByRole('heading', { name: 'Local model runtime' })).toBeVisible();
+    await expect(page.getByText('Offline')).toBeVisible();
+  });
+
+  test('local models tab saves config and probes mocked Ollama', async ({ page, apiRequest }) => {
+    const mock = await startMockOllama();
+    try {
+      await page.getByRole('button', { name: 'Local models' }).click();
+      await expect(page.getByLabel('Ollama base URL')).toBeVisible();
+
+      await page.getByLabel('Ollama base URL').fill(mock.baseUrl);
+      await page.getByLabel('Chat model').fill('llama3.1');
+      await page.getByLabel('Embedding model').fill('nomic-embed-text');
+      await page.getByRole('button', { name: 'Save local model config' }).click();
+
+      await expect(page.getByText('Online')).toBeVisible();
+      await expect(page.getByText('llama3.1:latest')).toBeVisible();
+      await expect(page.getByText('nomic-embed-text:latest')).toBeVisible();
+
+      // Verify the config round-tripped through the real API.
+      const configResponse = await apiRequest.get('/v1/models/local/config', {
+        headers: apiRequestHeaders(),
+      });
+      expect(configResponse.status()).toBe(200);
+      const { data: config } = await configResponse.json();
+      expect(config.baseUrl).toBe(mock.baseUrl);
+      expect(config.chatModel).toBe('llama3.1');
+    } finally {
+      await mock.close();
+    }
   });
 });

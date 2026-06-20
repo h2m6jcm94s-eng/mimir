@@ -1,6 +1,30 @@
 import type { ModelInput, ModelOutput } from '@mimir/shared-types';
 import type { ModelProvider, ProviderInvokeOptions } from './types';
-import { getEnv } from './types';
+
+export type OllamaMessage = {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+};
+
+export type OllamaChatRequest = {
+  model: string;
+  messages: OllamaMessage[];
+  stream?: boolean;
+  options?: {
+    num_predict?: number;
+  };
+};
+
+export type OllamaChatResponse = {
+  message?: OllamaMessage;
+  error?: string;
+  done?: boolean;
+};
+
+export type OllamaConfig = {
+  baseUrl: string;
+  chatModel?: string;
+};
 
 export class OllamaProvider implements ModelProvider {
   readonly id = 'ollama' as const;
@@ -9,43 +33,49 @@ export class OllamaProvider implements ModelProvider {
   readonly local = true;
   setupHint = 'Set OLLAMA_BASE_URL to enable Ollama (default: http://localhost:11434).';
 
+  constructor(private config: OllamaConfig = { baseUrl: 'http://localhost:11434' }) {}
+
   private getBaseUrl(): string {
-    return getEnv('OLLAMA_BASE_URL') ?? 'http://localhost:11434';
+    return this.config.baseUrl;
   }
 
   isAvailable(): boolean {
-    // Treat Ollama as available when the user has explicitly configured it or
-    // left the default localhost endpoint. Actual reachability is checked at
-    // invoke time.
     return true;
   }
 
   async invoke(input: ModelInput, options: ProviderInvokeOptions): Promise<ModelOutput> {
     const baseUrl = this.getBaseUrl();
-    const model = options.model ?? input.model ?? 'llama3.1';
+    const model = options.model ?? input.model ?? this.config.chatModel ?? 'llama3.1';
 
-    const response = await fetch(`${baseUrl}/api/generate`, {
+    const messages: OllamaMessage[] = Array.isArray(input.payload?.messages)
+      ? (input.payload.messages as OllamaMessage[])
+      : [{ role: 'user', content: input.prompt }];
+
+    const body: OllamaChatRequest = {
+      model,
+      messages,
+      stream: false,
+      ...(options.maxTokens && { options: { num_predict: options.maxTokens } }),
+    };
+
+    const response = await fetch(`${baseUrl}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        prompt: input.prompt,
-        stream: false,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`Ollama request failed (${response.status}): ${body}`);
+      const text = await response.text();
+      throw new Error(`Ollama chat request failed (${response.status}): ${text}`);
     }
 
-    const data = (await response.json()) as { response?: string; error?: string };
+    const data = (await response.json()) as OllamaChatResponse;
     if (data.error) {
       throw new Error(`Ollama error: ${data.error}`);
     }
 
     return {
-      text: data.response ?? '',
+      text: data.message?.content ?? '',
       model,
       provider: 'ollama',
       tier: options.tier,

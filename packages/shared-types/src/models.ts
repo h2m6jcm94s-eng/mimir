@@ -132,3 +132,61 @@ export const ModelProviderConfig = z.object({
   2: z.array(ModelProviderEntry).default([{ provider: 'openai' }]),
 });
 export type ModelProviderConfig = z.infer<typeof ModelProviderConfig>;
+
+export const LocalModelInfo = z.object({
+  name: z.string(),
+  size: z.number().int().optional(),
+  digest: z.string().optional(),
+  modifiedAt: z.string().datetime().optional(),
+});
+export type LocalModelInfo = z.infer<typeof LocalModelInfo>;
+
+export const LocalModelConfig = z.object({
+  id: z.string().uuid(),
+  tenantId: z.string().uuid(),
+  baseUrl: z.string().url().default('http://localhost:11434'),
+  chatModel: z.string().default('llama3.1'),
+  embeddingModel: z.string().default('nomic-embed-text'),
+  embeddingDimension: z.number().int().min(1).default(768),
+  enabled: z.boolean().default(true),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type LocalModelConfig = z.infer<typeof LocalModelConfig>;
+
+export const UpsertLocalModelConfigRequest = z.object({
+  baseUrl: z.string().url(),
+  chatModel: z.string().min(1),
+  embeddingModel: z.string().min(1),
+  embeddingDimension: z.number().int().min(1).default(768),
+  enabled: z.boolean().default(true),
+});
+export type UpsertLocalModelConfigRequest = z.infer<typeof UpsertLocalModelConfigRequest>;
+
+export const LocalModelStatus = z.object({
+  reachable: z.boolean(),
+  baseUrl: z.string().url(),
+  models: z.array(LocalModelInfo),
+  chatAvailable: z.boolean(),
+  embedAvailable: z.boolean(),
+  defaultChatModel: z.string().optional(),
+  defaultEmbedModel: z.string().optional(),
+  error: z.string().optional(),
+});
+export type LocalModelStatus = z.infer<typeof LocalModelStatus>;
+
+export const LocalModelListResponse = z.object({
+  models: z.array(LocalModelInfo),
+});
+export type LocalModelListResponse = z.infer<typeof LocalModelListResponse>;
+
+export const PullModelRequest = z.object({
+  model: z.string().min(1),
+});
+export type PullModelRequest = z.infer<typeof PullModelRequest>;
+
+export const PullModelResponse = z.object({
+  jobId: z.string().uuid(),
+  status: z.enum(['queued', 'running', 'done', 'failed']),
+});
+export type PullModelResponse = z.infer<typeof PullModelResponse>;

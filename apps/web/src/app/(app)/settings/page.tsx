@@ -9,6 +9,7 @@ import {
   Activity,
   Bell,
   Copy,
+  Cpu,
   Key,
   Mail,
   Moon,
@@ -32,7 +33,8 @@ type Tab =
   | 'members'
   | 'nodes'
   | 'security'
-  | 'budget';
+  | 'budget'
+  | 'local-models';
 
 interface Member {
   id: number;
@@ -50,6 +52,7 @@ const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'members', label: 'Members', icon: Users },
   { id: 'security', label: 'Security', icon: Shield },
   { id: 'budget', label: 'Budget', icon: Wallet },
+  { id: 'local-models', label: 'Local models', icon: Cpu },
 ];
 
 const initialMembers: Member[] = [
@@ -112,6 +115,19 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h3 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h3>
       {children}
     </div>
+  );
+}
+
+function StatusBadge({ label, className }: { label: string; className?: string }) {
+  return (
+    <span
+      className={cn(
+        'rounded-full px-2 py-0.5 text-[10px] font-medium',
+        className ?? 'bg-[var(--bg-surface-raised)] text-[var(--text-secondary)]'
+      )}
+    >
+      {label}
+    </span>
   );
 }
 
@@ -221,6 +237,26 @@ export default function SettingsPage() {
     throttleThreshold: 0.7,
     enabled: true,
   });
+
+  const [localModelConfig, setLocalModelConfig] = useState({
+    baseUrl: 'http://localhost:11434',
+    chatModel: 'llama3.1',
+    embeddingModel: 'nomic-embed-text',
+    embeddingDimension: 768,
+    enabled: true,
+  });
+  const [localModelStatus, setLocalModelStatus] = useState<{
+    reachable: boolean;
+    models: Array<{ name: string }>;
+    chatAvailable: boolean;
+    embedAvailable: boolean;
+    error?: string;
+  } | null>(null);
+  const [localModelsLoading, setLocalModelsLoading] = useState(false);
+  const [localModelsError, setLocalModelsError] = useState<string | null>(null);
+  const [localModelsSaving, setLocalModelsSaving] = useState(false);
+  const [localModelsPulling, setLocalModelsPulling] = useState(false);
+  const [pullModelName, setPullModelName] = useState('');
 
   function regenerateKey() {
     const suffix = Math.random().toString(36).slice(2, 14);
@@ -374,6 +410,59 @@ export default function SettingsPage() {
     }
   }
 
+  async function loadLocalModels() {
+    try {
+      setLocalModelsLoading(true);
+      setLocalModelsError(null);
+      const configBody = await fetchJson<{ data: typeof localModelConfig }>(
+        '/api/v1/models/local/config'
+      );
+      setLocalModelConfig(configBody.data);
+      const statusBody = await fetchJson<{ data: typeof localModelStatus }>(
+        '/api/v1/models/local/status'
+      );
+      setLocalModelStatus(statusBody.data);
+    } catch (err) {
+      setLocalModelsError(err instanceof Error ? err.message : 'Failed to load local models');
+    } finally {
+      setLocalModelsLoading(false);
+    }
+  }
+
+  async function saveLocalModels() {
+    setLocalModelsSaving(true);
+    setLocalModelsError(null);
+    try {
+      await fetchJson('/api/v1/models/local/config', {
+        method: 'PUT',
+        body: JSON.stringify(localModelConfig),
+      });
+      await loadLocalModels();
+    } catch (err) {
+      setLocalModelsError(err instanceof Error ? err.message : 'Failed to save local model config');
+    } finally {
+      setLocalModelsSaving(false);
+    }
+  }
+
+  async function pullLocalModel() {
+    if (!pullModelName.trim()) return;
+    setLocalModelsPulling(true);
+    setLocalModelsError(null);
+    try {
+      await fetchJson('/api/v1/models/local/pull', {
+        method: 'POST',
+        body: JSON.stringify({ model: pullModelName.trim() }),
+      });
+      setPullModelName('');
+      await loadLocalModels();
+    } catch (err) {
+      setLocalModelsError(err instanceof Error ? err.message : 'Failed to pull model');
+    } finally {
+      setLocalModelsPulling(false);
+    }
+  }
+
   async function markNotificationRead(id: string) {
     try {
       await fetchJson(`/api/v1/notifications/${id}/read`, { method: 'POST' });
@@ -410,6 +499,13 @@ export default function SettingsPage() {
   useEffect(() => {
     if (tab === 'budget') {
       void loadBudget();
+    }
+  }, [tab]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: load only when tab becomes active to avoid re-fetch loops
+  useEffect(() => {
+    if (tab === 'local-models') {
+      void loadLocalModels();
     }
   }, [tab]);
 
@@ -930,6 +1026,216 @@ export default function SettingsPage() {
                       {pinLoading ? 'Saving…' : pinSet ? 'Change PIN' : 'Set PIN'}
                     </button>
                   </div>
+                </div>
+              </Section>
+            )}
+
+            {tab === 'local-models' && (
+              <Section title="Local model runtime">
+                {localModelsError && (
+                  <div className="rounded-lg border border-[var(--border-danger)] bg-[var(--bg-danger)] px-4 py-3 text-sm text-[var(--text-danger)]">
+                    {localModelsError}
+                  </div>
+                )}
+                <div className="rounded-xl bg-[var(--bg-surface)] p-4 shadow-card">
+                  {localModelsLoading ? (
+                    <div className="text-sm text-[var(--text-muted)]">Loading local models…</div>
+                  ) : (
+                    <>
+                      <div className="mb-4 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-[var(--text-primary)]">
+                            Local model runtime
+                          </p>
+                          <p className="text-xs text-[var(--text-secondary)]">
+                            Run chat and embeddings on your own hardware (Tier 0).
+                          </p>
+                        </div>
+                        <StatusBadge
+                          label={
+                            localModelStatus?.reachable
+                              ? localModelStatus?.chatAvailable && localModelStatus?.embedAvailable
+                                ? 'Online'
+                                : 'Partial'
+                              : 'Offline'
+                          }
+                          className={
+                            localModelStatus?.reachable
+                              ? localModelStatus?.chatAvailable && localModelStatus?.embedAvailable
+                                ? 'bg-emerald-500/10 text-emerald-600'
+                                : 'bg-amber-500/10 text-amber-600'
+                              : 'bg-red-500/10 text-red-600'
+                          }
+                        />
+                      </div>
+
+                      <div className="mb-4 grid gap-4 sm:grid-cols-2">
+                        <div className="sm:col-span-2">
+                          <label
+                            htmlFor="local-model-url"
+                            className="block text-xs font-medium text-[var(--text-secondary)]"
+                          >
+                            Ollama base URL
+                          </label>
+                          <input
+                            id="local-model-url"
+                            type="text"
+                            value={localModelConfig.baseUrl}
+                            onChange={(e) =>
+                              setLocalModelConfig((c) => ({ ...c, baseUrl: e.target.value }))
+                            }
+                            className="mt-1 h-9 w-full rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            htmlFor="local-chat-model"
+                            className="block text-xs font-medium text-[var(--text-secondary)]"
+                          >
+                            Chat model
+                          </label>
+                          <input
+                            id="local-chat-model"
+                            type="text"
+                            value={localModelConfig.chatModel}
+                            onChange={(e) =>
+                              setLocalModelConfig((c) => ({ ...c, chatModel: e.target.value }))
+                            }
+                            className="mt-1 h-9 w-full rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            htmlFor="local-embed-model"
+                            className="block text-xs font-medium text-[var(--text-secondary)]"
+                          >
+                            Embedding model
+                          </label>
+                          <input
+                            id="local-embed-model"
+                            type="text"
+                            value={localModelConfig.embeddingModel}
+                            onChange={(e) =>
+                              setLocalModelConfig((c) => ({ ...c, embeddingModel: e.target.value }))
+                            }
+                            className="mt-1 h-9 w-full rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            htmlFor="local-embed-dim"
+                            className="block text-xs font-medium text-[var(--text-secondary)]"
+                          >
+                            Embedding dimension
+                          </label>
+                          <input
+                            id="local-embed-dim"
+                            type="number"
+                            min={1}
+                            value={localModelConfig.embeddingDimension}
+                            onChange={(e) =>
+                              setLocalModelConfig((c) => ({
+                                ...c,
+                                embeddingDimension: Number(e.target.value),
+                              }))
+                            }
+                            className="mt-1 h-9 w-full rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+                          />
+                        </div>
+                        <div className="flex items-center gap-3 sm:col-span-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setLocalModelConfig((c) => ({ ...c, enabled: !c.enabled }))
+                            }
+                            className={cn(
+                              'relative h-6 w-11 rounded-full transition-colors',
+                              localModelConfig.enabled
+                                ? 'bg-[var(--accent-primary)]'
+                                : 'bg-[var(--bg-surface-raised)]'
+                            )}
+                            aria-pressed={localModelConfig.enabled}
+                          >
+                            <span
+                              className={cn(
+                                'absolute top-1 h-4 w-4 rounded-full bg-white transition-transform',
+                                localModelConfig.enabled ? 'left-6' : 'left-1'
+                              )}
+                            />
+                          </button>
+                          <span className="text-sm text-[var(--text-secondary)]">
+                            Enable local models
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mb-4">
+                        <label
+                          htmlFor="pull-model-name"
+                          className="block text-xs font-medium text-[var(--text-secondary)]"
+                        >
+                          Pull model
+                        </label>
+                        <div className="mt-1 flex gap-2">
+                          <input
+                            id="pull-model-name"
+                            type="text"
+                            placeholder="e.g. llama3.1"
+                            value={pullModelName}
+                            onChange={(e) => setPullModelName(e.target.value)}
+                            className="h-9 flex-1 rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+                          />
+                          <button
+                            type="button"
+                            disabled={localModelsPulling || !pullModelName.trim()}
+                            onClick={pullLocalModel}
+                            className="rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-[var(--accent-primary)]/90 disabled:opacity-50"
+                          >
+                            {localModelsPulling ? 'Pulling…' : 'Pull'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {localModelStatus && localModelStatus.models.length > 0 && (
+                        <div className="mb-4">
+                          <p className="mb-2 text-xs font-medium text-[var(--text-secondary)]">
+                            Pulled models
+                          </p>
+                          <ul className="max-h-40 overflow-auto rounded-lg border border-[var(--border-subtle-solid)]">
+                            {localModelStatus.models.map((m) => (
+                              <li
+                                key={m.name}
+                                className="flex items-center justify-between border-b border-[var(--border-subtle-solid)] px-3 py-2 text-sm text-[var(--text-primary)] last:border-0"
+                              >
+                                <span>{m.name}</span>
+                                <span className="text-[10px] text-[var(--text-muted)]">
+                                  {m.name === localModelConfig.chatModel && 'chat'}{' '}
+                                  {m.name === localModelConfig.embeddingModel && 'embed'}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {localModelStatus?.error && (
+                        <div className="mb-4 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] px-3 py-2 text-xs text-[var(--text-warning)]">
+                          {localModelStatus.error}
+                        </div>
+                      )}
+
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          disabled={localModelsSaving}
+                          onClick={saveLocalModels}
+                          className="rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-[var(--accent-primary)]/90 disabled:opacity-50"
+                        >
+                          {localModelsSaving ? 'Saving…' : 'Save local model config'}
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </Section>
             )}
