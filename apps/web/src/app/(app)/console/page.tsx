@@ -6,7 +6,7 @@ import { SourcesChip } from '@/components/ui/SourcesChip';
 import { TierBadge } from '@/components/ui/TierBadge';
 import { TrustBadge } from '@/components/ui/TrustBadge';
 import { cn } from '@/lib/utils';
-import type { AgentRole, Job } from '@mimir/shared-types';
+import type { ActiveSession, AgentRole, Job, SessionState } from '@mimir/shared-types';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Bot,
@@ -15,9 +15,11 @@ import {
   Cpu,
   FileImage,
   FileText,
+  List,
   Mic,
   Paperclip,
   Play,
+  Plus,
   RefreshCw,
   Send,
   Settings2,
@@ -31,7 +33,7 @@ import { useEffect, useRef, useState } from 'react';
 type Role = 'user' | 'assistant' | 'system';
 
 interface AssistantMessage {
-  id: number;
+  id: string | number;
   role: 'assistant';
   content: string;
   model: string;
@@ -48,13 +50,13 @@ interface AssistantMessage {
 }
 
 interface UserMessage {
-  id: number;
+  id: string | number;
   role: 'user';
   content: string;
 }
 
 interface SystemMessage {
-  id: number;
+  id: string | number;
   role: 'system';
   variant: 'error' | 'offline';
   content: string;
@@ -84,6 +86,60 @@ interface PollResult {
   tier: 0 | 1 | 2;
   model: string;
   sources: string[];
+}
+
+async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...options,
+    credentials: 'include',
+    headers: {
+      ...(options?.headers ?? {}),
+      ...(options?.body && { 'content-type': 'application/json' }),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`${res.status}: ${text}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+function parseSources(sources?: string): string[] {
+  if (!sources) return [];
+  try {
+    const parsed = JSON.parse(sources);
+    if (Array.isArray(parsed)) return parsed.filter((s): s is string => typeof s === 'string');
+  } catch {
+    // fall through
+  }
+  return sources
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function toUIMessage(m: SessionState['messages'][number]): Message {
+  if (m.role === 'user') {
+    return { id: m.id, role: 'user', content: m.content };
+  }
+  if (m.role === 'assistant') {
+    return {
+      id: m.id,
+      role: 'assistant',
+      content: m.content,
+      model: m.model ?? 'local',
+      confidence: 0.85,
+      cost: (m.costUsd ?? 0) / 1_000_000,
+      tier: m.tier as 0 | 1 | 2,
+      sources: parseSources(m.sources),
+    };
+  }
+  return {
+    id: m.id,
+    role: 'system',
+    variant: 'offline',
+    content: m.content,
+  };
 }
 
 function extractSources(job: Job): string[] {
@@ -148,7 +204,11 @@ export default function ConsolePage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
+  const [showSessionSwitcher, setShowSessionSwitcher] = useState(false);
   const [offlineMode, setOfflineMode] = useState(false);
+
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
 
   const [agentRoles, setAgentRoles] = useState<AgentRole[]>([]);
   const [selectedRole, setSelectedRole] = useState<AgentRole | null>(null);
@@ -199,16 +259,75 @@ export default function ConsolePage() {
     loadRoles();
   }, []);
 
+  async function loadActiveSessions(): Promise<ActiveSession[]> {
+    try {
+      const { data } = await fetchJson<{ data: ActiveSession[] }>('/api/v1/sessions/active');
+      setActiveSessions(data);
+      return data;
+    } catch {
+      setActiveSessions([]);
+      return [];
+    }
+  }
+
+  async function createNewSession(): Promise<string> {
+    const session = await fetchJson<{ id: string }>('/api/v1/sessions', {
+      method: 'POST',
+      body: JSON.stringify({ source: 'web' }),
+    });
+    setSessionId(session.id);
+    setMessages([]);
+    await loadActiveSessions();
+    return session.id;
+  }
+
+  async function loadSessionState(id: string) {
+    const { data } = await fetchJson<{ data: SessionState }>(`/api/v1/sessions/${id}/state`);
+    setSessionId(data.session.id);
+    setMessages(data.messages.map(toUIMessage));
+  }
+
+  async function resumeSession(id: string) {
+    const { data } = await fetchJson<{ data: { id: string } }>(`/api/v1/sessions/${id}/resume`, {
+      method: 'POST',
+    });
+    await loadSessionState(data.id);
+    setShowSessionSwitcher(false);
+    await loadActiveSessions();
+  }
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: init once on mount
+  useEffect(() => {
+    async function init() {
+      const active = await loadActiveSessions();
+      if (active.length > 0) {
+        await loadSessionState(active[0].id);
+      } else {
+        await createNewSession();
+      }
+    }
+    void init();
+  }, []);
+
   async function handleSend() {
     const text = input.trim();
     if (!text || isStreaming) return;
 
-    const userMsg: UserMessage = { id: Date.now(), role: 'user', content: text };
-    setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsStreaming(true);
 
+    let currentSessionId = sessionId;
+    if (!currentSessionId) {
+      currentSessionId = await createNewSession();
+    }
+
     try {
+      await fetchJson(`/api/v1/sessions/${currentSessionId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ role: 'user', content: text }),
+      });
+      await loadSessionState(currentSessionId);
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/tasks`, {
         method: 'POST',
         credentials: 'include',
@@ -236,8 +355,18 @@ export default function ConsolePage() {
       const { jobId, approvalId } = body;
 
       if (res.status === 202 && approvalId) {
+        await fetchJson(`/api/v1/sessions/${currentSessionId}/messages`, {
+          method: 'POST',
+          body: JSON.stringify({
+            role: 'assistant',
+            content: 'This request requires approval before proceeding.',
+            model: selectedRole?.model ?? selectedRole?.provider ?? 'local',
+            tier,
+          }),
+        });
+        await loadSessionState(currentSessionId);
         const assistant: AssistantMessage = {
-          id: Date.now() + 1,
+          id: `approval-${Date.now()}`,
           role: 'assistant',
           content: 'This request requires approval before proceeding.',
           model: selectedRole?.model ?? selectedRole?.provider ?? 'local',
@@ -257,20 +386,21 @@ export default function ConsolePage() {
 
       const result = await pollJob(jobId);
 
-      const assistant: AssistantMessage = {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: result.text,
-        model: result.model,
-        confidence: 0.85,
-        cost: result.costUsd / 1_000_000,
-        tier: result.tier,
-        sources: result.sources,
-      };
-      setMessages((prev) => [...prev, assistant]);
+      await fetchJson(`/api/v1/sessions/${currentSessionId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({
+          role: 'assistant',
+          content: result.text,
+          model: result.model,
+          tier: result.tier,
+          costUsd: Math.round(result.costUsd),
+          sources: result.sources.join(','),
+        }),
+      });
+      await loadSessionState(currentSessionId);
     } catch (err) {
       const systemMsg: SystemMessage = {
-        id: Date.now() + 1,
+        id: `error-${Date.now()}`,
         role: 'system',
         variant: 'error',
         content: err instanceof Error ? err.message : 'Failed to reach Mimir API.',
@@ -288,7 +418,7 @@ export default function ConsolePage() {
     }
   }
 
-  async function handleApprove(msgId: number) {
+  async function handleApprove(msgId: string | number) {
     const msg = messages.find((m): m is AssistantMessage => isAssistant(m) && m.id === msgId);
     if (!msg?.needsApproval?.approvalId) return;
 
@@ -351,7 +481,7 @@ export default function ConsolePage() {
     }
   }
 
-  async function handleDeny(msgId: number) {
+  async function handleDeny(msgId: string | number) {
     const msg = messages.find((m): m is AssistantMessage => isAssistant(m) && m.id === msgId);
     if (!msg?.needsApproval?.approvalId) {
       setMessages((prev) => prev.filter((m) => !isAssistant(m) || m.id !== msgId));
@@ -402,6 +532,63 @@ export default function ConsolePage() {
           Offline — local model active. Sensitive requests are staying on-device.
         </motion.div>
       )}
+
+      <div className="relative flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setShowSessionSwitcher((v) => !v)}
+          className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface)]"
+        >
+          <List className="h-3.5 w-3.5" />
+          {sessionId ? `Session ${sessionId.slice(0, 8)}` : 'Loading session…'}
+        </button>
+        {showSessionSwitcher && (
+          <div className="absolute left-4 right-4 top-16 z-10 max-h-80 overflow-auto rounded-xl border border-[var(--border-subtle-solid)] bg-[var(--bg-surface)] p-2 shadow-lg sm:left-auto sm:right-4 sm:w-72">
+            <div className="mb-2 flex items-center justify-between px-2">
+              <span className="text-xs font-semibold text-[var(--text-primary)]">
+                Active sessions
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowSessionSwitcher(false)}
+                className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            {activeSessions.length === 0 && (
+              <p className="px-2 py-3 text-xs text-[var(--text-muted)]">No active sessions.</p>
+            )}
+            <div className="space-y-1">
+              {activeSessions.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => resumeSession(s.id)}
+                  className={cn(
+                    'flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-xs transition-colors',
+                    s.id === sessionId
+                      ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
+                      : 'hover:bg-[var(--bg-surface-raised)] text-[var(--text-secondary)]'
+                  )}
+                >
+                  <span className="font-medium">Session {s.id.slice(0, 8)}</span>
+                  <span className="text-[10px] text-[var(--text-muted)]">
+                    {new Date(s.lastMessageAt).toLocaleTimeString()}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => createNewSession()}
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface-raised)]"
+            >
+              <Plus className="h-3.5 w-3.5" /> New session
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="flex-1 space-y-5 overflow-y-auto pr-2">
         <AnimatePresence initial={false}>
