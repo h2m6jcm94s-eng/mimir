@@ -1,0 +1,20 @@
+{
+  "name": "@mimir/extension",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Mimir browser extension for quick capture",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/build.js --watch",
+    "build": "node scripts/build.js",
+    "lint": "biome check .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "esbuild": "^0.21.0",
+    "typescript": "^5.5.0",
+    "vitest": "^1.6.0"
+  }
+}
