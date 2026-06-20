@@ -34,7 +34,8 @@ type Tab =
   | 'nodes'
   | 'security'
   | 'budget'
-  | 'local-models';
+  | 'local-models'
+  | 'email-digest';
 
 interface Member {
   id: number;
@@ -53,6 +54,7 @@ const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'security', label: 'Security', icon: Shield },
   { id: 'budget', label: 'Budget', icon: Wallet },
   { id: 'local-models', label: 'Local models', icon: Cpu },
+  { id: 'email-digest', label: 'Email digest', icon: Mail },
 ];
 
 const initialMembers: Member[] = [
@@ -257,6 +259,21 @@ export default function SettingsPage() {
   const [localModelsSaving, setLocalModelsSaving] = useState(false);
   const [localModelsPulling, setLocalModelsPulling] = useState(false);
   const [pullModelName, setPullModelName] = useState('');
+
+  const [digestPreference, setDigestPreference] = useState({
+    frequency: 'daily' as 'daily' | 'weekly',
+    enabled: true,
+    includeNotifications: true,
+    includeTasks: true,
+    includeApprovals: true,
+    includeReports: true,
+    lastSentAt: null as string | null,
+  });
+  const [digestLoading, setDigestLoading] = useState(false);
+  const [digestSaving, setDigestSaving] = useState(false);
+  const [digestSending, setDigestSending] = useState(false);
+  const [digestError, setDigestError] = useState<string | null>(null);
+  const [digestSuccess, setDigestSuccess] = useState<string | null>(null);
 
   function regenerateKey() {
     const suffix = Math.random().toString(36).slice(2, 14);
@@ -463,6 +480,69 @@ export default function SettingsPage() {
     }
   }
 
+  async function loadDigestPreference() {
+    try {
+      setDigestLoading(true);
+      setDigestError(null);
+      const body = await fetchJson<{ data: typeof digestPreference }>('/api/v1/email-digest/me');
+      setDigestPreference(body.data);
+    } catch (err) {
+      setDigestError(
+        err instanceof Error ? err.message : 'Failed to load email digest preferences'
+      );
+    } finally {
+      setDigestLoading(false);
+    }
+  }
+
+  async function saveDigestPreference() {
+    setDigestSaving(true);
+    setDigestError(null);
+    setDigestSuccess(null);
+    try {
+      const body = await fetchJson<{ data: typeof digestPreference }>('/api/v1/email-digest/me', {
+        method: 'PUT',
+        body: JSON.stringify({
+          frequency: digestPreference.frequency,
+          enabled: digestPreference.enabled,
+          includeNotifications: digestPreference.includeNotifications,
+          includeTasks: digestPreference.includeTasks,
+          includeApprovals: digestPreference.includeApprovals,
+          includeReports: digestPreference.includeReports,
+        }),
+      });
+      setDigestPreference(body.data);
+      setDigestSuccess('Digest preferences saved.');
+      setTimeout(() => setDigestSuccess(null), 3000);
+    } catch (err) {
+      setDigestError(err instanceof Error ? err.message : 'Failed to save digest preferences');
+    } finally {
+      setDigestSaving(false);
+    }
+  }
+
+  async function sendDigestNow() {
+    setDigestSending(true);
+    setDigestError(null);
+    setDigestSuccess(null);
+    try {
+      const body = await fetchJson<{ data: { sent: boolean; recipient?: string; error?: string } }>(
+        '/api/v1/email-digest/me/send-now',
+        { method: 'POST' }
+      );
+      if (body.data.sent) {
+        setDigestSuccess(`Digest sent to ${body.data.recipient ?? 'your email'}.`);
+      } else {
+        setDigestError(body.data.error ?? 'Digest could not be sent');
+      }
+      await loadDigestPreference();
+    } catch (err) {
+      setDigestError(err instanceof Error ? err.message : 'Failed to send digest');
+    } finally {
+      setDigestSending(false);
+    }
+  }
+
   async function markNotificationRead(id: string) {
     try {
       await fetchJson(`/api/v1/notifications/${id}/read`, { method: 'POST' });
@@ -506,6 +586,13 @@ export default function SettingsPage() {
   useEffect(() => {
     if (tab === 'local-models') {
       void loadLocalModels();
+    }
+  }, [tab]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: load only when tab becomes active to avoid re-fetch loops
+  useEffect(() => {
+    if (tab === 'email-digest') {
+      void loadDigestPreference();
     }
   }, [tab]);
 
@@ -1232,6 +1319,135 @@ export default function SettingsPage() {
                           className="rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-[var(--accent-primary)]/90 disabled:opacity-50"
                         >
                           {localModelsSaving ? 'Saving…' : 'Save local model config'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </Section>
+            )}
+
+            {tab === 'email-digest' && (
+              <Section title="Email digest">
+                {digestError && (
+                  <div className="rounded-lg border border-[var(--border-danger)] bg-[var(--bg-danger)] px-4 py-3 text-sm text-[var(--text-danger)]">
+                    {digestError}
+                  </div>
+                )}
+                {digestSuccess && (
+                  <div className="rounded-lg border border-[var(--border-success)] bg-[var(--bg-success)] px-4 py-3 text-sm text-[var(--text-success)]">
+                    {digestSuccess}
+                  </div>
+                )}
+                <div className="rounded-xl bg-[var(--bg-surface)] p-4 shadow-card">
+                  {digestLoading ? (
+                    <div className="text-sm text-[var(--text-muted)]">
+                      Loading digest preferences…
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mb-4 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-[var(--text-primary)]">
+                            Email digest
+                          </p>
+                          <p className="text-xs text-[var(--text-secondary)]">
+                            Receive a rollup of notifications, tasks, approvals, and reports.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDigestPreference((p) => ({ ...p, enabled: !p.enabled }))
+                          }
+                          className={cn(
+                            'relative h-6 w-11 rounded-full transition-colors',
+                            digestPreference.enabled
+                              ? 'bg-[var(--accent-primary)]'
+                              : 'bg-[var(--bg-surface-raised)]'
+                          )}
+                          aria-pressed={digestPreference.enabled}
+                        >
+                          <span
+                            className={cn(
+                              'absolute top-1 h-4 w-4 rounded-full bg-white transition-transform',
+                              digestPreference.enabled ? 'left-6' : 'left-1'
+                            )}
+                          />
+                        </button>
+                      </div>
+
+                      <div className="mb-4">
+                        <label
+                          htmlFor="digest-frequency"
+                          className="block text-xs font-medium text-[var(--text-secondary)]"
+                        >
+                          Frequency
+                        </label>
+                        <select
+                          id="digest-frequency"
+                          value={digestPreference.frequency}
+                          onChange={(e) =>
+                            setDigestPreference((p) => ({
+                              ...p,
+                              frequency: e.target.value as 'daily' | 'weekly',
+                            }))
+                          }
+                          className="mt-1 h-9 w-full rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+                        >
+                          <option value="daily">Daily</option>
+                          <option value="weekly">Weekly</option>
+                        </select>
+                      </div>
+
+                      <div className="mb-4 grid gap-2 sm:grid-cols-2">
+                        {[
+                          { key: 'includeNotifications', label: 'Notifications' },
+                          { key: 'includeTasks', label: 'Tasks' },
+                          { key: 'includeApprovals', label: 'Approvals' },
+                          { key: 'includeReports', label: 'Reports' },
+                        ].map((item) => (
+                          <label
+                            key={item.key}
+                            className="flex items-center gap-2 text-sm text-[var(--text-primary)]"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={
+                                digestPreference[
+                                  item.key as keyof typeof digestPreference
+                                ] as boolean
+                              }
+                              onChange={(e) =>
+                                setDigestPreference((p) => ({ ...p, [item.key]: e.target.checked }))
+                              }
+                              className="h-4 w-4 rounded border-[var(--border-subtle-solid)]"
+                            />
+                            {item.label}
+                          </label>
+                        ))}
+                      </div>
+
+                      <p className="mb-4 text-xs text-[var(--text-muted)]">
+                        Last sent: {formatDate(digestPreference.lastSentAt ?? undefined)}
+                      </p>
+
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          disabled={digestSending}
+                          onClick={sendDigestNow}
+                          className="rounded-lg bg-[var(--bg-surface-raised)] px-4 py-2 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface)] disabled:opacity-50"
+                        >
+                          {digestSending ? 'Sending…' : 'Send now'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={digestSaving}
+                          onClick={saveDigestPreference}
+                          className="rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-[var(--accent-primary)]/90 disabled:opacity-50"
+                        >
+                          {digestSaving ? 'Saving…' : 'Save preferences'}
                         </button>
                       </div>
                     </>

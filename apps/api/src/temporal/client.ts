@@ -129,3 +129,44 @@ export async function triggerRoutineSchedule(scheduleId: string, input: RoutineW
     args: [input],
   });
 }
+
+export interface DigestScheduleConfig {
+  frequency: 'daily' | 'weekly';
+  cron: string;
+}
+
+export async function ensureDigestSchedule(config: DigestScheduleConfig): Promise<void> {
+  const conn = await getTemporalConnection();
+  const client = new Client({ connection: conn });
+  const scheduleId = `email-digest:${config.frequency}`;
+
+  try {
+    const handle = client.schedule.getHandle(scheduleId);
+    await handle.update((_) => ({
+      spec: { cronExpressions: [config.cron] },
+      action: {
+        type: 'startWorkflow',
+        workflowType: 'digestWorkflow',
+        args: [{ frequency: config.frequency }],
+        taskQueue,
+      },
+      state: {},
+    }));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('not found') || message.includes('Schedule not found')) {
+      await client.schedule.create({
+        scheduleId,
+        spec: { cronExpressions: [config.cron] },
+        action: {
+          type: 'startWorkflow',
+          workflowType: 'digestWorkflow',
+          args: [{ frequency: config.frequency }],
+          taskQueue,
+        },
+      });
+      return;
+    }
+    throw error;
+  }
+}

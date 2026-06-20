@@ -18,6 +18,7 @@ import { cloudWorkerRoutes, cloudWorkerWebhookRoutes } from './routes/cloud-work
 import { companionRoutes } from './routes/companion';
 import { connectorRoutes } from './routes/connectors';
 import { demoStatusRoutes } from './routes/demo';
+import { emailDigestRoutes } from './routes/email-digest';
 import { fencingRoutes } from './routes/fencing';
 import { governanceRoutes } from './routes/governance';
 import { haltRoutes } from './routes/halt';
@@ -45,7 +46,7 @@ import { toolsRoutes } from './routes/tools';
 import { userRoutes } from './routes/users';
 import { httpRequestsCounter } from './services/metrics/registry';
 import { initializeLibSqlSchema } from './services/state/libsql-schema';
-import { getTemporalConnection } from './temporal/client';
+import { ensureDigestSchedule, getTemporalConnection } from './temporal/client';
 
 initSupertokens();
 const config = loadConfig();
@@ -105,6 +106,7 @@ async function main() {
   app.register(userRoutes, { prefix: '/v1/users' });
   app.register(budgetRoutes, { prefix: '/v1/budget' });
   app.register(demoStatusRoutes, { prefix: '/v1/demo' });
+  app.register(emailDigestRoutes, { prefix: '/v1/email-digest' });
   app.register(companionRoutes, { prefix: '/v1/companion' });
   app.register(cloudWorkerRoutes, { prefix: '/v1/cloud-workers' });
   app.register(fencingRoutes, { prefix: '/v1/fencing' });
@@ -165,6 +167,14 @@ async function main() {
   try {
     await getTemporalConnection();
     app.log.info('Temporal connected');
+    try {
+      await ensureDigestSchedule({ frequency: 'daily', cron: '0 8 * * *' });
+      app.log.info('Daily email digest schedule ensured');
+      await ensureDigestSchedule({ frequency: 'weekly', cron: '0 8 * * 1' });
+      app.log.info('Weekly email digest schedule ensured');
+    } catch (err) {
+      app.log.warn({ err }, 'Failed to ensure email digest schedule');
+    }
   } catch (err) {
     app.log.warn({ err }, 'Temporal connection failed at startup');
   }

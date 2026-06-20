@@ -112,3 +112,11 @@ export async function taskRunWorkflow(input: TaskRunInput): Promise<TaskRunOutpu
 export async function routineWorkflow(input: RoutineWorkflowInput): Promise<void> {
   await activities.dispatchRoutine(input);
 }
+
+export interface DigestWorkflowInput {
+  frequency: 'daily' | 'weekly';
+}
+
+export async function digestWorkflow(input: DigestWorkflowInput): Promise<void> {
+  await activities.sendPendingDigests(input);
+}

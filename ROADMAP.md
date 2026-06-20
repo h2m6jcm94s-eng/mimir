@@ -1960,16 +1960,15 @@ Airtable base when M6 lands (F‑020).
 | F‑081 | Difficult conversation coach (role‑play, drafts, de‑escalation) | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
 | F‑082 | Family mesh / household coordination | Free | P2 | ⬜ | api | 2027‑Q3 | post‑M10 |
 | F‑083 | **Routine scheduler / cron jobs**: schedule recurring jobs from natural-language descriptions or YAML (e.g. daily bank CSV check, weekly report) | Free | P1 | ✅ Phase 1 | api | 2027‑Q1 | M7 |
-| F‑084 | **Email digest delivery**: daily/weekly rollup of notifications, tasks, approvals, and reports via SMTP / MS Graph | Pro | P1 | ⬜ | api | 2027‑Q1 | M8 |
+| F‑084 | **Email digest delivery**: daily/weekly rollup of notifications, tasks, approvals, and reports via SMTP / MS Graph | Pro | P1 | ✅ Phase 1 | api | 2027‑Q1 | M8 |
 | F‑085 | **Browser extension quick capture**: clip web pages, selected text, and images into the second brain with one click; trigger quick actions | Free | P1 | ✅ | web | 2026‑11 | M4 |
 | F‑086 | **Cross-device session handoff**: seamlessly continue a chat/session across laptop, desktop, and phone nodes | Free | P2 | ✅ | api | 2027‑Q1 | M7 |
 | F‑087 | **Local model runtime for T0**: ollama/llama.cpp provider integration so T0/private data never leaves the device | Free | P1 | ✅ Phase 1 | api | 2026‑12 | M4 |
 
 **Recommended next build order.** Based on current platform capabilities, the highest-leverage next items are:
-1. **F‑085 Browser extension** — in progress; the fastest distribution surface for the second-brain capture story.
-2. **F‑084 Email digest delivery** — completes the notification story for users who are not in the web app.
-3. **F‑084 Email digest delivery** — completes the notification story for users who are not in the web app.
-4. **F‑071 Phase 1 skill proposals** — pattern detector that proposes new tools/routines from the knowledge graph.
+1. **F‑071 Phase 1 skill proposals** — pattern detector that proposes new tools/routines from the knowledge graph.
+2. **F‑079 Values & decision journal with outcome tracking** — turn reflections into measurable personal guidance.
+3. **F‑080 Screen‑time & digital wellbeing coach** — gentle nudges and summaries to help users reclaim attention.
 
 ---
 

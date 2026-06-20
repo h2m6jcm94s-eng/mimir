@@ -34,6 +34,10 @@ import { throwIfHalted } from '../services/halt/state';
 import { publishJobEvent } from '../services/events/publisher';
 import type { RoutineWorkflowInput, TaskRunInput } from './workflows';
 import { dispatchRoutineJob } from '../services/routines/dispatch';
+import { sendEmailDigest } from '../services/email-digest/digest';
+import { listDueEmailDigestPreferences } from '../repositories/email-digest';
+import { db } from '../db/client';
+import * as schema from '../db/schema';
 
 const budgetService = new BudgetService();
 
@@ -393,4 +397,22 @@ export async function dispatchRoutine(input: RoutineWorkflowInput): Promise<void
   await withTenantTransaction(input.tenantId, async (ctx) => {
     await dispatchRoutineJob(ctx, input);
   });
+}
+
+
+export async function sendPendingDigests(input: { frequency: 'daily' | 'weekly' }): Promise<void> {
+  const now = new Date();
+  const windowMs = input.frequency === 'daily' ? 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
+  const windowStart = new Date(now.getTime() - windowMs);
+
+  const tenants = await db.select({ id: schema.tenant.id }).from(schema.tenant);
+
+  for (const tenant of tenants) {
+    await withTenantTransaction(tenant.id, async (ctx) => {
+      const due = await listDueEmailDigestPreferences(ctx, input.frequency, windowStart);
+      for (const preference of due) {
+        await sendEmailDigest(ctx, preference.appUserId, preference, now);
+      }
+    });
+  }
 }

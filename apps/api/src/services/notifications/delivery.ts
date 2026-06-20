@@ -50,8 +50,9 @@ async function deliverChannel(
       // In-app delivery is satisfied by the persisted row itself.
       return;
     case 'email':
-      // Stub: wire real SMTP provider here.
-      throw new Error('Email channel not yet configured');
+      // Stub: notification email delivery is intentionally separate from digest email.
+      // Wire a recipient resolver here if/when per-user notification email is required.
+      throw new Error('Notification email channel not yet configured');
     case 'slack':
       // Stub: wire Slack connector here.
       throw new Error('Slack channel not yet configured');
