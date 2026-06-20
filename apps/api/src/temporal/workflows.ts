@@ -25,6 +25,16 @@ export interface TaskRunOutput {
   apply: ApplyResult;
 }
 
+export interface RoutineWorkflowInput {
+  tenantId: string;
+  userId: string;
+  routineId: string;
+  runId: string;
+  jobType: string;
+  tier: number;
+  payload: Record<string, unknown>;
+}
+
 const MAX_REVIEW_ITERATIONS = 3;
 
 export async function taskRunWorkflow(input: TaskRunInput): Promise<TaskRunOutput> {
@@ -97,4 +107,8 @@ export async function taskRunWorkflow(input: TaskRunInput): Promise<TaskRunOutpu
     review: finalReview,
     apply,
   };
+}
+
+export async function routineWorkflow(input: RoutineWorkflowInput): Promise<void> {
+  await activities.dispatchRoutine(input);
 }

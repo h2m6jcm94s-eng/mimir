@@ -1,0 +1,1 @@
+ALTER TABLE "routine" ALTER COLUMN "cron" SET DEFAULT '';

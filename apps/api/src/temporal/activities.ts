@@ -32,7 +32,8 @@ import { ReviewerRouter } from '../services/reviewers/router';
 import { scrubForTier } from '../services/scrubber/scrubber';
 import { throwIfHalted } from '../services/halt/state';
 import { publishJobEvent } from '../services/events/publisher';
-import type { TaskRunInput } from './workflows';
+import type { RoutineWorkflowInput, TaskRunInput } from './workflows';
+import { dispatchRoutineJob } from '../services/routines/dispatch';
 
 const budgetService = new BudgetService();
 
@@ -385,5 +386,11 @@ export async function recordEscalation(
       type: 'job.failed',
       payload: { error: code, reason, escalation: true },
     });
+  });
+}
+
+export async function dispatchRoutine(input: RoutineWorkflowInput): Promise<void> {
+  await withTenantTransaction(input.tenantId, async (ctx) => {
+    await dispatchRoutineJob(ctx, input);
   });
 }

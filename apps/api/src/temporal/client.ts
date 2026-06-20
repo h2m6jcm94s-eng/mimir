@@ -1,5 +1,5 @@
 import { Client, Connection, WorkflowNotFoundError } from '@temporalio/client';
-import type { TaskRunInput } from './workflows';
+import type { RoutineWorkflowInput, TaskRunInput } from './workflows';
 
 const temporalHost = process.env.TEMPORAL_HOST || 'localhost:7233';
 const taskQueue = process.env.TEMPORAL_TASK_QUEUE || 'mimir-task-queue';
@@ -54,4 +54,78 @@ export async function terminateWorkflow(workflowId: string): Promise<void> {
     if (error instanceof WorkflowNotFoundError) return;
     throw error;
   }
+}
+
+export interface RoutineScheduleConfig {
+  scheduleId: string;
+  cron: string;
+  input: RoutineWorkflowInput;
+  paused?: boolean;
+}
+
+export async function createRoutineSchedule(config: RoutineScheduleConfig): Promise<void> {
+  const conn = await getTemporalConnection();
+  const client = new Client({ connection: conn });
+  await client.schedule.create({
+    scheduleId: config.scheduleId,
+    spec: {
+      cronExpressions: [config.cron],
+    },
+    action: {
+      type: 'startWorkflow',
+      workflowType: 'routineWorkflow',
+      args: [config.input],
+      taskQueue,
+    },
+    state: { paused: config.paused },
+  });
+}
+
+export async function updateRoutineSchedule(config: RoutineScheduleConfig): Promise<void> {
+  const conn = await getTemporalConnection();
+  const client = new Client({ connection: conn });
+  const handle = client.schedule.getHandle(config.scheduleId);
+  await handle.update((_) => ({
+    spec: {
+      cronExpressions: [config.cron],
+    },
+    action: {
+      type: 'startWorkflow',
+      workflowType: 'routineWorkflow',
+      args: [config.input],
+      taskQueue,
+    },
+    state: { paused: config.paused },
+  }));
+}
+
+export async function deleteRoutineSchedule(scheduleId: string): Promise<void> {
+  const conn = await getTemporalConnection();
+  const client = new Client({ connection: conn });
+  const handle = client.schedule.getHandle(scheduleId);
+  await handle.delete();
+}
+
+export async function pauseRoutineSchedule(scheduleId: string): Promise<void> {
+  const conn = await getTemporalConnection();
+  const client = new Client({ connection: conn });
+  const handle = client.schedule.getHandle(scheduleId);
+  await handle.pause('Routine disabled');
+}
+
+export async function resumeRoutineSchedule(scheduleId: string): Promise<void> {
+  const conn = await getTemporalConnection();
+  const client = new Client({ connection: conn });
+  const handle = client.schedule.getHandle(scheduleId);
+  await handle.unpause('Routine enabled');
+}
+
+export async function triggerRoutineSchedule(scheduleId: string, input: RoutineWorkflowInput): Promise<void> {
+  const conn = await getTemporalConnection();
+  const client = new Client({ connection: conn });
+  await client.workflow.execute('routineWorkflow', {
+    workflowId: `${scheduleId}-manual-${Date.now()}`,
+    taskQueue,
+    args: [input],
+  });
 }
