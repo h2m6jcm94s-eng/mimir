@@ -63,6 +63,8 @@ test.describe('Approvals', () => {
     await expect(card).toBeVisible();
 
     await card.getByRole('button', { name: 'Approve', exact: true }).click();
+    await card.getByTestId('approval-pin-input').fill('1234');
+    await card.getByRole('button', { name: 'Confirm Approval' }).click();
     await expect(card).not.toBeVisible();
 
     await page.getByRole('button', { name: 'Approved' }).click();
@@ -88,6 +90,8 @@ test.describe('Approvals', () => {
     await expect(card).toBeVisible();
 
     await card.getByRole('button', { name: 'Deny' }).click();
+    await card.getByTestId('approval-pin-input').fill('1234');
+    await card.getByRole('button', { name: 'Confirm Denial' }).click();
     await expect(card).not.toBeVisible();
 
     await page.getByRole('button', { name: 'Denied' }).click();

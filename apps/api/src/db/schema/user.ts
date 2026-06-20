@@ -8,5 +8,6 @@ export const userAccount = pgTable('user_account', {
   id: uuid('id').primaryKey().defaultRandom(),
   externalId: varchar('external_id', { length: 255 }).notNull().unique(),
   email: varchar('email', { length: 255 }).notNull().unique(),
+  pinHash: varchar('pin_hash', { length: 255 }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

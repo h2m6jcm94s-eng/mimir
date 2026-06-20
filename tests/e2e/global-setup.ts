@@ -32,11 +32,11 @@ export default async function globalSetup() {
   console.log('[e2e setup] Preparing isolated test tenant...');
   const sql = postgres(databaseUrl);
 
-  // Ensure the deterministic test account exists.
+  // Ensure the deterministic test account exists with a known PIN for approval tests.
   const [account] = await sql`
-    INSERT INTO user_account (id, external_id, email)
-    VALUES (${randomUUID()}, ${TEST_EXTERNAL_ID}, ${TEST_EMAIL})
-    ON CONFLICT (external_id) DO UPDATE SET email = EXCLUDED.email
+    INSERT INTO user_account (id, external_id, email, pin_hash)
+    VALUES (${randomUUID()}, ${TEST_EXTERNAL_ID}, ${TEST_EMAIL}, '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4')
+    ON CONFLICT (external_id) DO UPDATE SET email = EXCLUDED.email, pin_hash = EXCLUDED.pin_hash
     RETURNING id;
   `;
 

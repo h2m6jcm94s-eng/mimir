@@ -1,13 +1,17 @@
 import { DecideApprovalRequest } from '@mimir/shared-types';
 import { Client, Connection } from '@temporalio/client';
+import { eq } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { db } from '../db/client';
+import * as schema from '../db/schema';
 import { withTenantTransaction } from '../db/tenant-context';
 import { Scopes, requireScope } from '../middleware/rbac';
 import { protectedRouteConfig } from '../middleware/route-config';
 import { decideApproval, getApprovalById, listApprovals } from '../repositories/approval';
 import { createAuditEvent } from '../repositories/audit';
 import { getJob, updateJobStatus } from '../repositories/job';
+import { verifyPin } from '../services/approvals/metadata';
 import type { TaskRunInput } from '../temporal/workflows';
 
 const paramsSchema = z.object({
@@ -43,6 +47,21 @@ export async function approvalRoutes(app: FastifyInstance) {
       const params = paramsSchema.parse(request.params);
       const body = DecideApprovalRequest.parse(request.body ?? {});
 
+      const userAccount = await db.query.userAccount.findFirst({
+        where: eq(schema.userAccount.id, user.userAccountId),
+      });
+      if (!userAccount) {
+        return reply.status(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'User account not found' },
+        });
+      }
+
+      if (!verifyPin(body.pin, userAccount.pinHash)) {
+        return reply.status(403).send({
+          error: { code: 'INVALID_PIN', message: 'PIN is invalid or missing' },
+        });
+      }
+
       const { approval, job } = await withTenantTransaction(user.tenantId, async (ctx) => {
         const approval = await getApprovalById(ctx, params.id);
         if (!approval) {
@@ -50,6 +69,9 @@ export async function approvalRoutes(app: FastifyInstance) {
         }
         if (approval.status !== 'pending') {
           throw new Error(`Approval already ${approval.status}`);
+        }
+        if (approval.expiresAt && new Date() > approval.expiresAt) {
+          throw new Error('Approval request has expired');
         }
 
         const updated = await decideApproval(ctx, params.id, 'approved', user.userId, body.reason);
@@ -99,6 +121,21 @@ export async function approvalRoutes(app: FastifyInstance) {
       const params = paramsSchema.parse(request.params);
       const body = DecideApprovalRequest.parse(request.body ?? {});
 
+      const userAccount = await db.query.userAccount.findFirst({
+        where: eq(schema.userAccount.id, user.userAccountId),
+      });
+      if (!userAccount) {
+        return reply.status(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'User account not found' },
+        });
+      }
+
+      if (!verifyPin(body.pin, userAccount.pinHash)) {
+        return reply.status(403).send({
+          error: { code: 'INVALID_PIN', message: 'PIN is invalid or missing' },
+        });
+      }
+
       const approval = await withTenantTransaction(user.tenantId, async (ctx) => {
         const existing = await getApprovalById(ctx, params.id);
         if (!existing) {
@@ -106,6 +143,9 @@ export async function approvalRoutes(app: FastifyInstance) {
         }
         if (existing.status !== 'pending') {
           throw new Error(`Approval already ${existing.status}`);
+        }
+        if (existing.expiresAt && new Date() > existing.expiresAt) {
+          throw new Error('Approval request has expired');
         }
 
         const updated = await decideApproval(ctx, params.id, 'denied', user.userId, body.reason);

@@ -62,6 +62,12 @@ test.describe('Governance', () => {
     await expect(page.getByRole('heading', { name: 'Audit log' })).toBeVisible();
   });
 
+  test('verify chain button refreshes audit verification status', async ({ page }) => {
+    await page.getByRole('button', { name: 'Audit Log' }).click();
+    await page.getByTestId('verify-chain').click();
+    await expect(page.getByText('Verified').or(page.getByText('Chain broken'))).toBeVisible();
+  });
+
   test('privacy flow map renders', async ({ page }) => {
     await page.getByRole('button', { name: 'Privacy Flow' }).click();
     await expect(page.getByRole('heading', { name: 'Privacy flow map' })).toBeVisible();

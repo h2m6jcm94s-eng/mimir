@@ -7,7 +7,7 @@ import { demoLockoutMiddleware } from '../middleware/demo-lockout';
 export async function buildTestApp(
   registerRoutes: (app: FastifyInstance) => Promise<void> | void
 ): Promise<FastifyInstance> {
-  const app = Fastify();
+  const app = Fastify({ maxParamLength: 500 });
   await registerAuth(app);
   await app.register(rateLimit, {
     max: 10_000,

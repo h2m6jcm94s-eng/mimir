@@ -1,3 +1,4 @@
+import type { ApprovalBlastRadius, ApprovalRisk } from '@mimir/shared-types';
 import { desc, eq } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import type { TenantContext } from '../db/tenant-context';
@@ -8,6 +9,9 @@ export async function createApproval(
     jobId: string;
     requestedBy: string;
     reason?: string;
+    risk?: ApprovalRisk;
+    blastRadius?: ApprovalBlastRadius;
+    expiresAt?: Date;
   }
 ): Promise<typeof schema.approval.$inferSelect> {
   const [row] = await ctx.tenantScopedDb
@@ -16,8 +20,11 @@ export async function createApproval(
       tenantId: ctx.tenantId,
       jobId: input.jobId,
       status: 'pending',
+      risk: input.risk ?? 'low',
+      blastRadius: input.blastRadius ?? {},
       requestedBy: input.requestedBy,
       reason: input.reason ?? null,
+      expiresAt: input.expiresAt ?? null,
     })
     .returning();
   return row;

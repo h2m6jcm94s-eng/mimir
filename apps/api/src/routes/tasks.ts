@@ -26,6 +26,7 @@ import {
   setJobWorkflowIds,
   updateJobStatus,
 } from '../repositories/job';
+import { approvalExpiresAt, buildBlastRadius, riskFromTier } from '../services/approvals/metadata';
 import { ClassificationGateway } from '../services/classification/gateway';
 import { BudgetExceededError, BudgetService, BudgetThrottledError } from '../services/cost/budget';
 import { publishJobEvent } from '../services/events/publisher';
@@ -171,6 +172,13 @@ export async function taskRoutes(app: FastifyInstance) {
               jobId: blockedJob.id,
               requestedBy: user.userId,
               reason: decision.reason,
+              risk: riskFromTier(classification.tier),
+              blastRadius: buildBlastRadius({
+                tier: classification.tier,
+                action: body.type,
+                summary: classification.reason,
+              }),
+              expiresAt: approvalExpiresAt(classification.tier),
             });
             await createAuditEvent(ctx, {
               actor: user.userId,

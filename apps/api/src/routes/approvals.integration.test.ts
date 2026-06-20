@@ -1,5 +1,9 @@
+import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
+import { db } from '../db/client';
+import * as schema from '../db/schema';
 import { resolveAuthUser } from '../middleware/auth';
+import { hashPin } from '../services/approvals/metadata';
 import { buildTestApp } from '../test-helpers/build-app';
 import { approvalRoutes } from './approvals';
 import { governanceRoutes } from './governance';
@@ -131,6 +135,71 @@ describe('approvals routes', () => {
       expect(denyResponse.statusCode).toBe(200);
       const denyBody = JSON.parse(denyResponse.body);
       expect(denyBody.data.status).toBe('denied');
+    }
+  );
+
+  it.skipIf(!process.env.RUN_DB_TESTS)(
+    'enforces the PIN gate when the user has a PIN configured',
+    async () => {
+      const token = `approvals_pin_${Date.now()}`;
+      const app = await buildTestApp(async (app) => {
+        await app.register(governanceRoutes, { prefix: '/v1/governance' });
+        await app.register(taskRoutes, { prefix: '/v1/tasks' });
+        await app.register(approvalRoutes, { prefix: '/v1/approvals' });
+      });
+
+      const user = await resolveAuthUser(token, `${token}@test.local`);
+      await db
+        .update(schema.userAccount)
+        .set({ pinHash: hashPin('1234') })
+        .where(eq(schema.userAccount.id, user.userAccountId));
+
+      await app.inject({
+        method: 'PUT',
+        url: '/v1/governance/policy',
+        headers: { authorization: `Bearer ${token}` },
+        payload: { source: approvalPolicy },
+      });
+
+      const taskResponse = await app.inject({
+        method: 'POST',
+        url: '/v1/tasks',
+        headers: { authorization: `Bearer ${token}` },
+        payload: {
+          idempotencyKey: `approval-pin-${Date.now()}`,
+          type: 'approval.test',
+          prompt: 'summarize this public article',
+        },
+      });
+
+      expect(taskResponse.statusCode).toBe(202);
+      const { approvalId } = JSON.parse(taskResponse.body);
+
+      const missingPinResponse = await app.inject({
+        method: 'POST',
+        url: `/v1/approvals/${approvalId}/approve`,
+        headers: { authorization: `Bearer ${token}` },
+        payload: { reason: 'looks good' },
+      });
+      expect(missingPinResponse.statusCode).toBe(403);
+
+      const wrongPinResponse = await app.inject({
+        method: 'POST',
+        url: `/v1/approvals/${approvalId}/approve`,
+        headers: { authorization: `Bearer ${token}` },
+        payload: { reason: 'looks good', pin: '0000' },
+      });
+      expect(wrongPinResponse.statusCode).toBe(403);
+
+      const approveResponse = await app.inject({
+        method: 'POST',
+        url: `/v1/approvals/${approvalId}/approve`,
+        headers: { authorization: `Bearer ${token}` },
+        payload: { reason: 'looks good', pin: '1234' },
+      });
+      expect(approveResponse.statusCode).toBe(200);
+      const approveBody = JSON.parse(approveResponse.body);
+      expect(approveBody.data.status).toBe('approved');
     }
   );
 });

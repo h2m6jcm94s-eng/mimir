@@ -14,7 +14,7 @@ import {
   ShieldAlert,
   X,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const demoPolicy = `rules:
   - action: github.openPr
@@ -71,6 +71,7 @@ export default function GovernancePage() {
   const [explanations, setExplanations] = useState<string[]>([]);
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [auditVerified, setAuditVerified] = useState<boolean | null>(null);
+  const [auditVerifying, setAuditVerifying] = useState(false);
   const valid = useMemo(() => validatePolicy(policy), [policy]);
 
   useEffect(() => {
@@ -87,20 +88,30 @@ export default function GovernancePage() {
       });
   }, []);
 
+  const loadAudit = useCallback(async () => {
+    setAuditVerifying(true);
+    try {
+      const res = await fetch('/api/v1/audit?limit=50', { credentials: 'include' });
+      if (!res.ok) {
+        setAuditEvents([]);
+        setAuditVerified(null);
+        return;
+      }
+      const data = (await res.json()) as { data: AuditEvent[]; verified?: boolean };
+      setAuditEvents(data.data);
+      setAuditVerified(data.verified ?? null);
+    } catch {
+      setAuditEvents([]);
+      setAuditVerified(null);
+    } finally {
+      setAuditVerifying(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (tab !== 'audit') return;
-    fetch('/api/v1/audit?limit=50', { credentials: 'include' })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.data) {
-          setAuditEvents(data.data as AuditEvent[]);
-          setAuditVerified(data.verified ?? null);
-        }
-      })
-      .catch(() => {
-        setAuditEvents([]);
-      });
-  }, [tab]);
+    void loadAudit();
+  }, [tab, loadAudit]);
 
   async function savePolicy() {
     if (!valid) return;
@@ -402,9 +413,13 @@ export default function GovernancePage() {
                 )}
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1 rounded-lg bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface-raised)]"
+                  data-testid="verify-chain"
+                  disabled={auditVerifying}
+                  onClick={() => void loadAudit()}
+                  className="inline-flex items-center gap-1 rounded-lg bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface-raised)] disabled:opacity-50"
                 >
-                  <Lock className="h-3 w-3" /> Verify chain
+                  <Lock className="h-3 w-3" />
+                  {auditVerifying ? 'Verifying…' : 'Verify chain'}
                 </button>
               </div>
             </div>

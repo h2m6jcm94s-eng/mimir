@@ -92,7 +92,7 @@ export async function cloudWorkerWebhookRoutes(app: FastifyInstance) {
       });
       await publishJobEvent(ctx, {
         jobId: payload.jobId,
-        type: 'cloud_worker_returned',
+        type: 'cloud_worker.returned',
         payload: { exitCode: body.exitCode },
       });
     });

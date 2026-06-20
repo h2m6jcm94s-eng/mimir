@@ -18,6 +18,7 @@ export const jobEventTypeEnum = pgEnum('job_event_type', [
   'job.retried',
   'job.status_updated',
   'job.approval.requested',
+  'cloud_worker.returned',
 ]);
 
 export const jobEvent = pgTable('job_event', {

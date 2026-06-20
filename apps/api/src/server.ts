@@ -40,6 +40,7 @@ import { sshCaRoutes } from './routes/ssh-ca';
 import { ssoRoutes } from './routes/sso';
 import { taskRoutes } from './routes/tasks';
 import { toolsRoutes } from './routes/tools';
+import { userRoutes } from './routes/users';
 import { httpRequestsCounter } from './services/metrics/registry';
 import { initializeLibSqlSchema } from './services/state/libsql-schema';
 import { getTemporalConnection } from './temporal/client';
@@ -51,6 +52,7 @@ const app = Fastify({
   logger: {
     level: config.logLevel,
   },
+  maxParamLength: 500,
 });
 
 async function main() {
@@ -98,6 +100,7 @@ async function main() {
   app.register(governanceRoutes, { prefix: '/v1/governance' });
   app.register(agentRoutes, { prefix: '/v1/agents' });
   app.register(approvalRoutes, { prefix: '/v1/approvals' });
+  app.register(userRoutes, { prefix: '/v1/users' });
   app.register(budgetRoutes, { prefix: '/v1/budget' });
   app.register(demoStatusRoutes, { prefix: '/v1/demo' });
   app.register(companionRoutes, { prefix: '/v1/companion' });

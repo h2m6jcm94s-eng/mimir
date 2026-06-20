@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { withTenantTransaction } from '../db/tenant-context';
+import { resolveAuthUser } from '../middleware/auth';
+import { createJob } from '../repositories/job';
 import { buildTestApp } from '../test-helpers/build-app';
 import { cloudWorkerRoutes, cloudWorkerWebhookRoutes } from './cloud-workers';
 
@@ -48,6 +51,17 @@ describe('cloud worker routes', () => {
     'provisions a cloud worker and accepts the return webhook',
     async () => {
       const token = `cloud_${Date.now()}`;
+      const user = await resolveAuthUser(token, `${token}@test.local`);
+      const { job } = await withTenantTransaction(user.tenantId, async (ctx) => {
+        const created = await createJob(ctx, {
+          idempotencyKey: `cloud-worker-test-${Date.now()}`,
+          type: 'cloud-worker',
+          tier: 2,
+          input: {},
+        });
+        return { job: created };
+      });
+
       const app = await buildTestApp(async (app) => {
         await app.register(cloudWorkerRoutes, { prefix: '/v1/cloud-workers' });
         await app.register(cloudWorkerWebhookRoutes, { prefix: '/webhooks' });
@@ -57,7 +71,7 @@ describe('cloud worker routes', () => {
         method: 'POST',
         url: '/v1/cloud-workers',
         headers: { authorization: `Bearer ${token}` },
-        payload: { jobId: '00000000-0000-0000-0000-000000000001' },
+        payload: { jobId: job.id },
       });
 
       expect(provisionResponse.statusCode).toBe(201);
@@ -71,6 +85,7 @@ describe('cloud worker routes', () => {
         url: `/webhooks/cloud-workers/return/${returnToken}`,
         payload: { exitCode: 0, result: { ok: true } },
       });
+      console.log('returnResponse', returnResponse.statusCode, returnResponse.body);
 
       expect(returnResponse.statusCode).toBe(200);
       expect(JSON.parse(returnResponse.body).ok).toBe(true);

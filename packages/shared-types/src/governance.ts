@@ -62,14 +62,31 @@ export type EvaluatePolicyRequest = z.infer<typeof EvaluatePolicyRequest>;
 export const ApprovalStatus = z.enum(['pending', 'approved', 'denied']);
 export type ApprovalStatus = z.infer<typeof ApprovalStatus>;
 
+export const ApprovalRisk = z.enum(['low', 'medium', 'high']);
+export type ApprovalRisk = z.infer<typeof ApprovalRisk>;
+
+export const ApprovalBlastRadius = z.object({
+  tier: z.number().int().min(0).max(2),
+  action: z.string(),
+  scope: z.string().optional(),
+  estimatedCostUsd: z.number().optional(),
+  dataSubjects: z.number().int().optional(),
+  connectors: z.array(z.string()).optional(),
+  summary: z.string().optional(),
+});
+export type ApprovalBlastRadius = z.infer<typeof ApprovalBlastRadius>;
+
 export const Approval = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid(),
   jobId: z.string().uuid(),
   status: ApprovalStatus,
+  risk: ApprovalRisk,
+  blastRadius: ApprovalBlastRadius,
   requestedBy: z.string(),
   decidedBy: z.string().optional(),
   reason: z.string().optional(),
+  expiresAt: z.string().datetime().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -77,6 +94,7 @@ export type Approval = z.infer<typeof Approval>;
 
 export const DecideApprovalRequest = z.object({
   reason: z.string().optional(),
+  pin: z.string().min(4).max(32).optional(),
 });
 export type DecideApprovalRequest = z.infer<typeof DecideApprovalRequest>;
 

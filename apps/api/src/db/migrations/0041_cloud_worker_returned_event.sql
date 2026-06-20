@@ -1,0 +1,1 @@
+ALTER TYPE "job_event_type" ADD VALUE 'cloud_worker.returned';

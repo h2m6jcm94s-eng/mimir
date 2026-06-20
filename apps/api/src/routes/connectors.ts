@@ -14,6 +14,7 @@ import {
   listConnectors,
 } from '../repositories/connector';
 import { createJob, updateJobStatus } from '../repositories/job';
+import { approvalExpiresAt, buildBlastRadius, riskFromTier } from '../services/approvals/metadata';
 import { ClassificationGateway } from '../services/classification/gateway';
 import '../services/connectors/airtable/handlers';
 import '../services/connectors/discord/handlers';
@@ -235,12 +236,24 @@ export async function connectorRoutes(app: FastifyInstance) {
         if (decision.effect === 'require_approval') {
           await updateJobStatus(ctx, job.id, 'blocked');
           const approvalMessage = descriptor.approvalMessage(input);
+          const approvalReason = [
+            decision.reason,
+            `${approvalMessage.title}: ${approvalMessage.description}`,
+          ]
+            .filter(Boolean)
+            .join('. ');
           const approval = await createApproval(ctx, {
             jobId: job.id,
             requestedBy: userId,
-            reason: [decision.reason, `${approvalMessage.title}: ${approvalMessage.description}`]
-              .filter(Boolean)
-              .join('. '),
+            reason: approvalReason,
+            risk: riskFromTier(classification.tier),
+            blastRadius: buildBlastRadius({
+              tier: classification.tier,
+              action: actionName,
+              connectors: [kind],
+              summary: approvalMessage.description || approvalMessage.title,
+            }),
+            expiresAt: approvalExpiresAt(classification.tier),
           });
           await createAuditEvent(ctx, {
             actor: userId,

@@ -14,7 +14,7 @@ const NOTIFY_EVENT_TYPES: JobEventType[] = [
   'job.approval.requested',
   'job.failed',
   'job.done',
-  'cloud_worker_returned',
+  'cloud_worker.returned',
 ];
 
 function notificationForEvent(input: PublishJobEventInput): {
@@ -50,7 +50,7 @@ function notificationForEvent(input: PublishJobEventInput): {
         priority: 'normal',
         dedupKey: `done:${input.jobId}`,
       };
-    case 'cloud_worker_returned':
+    case 'cloud_worker.returned':
       return {
         kind: 'cloud_worker.returned',
         title: 'Cloud worker returned',

@@ -20,10 +20,19 @@ import {
   Trash2,
   User,
   Users,
+  Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-type Tab = 'general' | 'appearance' | 'api' | 'notifications' | 'members' | 'nodes';
+type Tab =
+  | 'general'
+  | 'appearance'
+  | 'api'
+  | 'notifications'
+  | 'members'
+  | 'nodes'
+  | 'security'
+  | 'budget';
 
 interface Member {
   id: number;
@@ -39,6 +48,8 @@ const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'nodes', label: 'Nodes', icon: Server },
   { id: 'members', label: 'Members', icon: Users },
+  { id: 'security', label: 'Security', icon: Shield },
+  { id: 'budget', label: 'Budget', icon: Wallet },
 ];
 
 const initialMembers: Member[] = [
@@ -184,6 +195,33 @@ export default function SettingsPage() {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState<string | null>(null);
 
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [pinSet, setPinSet] = useState(false);
+  const [pinLoading, setPinLoading] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [pinSuccess, setPinSuccess] = useState(false);
+  const [currentPin, setCurrentPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+
+  const [budgetStatus, setBudgetStatus] = useState<{
+    dailyBudgetUsd: number;
+    monthlyBudgetUsd: number;
+    throttleThreshold: number;
+    enabled: boolean;
+  } | null>(null);
+  const [budgetLoading, setBudgetLoading] = useState(false);
+  const [budgetError, setBudgetError] = useState<string | null>(null);
+  const [budgetSaving, setBudgetSaving] = useState(false);
+  const MICROS_PER_DOLLAR = 1_000_000;
+  const [budgetDraft, setBudgetDraft] = useState({
+    dailyBudgetUsd: 0,
+    monthlyBudgetUsd: 0,
+    throttleThreshold: 0.7,
+    enabled: true,
+  });
+
   function regenerateKey() {
     const suffix = Math.random().toString(36).slice(2, 14);
     setApiKey(`mk_live_${suffix}`);
@@ -242,6 +280,100 @@ export default function SettingsPage() {
     }
   }
 
+  async function loadProfile() {
+    try {
+      setProfileLoading(true);
+      setProfileError(null);
+      const body = await fetchJson<{ data: { email: string; pinSet: boolean } }>(
+        '/api/v1/users/me'
+      );
+      setEmail(body.data.email);
+      setPinSet(body.data.pinSet);
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : 'Failed to load profile');
+    } finally {
+      setProfileLoading(false);
+    }
+  }
+
+  async function savePin() {
+    setPinError(null);
+    setPinSuccess(false);
+    if (newPin.length < 4) {
+      setPinError('PIN must be at least 4 characters.');
+      return;
+    }
+    if (newPin !== confirmPin) {
+      setPinError('New PIN and confirmation do not match.');
+      return;
+    }
+    setPinLoading(true);
+    try {
+      const payload: { pin: string; currentPin?: string } = { pin: newPin };
+      if (pinSet) payload.currentPin = currentPin;
+      await fetchJson('/api/v1/users/me/pin', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      setPinSuccess(true);
+      setPinSet(true);
+      setCurrentPin('');
+      setNewPin('');
+      setConfirmPin('');
+    } catch (err) {
+      setPinError(err instanceof Error ? err.message : 'Failed to save PIN');
+    } finally {
+      setPinLoading(false);
+    }
+  }
+
+  async function loadBudget() {
+    try {
+      setBudgetLoading(true);
+      setBudgetError(null);
+      const body = await fetchJson<{
+        data: {
+          dailyBudgetUsd: number;
+          monthlyBudgetUsd: number;
+          throttleThreshold: number;
+          enabled: boolean;
+        };
+      }>('/api/v1/budget');
+      setBudgetStatus(body.data);
+      setBudgetDraft({
+        dailyBudgetUsd: body.data.dailyBudgetUsd / MICROS_PER_DOLLAR,
+        monthlyBudgetUsd: body.data.monthlyBudgetUsd / MICROS_PER_DOLLAR,
+        throttleThreshold: body.data.throttleThreshold,
+        enabled: body.data.enabled,
+      });
+    } catch (err) {
+      setBudgetError(err instanceof Error ? err.message : 'Failed to load budget');
+    } finally {
+      setBudgetLoading(false);
+    }
+  }
+
+  async function saveBudget() {
+    setBudgetSaving(true);
+    setBudgetError(null);
+    try {
+      await fetchJson('/api/v1/budget', {
+        method: 'PUT',
+        body: JSON.stringify({
+          dailyBudgetUsd: budgetDraft.dailyBudgetUsd,
+          monthlyBudgetUsd: budgetDraft.monthlyBudgetUsd,
+          throttleThreshold: budgetDraft.throttleThreshold,
+          enabled: budgetDraft.enabled,
+        }),
+      });
+      await loadBudget();
+    } catch (err) {
+      setBudgetError(err instanceof Error ? err.message : 'Failed to save budget');
+    } finally {
+      setBudgetSaving(false);
+    }
+  }
+
   async function markNotificationRead(id: string) {
     try {
       await fetchJson(`/api/v1/notifications/${id}/read`, { method: 'POST' });
@@ -264,6 +396,20 @@ export default function SettingsPage() {
   useEffect(() => {
     if (tab === 'notifications') {
       void loadNotifications();
+    }
+  }, [tab]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: load only when tab becomes active to avoid re-fetch loops
+  useEffect(() => {
+    if (tab === 'security') {
+      void loadProfile();
+    }
+  }, [tab]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: load only when tab becomes active to avoid re-fetch loops
+  useEffect(() => {
+    if (tab === 'budget') {
+      void loadBudget();
     }
   }, [tab]);
 
@@ -675,6 +821,249 @@ export default function SettingsPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </Section>
+            )}
+
+            {tab === 'security' && (
+              <Section title="Approval PIN">
+                {profileError && (
+                  <div className="rounded-lg border border-[var(--border-danger)] bg-[var(--bg-danger)] px-4 py-3 text-sm text-[var(--text-danger)]">
+                    {profileError}
+                  </div>
+                )}
+                {pinError && (
+                  <div className="rounded-lg border border-[var(--border-danger)] bg-[var(--bg-danger)] px-4 py-3 text-sm text-[var(--text-danger)]">
+                    {pinError}
+                  </div>
+                )}
+                {pinSuccess && (
+                  <div className="rounded-lg border border-[var(--accent-success)]/20 bg-[var(--accent-success)]/10 px-4 py-3 text-sm text-[var(--accent-success)]">
+                    PIN updated successfully.
+                  </div>
+                )}
+                <div className="rounded-xl bg-[var(--bg-surface)] p-4 shadow-card">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-[var(--text-primary)]">PIN status</p>
+                      <p className="text-xs text-[var(--text-secondary)]">
+                        A PIN is required to approve or deny sensitive actions.
+                      </p>
+                    </div>
+                    <span
+                      data-testid="pin-status"
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-[10px] font-medium',
+                        pinSet
+                          ? 'bg-[var(--accent-success)]/10 text-[var(--accent-success)]'
+                          : 'bg-[var(--accent-warning)]/10 text-[var(--accent-warning)]'
+                      )}
+                    >
+                      {pinSet ? 'Set' : 'Not set'}
+                    </span>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {pinSet && (
+                      <div>
+                        <label
+                          htmlFor="current-pin"
+                          className="block text-xs font-medium text-[var(--text-secondary)]"
+                        >
+                          Current PIN
+                        </label>
+                        <input
+                          id="current-pin"
+                          data-testid="current-pin-input"
+                          type="password"
+                          inputMode="numeric"
+                          value={currentPin}
+                          onChange={(e) => setCurrentPin(e.target.value)}
+                          className="mt-1 h-9 w-full rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <label
+                        htmlFor="new-pin"
+                        className="block text-xs font-medium text-[var(--text-secondary)]"
+                      >
+                        New PIN
+                      </label>
+                      <input
+                        id="new-pin"
+                        data-testid="new-pin-input"
+                        type="password"
+                        inputMode="numeric"
+                        value={newPin}
+                        onChange={(e) => setNewPin(e.target.value)}
+                        className="mt-1 h-9 w-full rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="confirm-pin"
+                        className="block text-xs font-medium text-[var(--text-secondary)]"
+                      >
+                        Confirm new PIN
+                      </label>
+                      <input
+                        id="confirm-pin"
+                        data-testid="confirm-pin-input"
+                        type="password"
+                        inputMode="numeric"
+                        value={confirmPin}
+                        onChange={(e) => setConfirmPin(e.target.value)}
+                        className="mt-1 h-9 w-full rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex justify-end">
+                    <button
+                      type="button"
+                      data-testid="save-pin"
+                      disabled={pinLoading || profileLoading}
+                      onClick={savePin}
+                      className="rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-[var(--accent-primary)]/90 disabled:opacity-50"
+                    >
+                      {pinLoading ? 'Saving…' : pinSet ? 'Change PIN' : 'Set PIN'}
+                    </button>
+                  </div>
+                </div>
+              </Section>
+            )}
+
+            {tab === 'budget' && (
+              <Section title="Budget limits">
+                {budgetError && (
+                  <div className="rounded-lg border border-[var(--border-danger)] bg-[var(--bg-danger)] px-4 py-3 text-sm text-[var(--text-danger)]">
+                    {budgetError}
+                  </div>
+                )}
+                <div className="rounded-xl bg-[var(--bg-surface)] p-4 shadow-card">
+                  {budgetLoading ? (
+                    <div className="text-sm text-[var(--text-muted)]">Loading budget…</div>
+                  ) : (
+                    <>
+                      <div className="mb-4 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-[var(--text-primary)]">
+                            Budget enforcement
+                          </p>
+                          <p className="text-xs text-[var(--text-secondary)]">
+                            Pause cloud-tier actions when limits are reached.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          data-testid="toggle-budget-enabled"
+                          onClick={() => setBudgetDraft((d) => ({ ...d, enabled: !d.enabled }))}
+                          className={cn(
+                            'relative h-6 w-11 rounded-full transition-colors',
+                            budgetDraft.enabled
+                              ? 'bg-[var(--accent-primary)]'
+                              : 'bg-[var(--bg-surface-raised)]'
+                          )}
+                          aria-pressed={budgetDraft.enabled}
+                        >
+                          <span
+                            className={cn(
+                              'absolute top-1 h-4 w-4 rounded-full bg-white transition-transform',
+                              budgetDraft.enabled ? 'left-6' : 'left-1'
+                            )}
+                          />
+                        </button>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label
+                            htmlFor="daily-budget"
+                            className="block text-xs font-medium text-[var(--text-secondary)]"
+                          >
+                            Daily budget (USD)
+                          </label>
+                          <input
+                            id="daily-budget"
+                            data-testid="daily-budget-input"
+                            type="number"
+                            min={0}
+                            value={budgetDraft.dailyBudgetUsd}
+                            onChange={(e) =>
+                              setBudgetDraft((d) => ({
+                                ...d,
+                                dailyBudgetUsd: Number(e.target.value),
+                              }))
+                            }
+                            className="mt-1 h-9 w-full rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            htmlFor="monthly-budget"
+                            className="block text-xs font-medium text-[var(--text-secondary)]"
+                          >
+                            Monthly budget (USD)
+                          </label>
+                          <input
+                            id="monthly-budget"
+                            data-testid="monthly-budget-input"
+                            type="number"
+                            min={0}
+                            value={budgetDraft.monthlyBudgetUsd}
+                            onChange={(e) =>
+                              setBudgetDraft((d) => ({
+                                ...d,
+                                monthlyBudgetUsd: Number(e.target.value),
+                              }))
+                            }
+                            className="mt-1 h-9 w-full rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label
+                            htmlFor="throttle-threshold"
+                            className="block text-xs font-medium text-[var(--text-secondary)]"
+                          >
+                            Throttle threshold ({(budgetDraft.throttleThreshold * 100).toFixed(0)}
+                            %)
+                          </label>
+                          <input
+                            id="throttle-threshold"
+                            data-testid="throttle-threshold-input"
+                            type="range"
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            value={budgetDraft.throttleThreshold}
+                            onChange={(e) =>
+                              setBudgetDraft((d) => ({
+                                ...d,
+                                throttleThreshold: Number(e.target.value),
+                              }))
+                            }
+                            className="mt-2 w-full"
+                          />
+                          <p className="mt-1 text-[10px] text-[var(--text-muted)]">
+                            Pause T2 actions when daily spend reaches this percentage of the budget.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          type="button"
+                          data-testid="save-budget"
+                          disabled={budgetSaving}
+                          onClick={saveBudget}
+                          className="rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-[var(--accent-primary)]/90 disabled:opacity-50"
+                        >
+                          {budgetSaving ? 'Saving…' : 'Save budget'}
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </Section>
             )}

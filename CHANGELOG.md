@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Memory checkpoint diff now matches changed nodes by logical `key` rather than physical row `id`, so temporal versioning (which creates a new row on each PATCH) correctly reports value changes instead of treating them as unrelated removals/additions.
+- Cloud-worker return webhook event type aligned across the DB enum (`job_event_type`), shared Zod types, and the event publisher (`cloud_worker.returned`). Added migration `0041_cloud_worker_returned_event.sql` and updated the integration test to seed a real job before calling the return webhook, fixing the `job_event_job_id_fkey` violation.
 - F-040 natural-language policy editor: heuristic translator now strips trailing punctuation from extracted actions and supports `Deny all` / `Deny everything` / `Default deny` catch-all rules.
 
 ### Changed
@@ -20,6 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- F-024 Settings (Phase 2): add **Security** tab for setting/changing the approval PIN (`GET/POST /v1/users/me/pin` + `GET /v1/users/me`) and **Budget** tab for editing daily/monthly limits and throttle threshold; make the **Verify chain** button on the Governance audit tab functional; extend Playwright e2e coverage.
+- F-023 Approvals (Phase 2): approvals now carry `risk` (`low`/`medium`/`high`), a JSON `blastRadius` preview, and a tiered `expiresAt` timeout (T0 1h / T1 30m / T2 10m); decision routes (`POST /v1/approvals/:id/approve` and `.../deny`) validate the request PIN against a per-user `pin_hash` and reject expired approvals; the `/approvals` web UI renders blast-radius cards, expiration, and a PIN/reason confirmation form; Playwright e2e coverage updated.
 - F-023 Reports (Phase 1): tenant-scoped `report` table with RLS; shared Zod schemas; `GET/POST /v1/reports` and `/v1/reports/search`; replace static mock list on `/reports` with live data + kind/search filters; Playwright e2e coverage.
 - F-024 Settings (Phase 1): add live **Nodes** tab wired to `/v1/nodes` with Ping and Rotate-key actions; add **Recent notifications** list wired to `/v1/notifications` with mark-read; keep email-preference toggles as client-side UI; extend Playwright e2e coverage.
 - F-029 SSO/SAML/SCIM provider configuration and user provisioning (Phase 1): tenant-scoped `sso_provider` and `scim_token` tables with RLS; `app_user.active` column for SCIM deactivation; `sso:read`/`sso:write` RBAC scopes; shared Zod types; `GET/POST/PATCH/DELETE /v1/sso/providers` CRUD and SCIM token rotation; `/scim/v2/Users` subset with bearer-token auth supporting list, get, create, replace, active toggle, and delete; DB-backed integration tests.

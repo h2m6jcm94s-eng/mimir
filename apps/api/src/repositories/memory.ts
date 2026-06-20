@@ -293,14 +293,18 @@ export async function diffMemoryCheckpoints(
 
   const leftNodeMap = new Map(leftNodes.map((n) => [n.id, n]));
   const rightNodeMap = new Map(rightNodes.map((n) => [n.id, n]));
+  const leftNodeByKey = new Map(leftNodes.map((n) => [n.key, n]));
+  const rightNodeByKey = new Map(rightNodes.map((n) => [n.key, n]));
   const leftEdgeMap = new Map(leftEdges.map((e) => [e.id, e]));
   const rightEdgeMap = new Map(rightEdges.map((e) => [e.id, e]));
 
-  const addedNodes = rightNodes.filter((n) => !leftNodeMap.has(n.id));
-  const removedNodes = leftNodes.filter((n) => !rightNodeMap.has(n.id));
+  const addedNodes = rightNodes.filter((n) => !leftNodeMap.has(n.id) && !leftNodeByKey.has(n.key));
+  const removedNodes = leftNodes.filter(
+    (n) => !rightNodeMap.has(n.id) && !rightNodeByKey.has(n.key)
+  );
   const changedNodes = leftNodes
     .map((before) => {
-      const after = rightNodeMap.get(before.id);
+      const after = rightNodeByKey.get(before.key);
       if (!after) return null;
       if (normalizeValue(before.value) !== normalizeValue(after.value)) {
         return { id: before.id, before, after };

@@ -96,4 +96,24 @@ test.describe('Settings', () => {
     await markRead.click();
     await expect(markRead).toHaveText('Read');
   });
+
+  test('security tab shows PIN status and change form', async ({ page }) => {
+    await page.getByRole('button', { name: 'Security' }).click();
+    await expect(page.getByText('Approval PIN')).toBeVisible();
+    await expect(page.getByTestId('pin-status')).toHaveText('Set');
+    await expect(page.getByTestId('current-pin-input')).toBeVisible();
+    await expect(page.getByTestId('new-pin-input')).toBeVisible();
+    await expect(page.getByTestId('confirm-pin-input')).toBeVisible();
+  });
+
+  test('budget tab loads and saves budget limits', async ({ page }) => {
+    await page.getByRole('button', { name: 'Budget' }).click();
+    await expect(page.getByText('Budget limits')).toBeVisible();
+    await expect(page.getByTestId('daily-budget-input')).toBeVisible();
+
+    await page.getByTestId('daily-budget-input').fill('2500');
+    await page.getByTestId('monthly-budget-input').fill('10000');
+    await page.getByTestId('save-budget').click();
+    await expect(page.getByTestId('save-budget')).toHaveText('Save budget');
+  });
 });
