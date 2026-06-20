@@ -1,6 +1,6 @@
 # ADR 0024 — Durable routine scheduler with Temporal
 
-**Status:** Proposed  
+**Status:** Accepted  
 **Date:** 2026-06-21  
 **Author:** devayan  
 

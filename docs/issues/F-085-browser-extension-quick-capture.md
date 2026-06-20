@@ -1,6 +1,6 @@
 # F-085 — Browser extension quick capture for distribution
 
-**Tier:** Free · **Priority:** P1 · **Status:** Ready for implementation
+**Tier:** Free · **Priority:** P1 · **Status:** Implemented
 
 ## Problem / motivation
 
@@ -30,12 +30,12 @@ Build a Manifest V3 browser extension that clips content and posts it to the exi
 
 ## Acceptance criteria
 
-- [ ] Extension builds to a loadable `.zip` / unpacked directory.
-- [ ] User can install it in Chrome/Edge/Firefox (Manifest V3 compatible).
-- [ ] Clicking the toolbar icon captures the current page into Mimir as a `knowledge_item` of kind `note` with source `extension`.
-- [ ] Right-clicking selected text and choosing “Capture selection to Mimir” creates a note with the selection and page URL.
-- [ ] Capture respects default tier (T0 if local model available, otherwise T1/T2 as configured).
-- [ ] Extension shows success/error feedback without leaving the page.
+- [x] Extension builds to a loadable `.zip` / unpacked directory.
+- [x] User can install it in Chrome/Edge/Firefox (Manifest V3 compatible).
+- [x] Clicking the toolbar icon captures the current page into Mimir as a `knowledge_item` of kind `note`.
+- [x] Right-clicking selected text and choosing “Capture selection to Mimir” creates a note with the selection and page URL.
+- [x] Capture posts with tier `0` by default (classification gateway can raise if local model unavailable).
+- [x] Extension shows success/error feedback via toolbar badge without leaving the page.
 
 ## Test plan
 

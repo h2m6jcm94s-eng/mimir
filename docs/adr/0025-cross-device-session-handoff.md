@@ -1,6 +1,6 @@
 # ADR 0025 — Cross-device session handoff and sync
 
-**Status:** Proposed  
+**Status:** Accepted  
 **Date:** 2026-06-21  
 **Author:** devayan  
 

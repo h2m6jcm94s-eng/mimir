@@ -1,6 +1,6 @@
 # F-083 — Routine scheduler to turn jobs into recurring automation
 
-**Tier:** Free · **Priority:** P1 · **Status:** Ready for implementation
+**Tier:** Free · **Priority:** P1 · **Status:** Implemented
 
 ## Problem / motivation
 
@@ -31,13 +31,13 @@ Introduce a `routine` entity backed by Temporal schedules.
 
 ## Acceptance criteria
 
-- [ ] `POST /v1/routines` creates a routine and a Temporal schedule.
-- [ ] Temporal triggers the routine on the configured cron/interval.
-- [ ] Each run creates a run-history row linked to the resulting job.
-- [ ] `PATCH /v1/routines/:id/enabled` pauses/resumes the schedule without deleting it.
-- [ ] Manual trigger `POST /v1/routines/:id/run` executes immediately and records history.
-- [ ] Web `/routines` page lists real routines, shows next run, and allows create/edit/pause/delete.
-- [ ] Routine runs respect tier: T0 routines use local model/node; T2 routines use cloud worker.
+- [x] `POST /v1/routines` creates a routine and a Temporal schedule.
+- [x] Temporal triggers the routine on the configured cron/interval.
+- [x] Each run creates a run-history row linked to the resulting job.
+- [x] `PATCH /v1/routines/:id/enabled` pauses/resumes the schedule without deleting it.
+- [x] Manual trigger `POST /v1/routines/:id/run` executes immediately and records history.
+- [x] Web `/routines` page lists real routines, shows next run, and allows create/edit/pause/delete.
+- [x] Routine runs respect tier: T0 routines use local model/node; T2 routines use cloud worker.
 
 ## Test plan
 

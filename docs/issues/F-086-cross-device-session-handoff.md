@@ -1,6 +1,6 @@
 # F-086 — Cross-device session handoff
 
-**Tier:** Free · **Priority:** P1 · **Status:** Ready for implementation (best after F-087 + F-083)
+**Tier:** Free · **Priority:** P1 · **Status:** Implemented
 
 ## Problem / motivation
 
@@ -22,11 +22,11 @@ Build session handoff so any authenticated node can resume the latest session st
 
 ## Acceptance criteria
 
-- [ ] `GET /v1/sessions/:id/state` returns the session’s latest messages and context.
-- [ ] `POST /v1/sessions/:id/resume` creates a child session and returns its ID.
-- [ ] A message sent in the child session appears when the parent session is fetched.
-- [ ] `GET /v1/sessions/active` lists sessions across nodes for the tenant/user.
-- [ ] Console UI shows active sessions and allows resuming another session.
+- [x] `GET /v1/sessions/:id/state` returns the session’s latest messages and context.
+- [x] `POST /v1/sessions/:id/resume` creates a child session and returns its ID.
+- [x] A message sent in the child session appears when the parent session is fetched.
+- [x] `GET /v1/sessions/active` lists sessions across nodes for the tenant/user.
+- [x] Console UI shows active sessions and allows resuming another session.
 
 ## Test plan
 

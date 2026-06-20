@@ -1961,7 +1961,7 @@ Airtable base when M6 lands (F‑020).
 | F‑082 | Family mesh / household coordination | Free | P2 | ⬜ | api | 2027‑Q3 | post‑M10 |
 | F‑083 | **Routine scheduler / cron jobs**: schedule recurring jobs from natural-language descriptions or YAML (e.g. daily bank CSV check, weekly report) | Free | P1 | ✅ Phase 1 | api | 2027‑Q1 | M7 |
 | F‑084 | **Email digest delivery**: daily/weekly rollup of notifications, tasks, approvals, and reports via SMTP / MS Graph | Pro | P1 | ⬜ | api | 2027‑Q1 | M8 |
-| F‑085 | **Browser extension quick capture**: clip web pages, selected text, and images into the second brain with one click; trigger quick actions | Free | P1 | 🟦 | web | 2026‑11 | M4 |
+| F‑085 | **Browser extension quick capture**: clip web pages, selected text, and images into the second brain with one click; trigger quick actions | Free | P1 | ✅ | web | 2026‑11 | M4 |
 | F‑086 | **Cross-device session handoff**: seamlessly continue a chat/session across laptop, desktop, and phone nodes | Free | P2 | ✅ | api | 2027‑Q1 | M7 |
 | F‑087 | **Local model runtime for T0**: ollama/llama.cpp provider integration so T0/private data never leaves the device | Free | P1 | ✅ Phase 1 | api | 2026‑12 | M4 |
 
