@@ -19,6 +19,9 @@ export async function createRoutine(
       jobInput: input.jobInput,
       tier: input.tier,
       enabled: input.enabled,
+      sourceFormat: input.sourceFormat,
+      workflowJson: input.workflowJson,
+      nodeId: input.nodeId,
       createdBy,
     })
     .returning();
@@ -71,6 +74,13 @@ export async function updateRoutine(
       ...(input.jobInput !== undefined && { jobInput: input.jobInput }),
       ...(input.tier !== undefined && { tier: input.tier }),
       ...(input.enabled !== undefined && { enabled: input.enabled }),
+      ...(input.sourceFormat !== undefined && { sourceFormat: input.sourceFormat }),
+      ...(input.workflowJson !== undefined && { workflowJson: input.workflowJson }),
+      ...(input.nodeId !== undefined && { nodeId: input.nodeId }),
+      ...(input.optimizationLog !== undefined && {
+        optimizationLog: input.optimizationLog,
+        optimizedAt: new Date(),
+      }),
       updatedAt: new Date(),
     })
     .where(and(eq(schema.routine.id, id), eq(schema.routine.tenantId, ctx.tenantId)))

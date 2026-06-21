@@ -3,6 +3,7 @@ import { createJob } from '../../repositories/job';
 import { getRoutineById, updateRoutineRunStatus } from '../../repositories/routine';
 import { startTaskWorkflow } from '../../temporal/client';
 import type { RoutineWorkflowInput } from '../../temporal/workflows';
+import { executeWorkflowGraph } from '../workflows/executor';
 
 export async function dispatchRoutineJob(
   ctx: TenantContext,
@@ -22,6 +23,11 @@ export async function dispatchRoutineJob(
       code: 'ROUTINE_DISABLED',
       message: `Routine ${input.routineId} is disabled`,
     });
+    return;
+  }
+
+  if (routine.workflowJson) {
+    await executeWorkflowGraph(ctx, input);
     return;
   }
 

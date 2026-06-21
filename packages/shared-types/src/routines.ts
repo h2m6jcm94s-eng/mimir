@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+export const RoutineSourceFormat = z.enum(['native', 'n8n']);
+export type RoutineSourceFormat = z.infer<typeof RoutineSourceFormat>;
+
 export const Routine = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid(),
@@ -10,6 +13,11 @@ export const Routine = z.object({
   jobInput: z.record(z.unknown()).default({}),
   tier: z.union([z.literal(0), z.literal(1), z.literal(2)]).default(0),
   enabled: z.boolean().default(true),
+  sourceFormat: RoutineSourceFormat.default('native'),
+  workflowJson: z.record(z.unknown()).optional(),
+  nodeId: z.string().uuid().optional(),
+  optimizedAt: z.string().datetime().optional(),
+  optimizationLog: z.array(z.record(z.unknown())).optional(),
   nextRunAt: z.string().datetime().optional(),
   lastRunAt: z.string().datetime().optional(),
   lastRunStatus: z.string().optional(),
@@ -26,6 +34,7 @@ export const RoutineRun = z.object({
   routineId: z.string().uuid(),
   jobId: z.string().uuid().optional(),
   status: z.enum(['pending', 'running', 'done', 'failed']).default('pending'),
+  metadata: z.record(z.unknown()).optional(),
   startedAt: z.string().datetime().optional(),
   finishedAt: z.string().datetime().optional(),
   errorCode: z.string().optional(),
@@ -42,6 +51,9 @@ export const CreateRoutineRequest = z.object({
   jobInput: z.record(z.unknown()).default({}),
   tier: z.union([z.literal(0), z.literal(1), z.literal(2)]).default(0),
   enabled: z.boolean().default(true),
+  sourceFormat: RoutineSourceFormat.default('native'),
+  workflowJson: z.record(z.unknown()).optional(),
+  nodeId: z.string().uuid().optional(),
 });
 export type CreateRoutineRequest = z.infer<typeof CreateRoutineRequest>;
 
@@ -53,6 +65,10 @@ export const UpdateRoutineRequest = z.object({
   jobInput: z.record(z.unknown()).optional(),
   tier: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
   enabled: z.boolean().optional(),
+  sourceFormat: RoutineSourceFormat.optional(),
+  workflowJson: z.record(z.unknown()).optional(),
+  nodeId: z.string().uuid().optional(),
+  optimizationLog: z.array(z.record(z.unknown())).optional(),
 });
 export type UpdateRoutineRequest = z.infer<typeof UpdateRoutineRequest>;
 

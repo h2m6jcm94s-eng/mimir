@@ -45,6 +45,7 @@ import { taskRoutes } from './routes/tasks';
 import { toolsRoutes } from './routes/tools';
 import { userRoutes } from './routes/users';
 import { valuesRoutes } from './routes/values';
+import { workflowRoutes } from './routes/workflows';
 import { httpRequestsCounter } from './services/metrics/registry';
 import { initializeLibSqlSchema } from './services/state/libsql-schema';
 import { ensureDigestSchedule, getTemporalConnection } from './temporal/client';
@@ -129,6 +130,7 @@ async function main() {
   app.register(sshCaRoutes, { prefix: '/v1' });
   app.register(haltRoutes, { prefix: '/v1/halt' });
   app.register(valuesRoutes, { prefix: '/v1/values' });
+  app.register(workflowRoutes, { prefix: '/v1/workflows' });
 
   app.addHook('onResponse', async (request, reply) => {
     const path = request.routeOptions.url ?? request.url.split('?')[0] ?? '/';

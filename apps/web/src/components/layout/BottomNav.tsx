@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Target,
   Wand2,
+  Workflow,
   X,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -42,6 +43,7 @@ const more = [
   { href: '/skills', label: 'Skills', icon: Wand2 },
   { href: '/connectors', label: 'Connectors', icon: Puzzle },
   { href: '/routines', label: 'Routines', icon: Command },
+  { href: '/workflows', label: 'Workflows', icon: Workflow },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
   { href: '/values', label: 'Values', icon: Target },
   { href: '/marketplace', label: 'Marketplace', icon: Package },

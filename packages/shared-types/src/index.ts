@@ -18,6 +18,7 @@ export * from './sso';
 export * from './users';
 export * from './reports';
 export * from './routines';
+export * from './workflows';
 export * from './sessions';
 export * from './email-digest';
 export * from './values';

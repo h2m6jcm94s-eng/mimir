@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   Target,
   Wand2,
+  Workflow,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -54,6 +55,7 @@ const tertiary = [
   { href: '/skills', label: 'Skills', icon: Wand2 },
   { href: '/connectors', label: 'Connectors', icon: Puzzle },
   { href: '/routines', label: 'Routines', icon: Command },
+  { href: '/workflows', label: 'Workflows', icon: Workflow },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
   { href: '/life-admin', label: 'Life admin', icon: CalendarCheck },
   { href: '/marketing', label: 'Marketing', icon: Megaphone },
