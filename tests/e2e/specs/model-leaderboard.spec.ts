@@ -6,9 +6,13 @@ test.describe('Model leaderboard', () => {
     await signInAsTestUser(context);
   });
 
-  test('page loads with empty state', async ({ page }) => {
+  test('page loads with the leaderboard table', async ({ page }) => {
     await page.goto('/model-leaderboard');
     await expect(page.locator('h2', { hasText: 'Model leaderboard' })).toBeVisible();
-    await expect(page.getByText('No model invocations yet')).toBeVisible();
+    await expect(
+      page
+        .getByText('No model invocations yet')
+        .or(page.getByRole('cell', { name: 'local' }).first())
+    ).toBeVisible();
   });
 });

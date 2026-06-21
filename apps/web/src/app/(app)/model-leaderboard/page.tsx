@@ -110,7 +110,7 @@ export default function ModelLeaderboardPage() {
             {entries.length === 0 && !loading && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-[var(--text-muted)]">
-                  No model invocations yet. Use the router to start collecting telemetry.
+                  No model invocations yet
                 </td>
               </tr>
             )}

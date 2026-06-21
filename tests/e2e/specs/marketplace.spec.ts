@@ -1,10 +1,12 @@
 import { expect, test } from '@playwright/test';
+import { signInAsTestUser } from '../fixtures/auth';
 
 /**
  * Marketplace page tests.
  */
 test.describe('Marketplace', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context }) => {
+    await signInAsTestUser(context);
     await page.goto('/marketplace');
   });
 

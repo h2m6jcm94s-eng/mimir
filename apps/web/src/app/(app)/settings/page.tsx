@@ -1148,7 +1148,7 @@ export default function SettingsPage() {
                       <div className="mb-4 flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-[var(--text-primary)]">
-                            Mimir Local runtime
+                            Local runtime package
                           </p>
                           <p className="text-xs text-[var(--text-secondary)]">
                             Run chat and embeddings on your own hardware via Ollama (Tier 0).
