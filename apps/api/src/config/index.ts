@@ -41,7 +41,7 @@ function loadModelProviderConfig(): ModelProviderConfig {
   // Fall back to sensible defaults when nothing is configured.
   if (raw[0].length === 0 && raw[1].length === 0 && raw[2].length === 0) {
     return ModelProviderConfig.parse({
-      0: [{ provider: 'local' }],
+      0: [{ provider: 'mimir-local' }, { provider: 'local' }],
       1: [{ provider: 'openai' }, { provider: 'kimi' }, { provider: 'groq' }],
       2: [{ provider: 'openai' }, { provider: 'kimi' }, { provider: 'groq' }],
     });

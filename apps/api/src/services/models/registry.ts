@@ -1,6 +1,7 @@
 import type { ModelProviderConfig, ModelProviderEntry } from '@mimir/shared-types';
 import { AnthropicMessagesProvider, AnthropicProvider } from './providers/anthropic';
 import { LocalProvider } from './providers/local';
+import { MimirLocalProvider } from './providers/mimir-local';
 import { OllamaProvider } from './providers/ollama';
 import { OpenAICompatibleProvider } from './providers/openai-compatible';
 import { getEnv } from './providers/types';
@@ -38,6 +39,7 @@ const allProviders: Record<string, () => ModelProvider> = {
   groq: () => new OpenAICompatibleProvider('groq', 'Groq'),
   anthropic: () => new AnthropicProvider(),
   ollama: () => new OllamaProvider(),
+  'mimir-local': () => new MimirLocalProvider(),
 };
 
 export class ProviderRegistry {

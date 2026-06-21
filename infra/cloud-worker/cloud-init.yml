@@ -1,0 +1,36 @@
+#cloud-config
+runcmd:
+  - |
+    set -euo pipefail
+
+    TAILSCALE_AUTH_KEY="{{tailscale_auth_key}}"
+    WEBHOOK_URL="{{webhook_url}}"
+    JOB_PAYLOAD="{{job_payload}}"
+
+    MOUNT_POINT="/mnt/mimir-work"
+    mkdir -p "$MOUNT_POINT"
+    mount -t tmpfs -o size=2G,mode=700 tmpfs "$MOUNT_POINT"
+
+    # Join the tailnet with the cloud tag. The ACL prevents this node from
+    # reaching the private mesh (brain/desktop/phone).
+    tailscale up --authkey "$TAILSCALE_AUTH_KEY" --advertise-tags tag:cloud --accept-routes=false
+
+    echo "$JOB_PAYLOAD" | base64 -d > "$MOUNT_POINT/job.json"
+
+    EXIT_CODE=0
+    docker run --rm --network none \
+      -v "$MOUNT_POINT:/work:rw" \
+      mimir/cloud-worker:latest \
+      /work/job.json > "$MOUNT_POINT/result.json" 2> "$MOUNT_POINT/stderr.log" || EXIT_CODE=$?
+
+    curl -fsS -X POST "$WEBHOOK_URL" \
+      -H "Content-Type: application/json" \
+      -d @"<(jq -n \
+        --argjson exit_code \"$EXIT_CODE\" \
+        --slurpfile result \"$MOUNT_POINT/result.json\" \
+        --rawfile stderr \"$MOUNT_POINT/stderr.log\" \
+        '{exitCode:$exit_code, result:$result[0], stderr:$stderr}')"
+
+    rm -rf "$MOUNT_POINT"/*
+    umount "$MOUNT_POINT"
+    shutdown -h now

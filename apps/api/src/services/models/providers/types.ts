@@ -1,9 +1,11 @@
 import type { ModelInput, ModelOutput } from '@mimir/shared-types';
+import type { TenantContext } from '../../../db/tenant-context';
 
 export interface ProviderInvokeOptions {
   tier: 0 | 1 | 2;
   model?: string;
   maxTokens?: number;
+  ctx?: TenantContext;
 }
 
 export interface ModelProvider {

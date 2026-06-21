@@ -56,11 +56,29 @@ resource "aws_iam_role_policy" "cloud_worker" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Deny"
-      Action   = "*"
-      Resource = "*"
-    }]
+    Statement = [
+      {
+        Sid    = "CloudWatchLogs"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+        ]
+        Resource = "arn:aws:logs:*:*:log-group:/mimir/cloud-worker*"
+      },
+      {
+        Sid    = "ECRPull"
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+        ]
+        Resource = "*"
+      },
+    ]
   })
 }
 
@@ -87,7 +105,7 @@ resource "aws_launch_template" "cloud_worker" {
     http_tokens = "required"
   }
 
-  user_data = base64encode(templatefile("${path.module}/user-data.sh", {
+  user_data = base64encode(templatefile("${path.module}/../../infra/cloud-worker/cloud-init.yml", {
     tailscale_auth_key = var.tailscale_auth_key
     webhook_url        = var.webhook_url
     job_payload        = var.job_payload

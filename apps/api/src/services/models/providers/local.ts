@@ -3,10 +3,11 @@ import type { ModelProvider, ProviderInvokeOptions } from './types';
 
 export class LocalProvider implements ModelProvider {
   readonly id = 'local';
-  readonly name = 'Local (stub)';
+  readonly name = 'Mimir Local (offline stub)';
   readonly supportedTiers = [0, 1, 2] as const;
   readonly local = true;
-  setupHint = 'No configuration required.';
+  setupHint =
+    'Mimir Local is not configured. Install Ollama and download the Mimir Local model from Settings -> Mimir Local.';
 
   isAvailable(): boolean {
     return true;

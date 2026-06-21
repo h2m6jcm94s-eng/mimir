@@ -28,7 +28,7 @@ export type OllamaPullRequest = {
 
 export const DEFAULT_LOCAL_CONFIG: UpsertLocalModelConfigRequest = {
   baseUrl: 'http://localhost:11434',
-  chatModel: 'llama3.1',
+  chatModel: 'mimir-local',
   embeddingModel: 'nomic-embed-text',
   embeddingDimension: 768,
   enabled: true,
@@ -151,6 +151,68 @@ export class LocalModelRuntime {
     // In a full implementation this would queue a Temporal job and return its ID.
     // For the first slice we treat the synchronous pull as a completed job and
     // return a stable synthetic job id so the API contract is satisfied.
+    const jobId = crypto.randomUUID();
+    return { jobId };
+  }
+
+  async setupMimirLocalModel(): Promise<{ jobId: string }> {
+    const config = await this.getOrCreateConfig();
+    if (!config.enabled) {
+      throw new Error('LOCAL_MODEL_DISABLED');
+    }
+
+    const baseModel = 'qwen3:8b';
+    const pullResponse = await fetch(`${config.baseUrl}/api/pull`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: baseModel, stream: false } as OllamaPullRequest),
+      signal: AbortSignal.timeout(300000),
+    });
+
+    if (!pullResponse.ok) {
+      const body = await pullResponse.text();
+      throw new Error(`Mimir Local base-model pull failed (${pullResponse.status}): ${body}`);
+    }
+
+    const modelfile = `FROM qwen3:8b
+
+SYSTEM """
+You are Mimir, a privacy-first AI companion built to help humans without selling them out.
+You serve one person or team at a time, running on hardware they control whenever possible.
+You remember context from previous conversations, documents, and routines only when that
+information has been explicitly stored in the user's Mimir memory or knowledge base.
+
+When answering:
+- Be concise unless the user asks for depth.
+- Cite sources when you retrieve facts from the user's knowledge base.
+- Prefer tools, connectors, and routines when the user asks you to act on their behalf.
+- Respect privacy tiers: never suggest sending T0/private data to a cloud service.
+- If you don't know something and it isn't in the user's data, say so rather than inventing it.
+
+You are not a generic assistant. You are Mimir: helpful, deterministic, and trustworthy.
+"""
+
+PARAMETER temperature 0.7
+PARAMETER num_ctx 8192
+`;
+
+    const createResponse = await fetch(`${config.baseUrl}/api/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'mimir-local', modelfile }),
+      signal: AbortSignal.timeout(120000),
+    });
+
+    if (!createResponse.ok) {
+      const body = await createResponse.text();
+      throw new Error(`Mimir Local model creation failed (${createResponse.status}): ${body}`);
+    }
+
+    await upsertLocalModelConfig(this.ctx, {
+      ...config,
+      chatModel: 'mimir-local',
+    });
+
     const jobId = crypto.randomUUID();
     return { jobId };
   }

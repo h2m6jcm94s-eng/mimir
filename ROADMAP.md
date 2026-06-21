@@ -1963,10 +1963,12 @@ Airtable base when M6 lands (F‑020).
 | F‑084 | **Email digest delivery**: daily/weekly rollup of notifications, tasks, approvals, and reports via SMTP / MS Graph | Pro | P1 | ✅ Phase 1 | api | 2027‑Q1 | M8 |
 | F‑085 | **Browser extension quick capture**: clip web pages, selected text, and images into the second brain with one click; trigger quick actions | Free | P1 | ✅ | web | 2026‑11 | M4 |
 | F‑086 | **Cross-device session handoff**: seamlessly continue a chat/session across laptop, desktop, and phone nodes | Free | P2 | ✅ | api | 2027‑Q1 | M7 |
-| F‑087 | **Local model runtime for T0**: ollama/llama.cpp provider integration so T0/private data never leaves the device | Free | P1 | ✅ Phase 1 | api | 2026‑12 | M4 |
-| F‑088 | **Workflow platform — n8n ingestion & visual builder**: import/export n8n workflows, build/edit workflows visually, AI task-delegation optimizer, and connector-action workflow nodes | Pro | P1 | ⬜ | api/web | 2027‑Q2 | M8 |
+| F‑087 | **Local model runtime for T0**: ollama/llama.cpp provider integration so T0/private data never leaves the device; now defaults to the branded `mimir-local` model backed by Qwen 3 8B with a Mimir identity prompt | Free | P1 | ✅ Phase 1 | api | 2026‑12 | M4 |
+| F‑088 | **Workflow platform — n8n ingestion & visual builder**: import/export n8n workflows, build/edit workflows visually, AI task-delegation optimizer, and connector-action workflow nodes | Pro | P1 | ✅ Phase 1 (backend: n8n import, generate, optimize, execute, `/workflows` UI) | api/web | 2027‑Q2 | M8 |
 | F‑089 | **Device-scoped workflow runtime**: bind workflows/routines to specific nodes/devices, node-aware execution, and per-device workflow assignments | Pro | P1 | ⬜ | api/web | 2027‑Q2 | M8 |
 | F‑090 | **Self-building skill agent + marketplace**: detect useful features, build them in an isolated sandbox with retry/give-up limits, and publish successful skills to a marketplace for Pro/Premium users | Enterprise | P1 | ⬜ | api/web | 2027‑Q3 | M9 |
+| F‑091 | **Mimir Local out-of-the-box model** (Phase 1): `mimir-local` model wrapped around Qwen 3 8B with a Mimir identity/system prompt; made the default T0 provider; one-click download in Settings → Mimir Local | Free | P0 | ✅ Phase 1 | api/web | 2026‑12 | M4 |
+| F‑092 | **Production container packaging + cloud-worker cloud-init unification** (Phase 1): Dockerfiles for API, web, and worker; `docker-compose.prod.yml`; shared `infra/cloud-worker/cloud-init.yml` template used by API provisioner and Terraform; hardened cloud-worker IAM policy | Pro | P1 | ✅ Phase 1 | infra | 2026‑12 | M4 |
 
 **Recommended next build order.** Based on current platform capabilities, the highest-leverage next items are:
 1. **F‑088 Workflow platform — n8n ingestion & visual builder** — turns F‑083 routines into a real automation product with n8n compatibility.

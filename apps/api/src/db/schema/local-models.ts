@@ -9,7 +9,7 @@ export const localModelConfig = pgTable(
       .notNull()
       .references(() => tenant.id, { onDelete: 'cascade' }),
     baseUrl: text('base_url').notNull().default('http://localhost:11434'),
-    chatModel: text('chat_model').notNull().default('llama3.1'),
+    chatModel: text('chat_model').notNull().default('mimir-local'),
     embeddingModel: text('embedding_model').notNull().default('nomic-embed-text'),
     embeddingDimension: integer('embedding_dimension').notNull().default(768),
     enabled: boolean('enabled').notNull().default(true),

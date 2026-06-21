@@ -35,7 +35,7 @@ describe('local model routes', () => {
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
     expect(body.data.baseUrl).toBe('http://localhost:11434');
-    expect(body.data.chatModel).toBe('llama3.1');
+    expect(body.data.chatModel).toBe('mimir-local');
     expect(body.data.enabled).toBe(true);
   });
 
@@ -193,4 +193,67 @@ describe('local model routes', () => {
       await server.close();
     }
   });
+
+  it.skipIf(!process.env.RUN_DB_TESTS)(
+    'sets up the Mimir Local model through mocked Ollama',
+    async () => {
+      const server = await startMockServer((req, res) => {
+        if (req.url === '/api/pull' && req.method === 'POST') {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ status: 'success' }));
+          return;
+        }
+        if (req.url === '/api/create' && req.method === 'POST') {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ status: 'success' }));
+          return;
+        }
+        res.writeHead(404);
+        res.end('not found');
+      });
+
+      try {
+        const token = `local_models_setup_${Date.now()}`;
+        const app = await buildTestApp(async (app) => {
+          await app.register(localModelRoutes, { prefix: '/v1/models/local' });
+        });
+
+        await resolveAuthUser(token, `${token}@test.local`);
+
+        await app.inject({
+          method: 'PUT',
+          url: '/v1/models/local/config',
+          headers: { authorization: `Bearer ${token}` },
+          payload: {
+            baseUrl: server.baseUrl,
+            chatModel: 'llama3.1',
+            embeddingModel: 'nomic-embed-text',
+            embeddingDimension: 768,
+            enabled: true,
+          },
+        });
+
+        const response = await app.inject({
+          method: 'POST',
+          url: '/v1/models/local/setup-mimir',
+          headers: { authorization: `Bearer ${token}` },
+        });
+
+        expect(response.statusCode).toBe(202);
+        const body = JSON.parse(response.body);
+        expect(body.data.jobId).toMatch(/^[0-9a-f-]{36}$/);
+        expect(body.data.status).toBe('queued');
+
+        const configResponse = await app.inject({
+          method: 'GET',
+          url: '/v1/models/local/config',
+          headers: { authorization: `Bearer ${token}` },
+        });
+        const configBody = JSON.parse(configResponse.body);
+        expect(configBody.data.chatModel).toBe('mimir-local');
+      } finally {
+        await server.close();
+      }
+    }
+  );
 });

@@ -1,0 +1,139 @@
+# Production-ish compose for self-hosting Mimir on a single node.
+# Copy .env.example to .env, fill in secrets, then run:
+#   docker compose -f docker-compose.prod.yml up --build
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mimir_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mimir_app}
+      POSTGRES_DB: ${POSTGRES_DB:-mimir}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mimir_app} -d ${POSTGRES_DB:-mimir}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "6379:6379"
+
+  temporal:
+    image: temporalio/auto-setup:latest
+    environment:
+      DB: postgresql
+      DB_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-mimir_app}
+      POSTGRES_PWD: ${POSTGRES_PASSWORD:-mimir_app}
+      POSTGRES_SEEDS: postgres
+      DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/development-sql.yaml
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "7233:7233"
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      - temporal
+    ports:
+      - "8080:8080"
+
+  supertokens:
+    image: registry.supertokens.io/supertokens/supertokens-postgresql:9.3
+    environment:
+      POSTGRESQL_CONNECTION_URI: "postgresql://${POSTGRES_USER:-mimir_app}:${POSTGRES_PASSWORD:-mimir_app}@postgres:5432/${POSTGRES_DB:-mimir}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3567:3567"
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    env_file:
+      - .env
+    environment:
+      PORT: 3001
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-mimir_app}:${POSTGRES_PASSWORD:-mimir_app}@postgres:5432/${POSTGRES_DB:-mimir}"
+      REDIS_URL: "redis://redis:6379"
+      TEMPORAL_HOST: "temporal:7233"
+      SUPERTOKENS_CONNECTION_URI: "http://supertokens:3567"
+      AUTH_DOMAIN: "http://api:3001"
+      WEB_APP_DOMAIN: "http://web:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_started
+      supertokens:
+        condition: service_started
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3001/readyz', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-mimir_app}:${POSTGRES_PASSWORD:-mimir_app}@postgres:5432/${POSTGRES_DB:-mimir}"
+      REDIS_URL: "redis://redis:6379"
+      TEMPORAL_HOST: "temporal:7233"
+      SUPERTOKENS_CONNECTION_URI: "http://supertokens:3567"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_started
+      supertokens:
+        condition: service_started
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    env_file:
+      - .env
+    environment:
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: "http://localhost:3001"
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
+  redis_data:

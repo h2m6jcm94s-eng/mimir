@@ -1,4 +1,5 @@
 import { EC2Client, RunInstancesCommand, type RunInstancesCommandInput } from '@aws-sdk/client-ec2';
+import { renderCloudInit } from './cloud-init';
 import { signReturnToken } from './token';
 
 export interface ProvisionCloudWorkerInput {
@@ -57,13 +58,11 @@ export async function provisionCloudWorker(
         ],
       },
     ],
-    UserData: Buffer.from(
-      JSON.stringify({
-        tailscaleAuthKey,
-        webhookUrl: returnUrl,
-        jobPayload: Buffer.from(JSON.stringify(input.jobPayload ?? {})).toString('base64'),
-      })
-    ).toString('base64'),
+    UserData: renderCloudInit({
+      tailscaleAuthKey,
+      webhookUrl: returnUrl,
+      jobPayloadBase64: Buffer.from(JSON.stringify(input.jobPayload ?? {})).toString('base64'),
+    }),
   };
 
   const command = new RunInstancesCommand(params);

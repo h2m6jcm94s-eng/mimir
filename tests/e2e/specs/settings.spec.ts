@@ -158,20 +158,20 @@ test.describe('Settings', () => {
   });
 
   test('local models tab loads and shows offline status by default', async ({ page }) => {
-    await page.getByRole('button', { name: 'Local models' }).click();
-    await expect(page.getByRole('heading', { name: 'Local model runtime' })).toBeVisible();
+    await page.getByRole('button', { name: 'Mimir Local' }).click();
+    await expect(page.getByRole('heading', { name: 'Mimir Local runtime' })).toBeVisible();
     await expect(page.getByText('Offline')).toBeVisible();
   });
 
   test('local models tab saves config and probes mocked Ollama', async ({ page, apiRequest }) => {
     const mock = await startMockOllama();
     try {
-      await page.getByRole('button', { name: 'Local models' }).click();
-      await expect(page.getByLabel('Ollama base URL')).toBeVisible();
+      await page.getByRole('button', { name: 'Mimir Local' }).click();
+      await expect(page.getByLabel('Local runtime base URL')).toBeVisible();
 
-      await page.getByLabel('Ollama base URL').fill(mock.baseUrl);
-      await page.getByLabel('Chat model').fill('llama3.1');
-      await page.getByLabel('Embedding model').fill('nomic-embed-text');
+      await page.getByLabel('Local runtime base URL').fill(mock.baseUrl);
+      await page.getByLabel('Mimir chat model').fill('llama3.1');
+      await page.getByLabel('Mimir embedding model').fill('nomic-embed-text');
       await page.getByRole('button', { name: 'Save local model config' }).click();
 
       await expect(page.getByText('Online')).toBeVisible();

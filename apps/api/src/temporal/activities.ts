@@ -120,6 +120,7 @@ export async function build(input: TaskRunInput): Promise<BuildResult> {
       provider,
       model,
       maxTokens: maxTokens as number | undefined,
+      ctx,
     });
 
     const callCostUsd = modelOutput.costUsd ?? 0;

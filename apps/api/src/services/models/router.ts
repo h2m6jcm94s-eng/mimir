@@ -1,6 +1,7 @@
 import type { ModelInput, ModelOutput } from '@mimir/shared-types';
 import type { AppConfig } from '../../config';
 import { loadConfig } from '../../config';
+import type { TenantContext } from '../../db/tenant-context';
 import { CircuitBreaker } from './circuit-breaker';
 import { computeCostUsd } from './pricing';
 import { LocalProvider } from './providers/local';
@@ -13,7 +14,7 @@ type ModelProviderLike = {
   local: boolean;
   invoke: (
     input: ModelInput,
-    options: { tier: 0 | 1 | 2; model?: string; maxTokens?: number }
+    options: { tier: 0 | 1 | 2; model?: string; maxTokens?: number; ctx?: TenantContext }
   ) => Promise<ModelOutput>;
 };
 
@@ -27,6 +28,7 @@ export interface ModelRouterOptions {
   provider?: string;
   model?: string;
   maxTokens?: number;
+  ctx?: TenantContext;
 }
 
 export class ModelRouter {
@@ -47,7 +49,7 @@ export class ModelRouter {
     return breaker;
   }
 
-  route(tier: 0 | 1 | 2, providerId?: string): ModelAdapter {
+  route(tier: 0 | 1 | 2, providerId?: string, ctx?: TenantContext): ModelAdapter {
     const provider = this.registry.find(tier, providerId) ?? this.fallback;
     this.assertTierContainment(tier, [provider]);
     return {
@@ -56,6 +58,7 @@ export class ModelRouter {
       invoke: (input) =>
         this.invokeWithFailover(tier, input, [provider], {
           model: providerId ? undefined : undefined,
+          ctx,
         }),
     };
   }
@@ -98,6 +101,7 @@ export class ModelRouter {
         tier,
         model: options?.model,
         maxTokens: options?.maxTokens,
+        ctx: options?.ctx,
       });
       return this.attachCost(output);
     }
@@ -110,6 +114,7 @@ export class ModelRouter {
           tier,
           model: options?.model,
           maxTokens: options?.maxTokens,
+          ctx: options?.ctx,
         });
         this.getBreaker(provider.id).recordSuccess();
         return this.attachCost(output);

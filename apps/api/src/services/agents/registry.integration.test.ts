@@ -17,7 +17,7 @@ describe('AgentRoleRegistry', () => {
 
     expect(roles.length).toBeGreaterThan(0);
     const mainT0 = roles.find((r) => r.kind === 'main' && r.tier === 0);
-    expect(mainT0?.provider).toBe('local');
+    expect(mainT0?.provider).toBe('mimir-local');
   });
 
   it.skipIf(!process.env.RUN_DB_TESTS)(

@@ -91,6 +91,7 @@ export const ProviderId = z.enum([
   'kimi',
   'qwen',
   'ollama',
+  'mimir-local',
   'groq',
 ]);
 export type ProviderId = z.infer<typeof ProviderId>;

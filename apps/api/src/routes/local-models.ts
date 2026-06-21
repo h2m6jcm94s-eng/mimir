@@ -108,4 +108,31 @@ export async function localModelRoutes(app: FastifyInstance) {
       }
     }
   );
+
+  app.post(
+    '/setup-mimir',
+    { config: protectedRouteConfig, preHandler: requireScope(Scopes.LOCAL_MODELS_WRITE) },
+    async (request: FastifyRequest, reply) => {
+      const user = request.user;
+      if (!user) {
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+      }
+
+      try {
+        const result = await withTenantTransaction(user.tenantId, async (ctx) => {
+          const runtime = new LocalModelRuntime(ctx);
+          return runtime.setupMimirLocalModel();
+        });
+
+        return reply.status(202).send({ data: { jobId: result.jobId, status: 'queued' } });
+      } catch (error) {
+        const code =
+          error instanceof Error && error.message === 'LOCAL_MODEL_DISABLED'
+            ? 'LOCAL_MODEL_DISABLED'
+            : 'MIMIR_LOCAL_SETUP_FAILED';
+        const message = error instanceof Error ? error.message : String(error);
+        return reply.status(503).send({ error: { code, message } });
+      }
+    }
+  );
 }

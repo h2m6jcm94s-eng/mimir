@@ -34,7 +34,7 @@ type Tab =
   | 'nodes'
   | 'security'
   | 'budget'
-  | 'local-models'
+  | 'mimir-local'
   | 'email-digest';
 
 interface Member {
@@ -53,7 +53,7 @@ const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'members', label: 'Members', icon: Users },
   { id: 'security', label: 'Security', icon: Shield },
   { id: 'budget', label: 'Budget', icon: Wallet },
-  { id: 'local-models', label: 'Local models', icon: Cpu },
+  { id: 'mimir-local', label: 'Mimir Local', icon: Cpu },
   { id: 'email-digest', label: 'Email digest', icon: Mail },
 ];
 
@@ -242,7 +242,7 @@ export default function SettingsPage() {
 
   const [localModelConfig, setLocalModelConfig] = useState({
     baseUrl: 'http://localhost:11434',
-    chatModel: 'llama3.1',
+    chatModel: 'mimir-local',
     embeddingModel: 'nomic-embed-text',
     embeddingDimension: 768,
     enabled: true,
@@ -258,6 +258,7 @@ export default function SettingsPage() {
   const [localModelsError, setLocalModelsError] = useState<string | null>(null);
   const [localModelsSaving, setLocalModelsSaving] = useState(false);
   const [localModelsPulling, setLocalModelsPulling] = useState(false);
+  const [localModelsSettingUp, setLocalModelsSettingUp] = useState(false);
   const [pullModelName, setPullModelName] = useState('');
 
   const [digestPreference, setDigestPreference] = useState({
@@ -480,6 +481,21 @@ export default function SettingsPage() {
     }
   }
 
+  async function setupMimirLocal() {
+    setLocalModelsSettingUp(true);
+    setLocalModelsError(null);
+    try {
+      await fetchJson('/api/v1/models/local/setup-mimir', {
+        method: 'POST',
+      });
+      await loadLocalModels();
+    } catch (err) {
+      setLocalModelsError(err instanceof Error ? err.message : 'Failed to set up Mimir Local');
+    } finally {
+      setLocalModelsSettingUp(false);
+    }
+  }
+
   async function loadDigestPreference() {
     try {
       setDigestLoading(true);
@@ -584,7 +600,7 @@ export default function SettingsPage() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: load only when tab becomes active to avoid re-fetch loops
   useEffect(() => {
-    if (tab === 'local-models') {
+    if (tab === 'mimir-local') {
       void loadLocalModels();
     }
   }, [tab]);
@@ -1117,8 +1133,8 @@ export default function SettingsPage() {
               </Section>
             )}
 
-            {tab === 'local-models' && (
-              <Section title="Local model runtime">
+            {tab === 'mimir-local' && (
+              <Section title="Mimir Local runtime">
                 {localModelsError && (
                   <div className="rounded-lg border border-[var(--border-danger)] bg-[var(--bg-danger)] px-4 py-3 text-sm text-[var(--text-danger)]">
                     {localModelsError}
@@ -1126,16 +1142,16 @@ export default function SettingsPage() {
                 )}
                 <div className="rounded-xl bg-[var(--bg-surface)] p-4 shadow-card">
                   {localModelsLoading ? (
-                    <div className="text-sm text-[var(--text-muted)]">Loading local models…</div>
+                    <div className="text-sm text-[var(--text-muted)]">Loading Mimir Local…</div>
                   ) : (
                     <>
                       <div className="mb-4 flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-[var(--text-primary)]">
-                            Local model runtime
+                            Mimir Local runtime
                           </p>
                           <p className="text-xs text-[var(--text-secondary)]">
-                            Run chat and embeddings on your own hardware (Tier 0).
+                            Run chat and embeddings on your own hardware via Ollama (Tier 0).
                           </p>
                         </div>
                         <StatusBadge
@@ -1162,7 +1178,7 @@ export default function SettingsPage() {
                             htmlFor="local-model-url"
                             className="block text-xs font-medium text-[var(--text-secondary)]"
                           >
-                            Ollama base URL
+                            Local runtime base URL
                           </label>
                           <input
                             id="local-model-url"
@@ -1179,7 +1195,7 @@ export default function SettingsPage() {
                             htmlFor="local-chat-model"
                             className="block text-xs font-medium text-[var(--text-secondary)]"
                           >
-                            Chat model
+                            Mimir chat model
                           </label>
                           <input
                             id="local-chat-model"
@@ -1196,7 +1212,7 @@ export default function SettingsPage() {
                             htmlFor="local-embed-model"
                             className="block text-xs font-medium text-[var(--text-secondary)]"
                           >
-                            Embedding model
+                            Mimir embedding model
                           </label>
                           <input
                             id="local-embed-model"
@@ -1251,9 +1267,27 @@ export default function SettingsPage() {
                             />
                           </button>
                           <span className="text-sm text-[var(--text-secondary)]">
-                            Enable local models
+                            Enable Mimir Local
                           </span>
                         </div>
+                      </div>
+
+                      <div className="mb-4 rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-surface-raised)] p-3">
+                        <p className="text-sm font-medium text-[var(--text-primary)]">
+                          Download Mimir Local model
+                        </p>
+                        <p className="mb-2 text-xs text-[var(--text-secondary)]">
+                          Pulls the Qwen 3 8B base weights and creates the branded mimir-local model
+                          (~5 GB download).
+                        </p>
+                        <button
+                          type="button"
+                          disabled={localModelsSettingUp}
+                          onClick={setupMimirLocal}
+                          className="rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-[var(--accent-primary)]/90 disabled:opacity-50"
+                        >
+                          {localModelsSettingUp ? 'Downloading…' : 'Download Mimir Local'}
+                        </button>
                       </div>
 
                       <div className="mb-4">
@@ -1261,7 +1295,7 @@ export default function SettingsPage() {
                           htmlFor="pull-model-name"
                           className="block text-xs font-medium text-[var(--text-secondary)]"
                         >
-                          Pull model
+                          Pull another model
                         </label>
                         <div className="mt-1 flex gap-2">
                           <input
