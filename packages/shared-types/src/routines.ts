@@ -67,7 +67,7 @@ export const UpdateRoutineRequest = z.object({
   enabled: z.boolean().optional(),
   sourceFormat: RoutineSourceFormat.optional(),
   workflowJson: z.record(z.unknown()).optional(),
-  nodeId: z.string().uuid().optional(),
+  nodeId: z.string().uuid().optional().nullable(),
   optimizationLog: z.array(z.record(z.unknown())).optional(),
 });
 export type UpdateRoutineRequest = z.infer<typeof UpdateRoutineRequest>;

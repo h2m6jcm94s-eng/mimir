@@ -72,4 +72,52 @@ test.describe('Workflows', () => {
 
     await expect(page.getByText('Daily Telegram')).toBeVisible();
   });
+
+  test('assigns a workflow to a node and shows the assignment', async ({ page, apiRequest }) => {
+    // Enroll a node so it can be assigned.
+    const nodeResponse = await apiRequest.post('/v1/nodes/enroll', {
+      data: { kind: 'desktop', name: 'Test Desktop', tier: 1 },
+      headers: apiRequestHeaders(),
+    });
+    if (!nodeResponse.ok()) {
+      throw new Error(`Failed to enroll node: ${await nodeResponse.text()}`);
+    }
+    const node = (await nodeResponse.json()) as { id: string; name: string };
+
+    // Create a workflow via the API so we can reliably target it.
+    const workflowResponse = await apiRequest.post('/v1/workflows/import/n8n', {
+      data: {
+        name: 'Node-bound workflow',
+        description: 'Bound to a device',
+        n8nWorkflowJson: {
+          name: 'Node-bound workflow',
+          nodes: [
+            {
+              name: 'Every day',
+              type: 'n8n-nodes-base.scheduleTrigger',
+              parameters: { rule: { interval: 1, unit: 'days' } },
+              position: [100, 200],
+            },
+          ],
+          connections: {},
+        },
+      },
+      headers: apiRequestHeaders(),
+    });
+    if (!workflowResponse.ok()) {
+      throw new Error(`Failed to create workflow: ${await workflowResponse.text()}`);
+    }
+    const workflow = (await workflowResponse.json()) as { data: WorkflowItem };
+
+    await page.reload();
+    await page.getByText('Node-bound workflow').click();
+
+    // Assign the node in the UI.
+    await page.getByRole('combobox').first().selectOption(node.id);
+    await expect(page.getByText('Assigned node:')).toBeVisible();
+    await expect(page.getByText('Test Desktop').first()).toBeVisible();
+
+    // The node assignment panel also reflects the binding.
+    await expect(page.getByText('1 workflow')).toBeVisible();
+  });
 });

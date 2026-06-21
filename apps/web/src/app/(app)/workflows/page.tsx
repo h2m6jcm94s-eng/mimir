@@ -2,7 +2,8 @@
 
 import { PageHeader } from '@/components/ui/PageHeader';
 import { cn } from '@/lib/utils';
-import { Play, Plus, Wand2, Workflow } from 'lucide-react';
+import type { Node } from '@mimir/shared-types';
+import { Play, Plus, Server, Wand2, Workflow } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 interface WorkflowNode {
@@ -25,6 +26,7 @@ interface WorkflowItem {
   cron: string;
   enabled: boolean;
   sourceFormat: string;
+  nodeId?: string;
   workflowJson?: { nodes: WorkflowNode[]; edges: WorkflowEdge[] };
   optimizationLog?: unknown[];
   lastRunStatus?: string;
@@ -35,6 +37,8 @@ interface WorkflowRun {
   status: string;
   createdAt: string;
   metadata?: Record<string, unknown>;
+  errorCode?: string;
+  errorMessage?: string;
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -59,10 +63,12 @@ export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<WorkflowItem[]>([]);
   const [selected, setSelected] = useState<WorkflowItem | null>(null);
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
+  const [nodes, setNodes] = useState<Node[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [importJson, setImportJson] = useState('');
   const [generateText, setGenerateText] = useState('');
+  const [assigningNode, setAssigningNode] = useState(false);
 
   const loadWorkflows = useCallback(() => {
     setLoading(true);
@@ -76,6 +82,16 @@ export default function WorkflowsPage() {
   useEffect(() => {
     loadWorkflows();
   }, [loadWorkflows]);
+
+  const loadNodes = useCallback(() => {
+    fetchJson<{ data: Node[] }>('/api/v1/nodes')
+      .then((res) => setNodes(res.data))
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
+  }, []);
+
+  useEffect(() => {
+    loadNodes();
+  }, [loadNodes]);
 
   useEffect(() => {
     if (selected) {
@@ -131,6 +147,21 @@ export default function WorkflowsPage() {
       }
     );
     loadWorkflows();
+  }
+
+  async function assignNode(workflowId: string, nodeId: string) {
+    setAssigningNode(true);
+    try {
+      const body = await fetchJson<{ data: WorkflowItem }>(`/api/v1/workflows/${workflowId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nodeId: nodeId || null }),
+      });
+      setSelected(body.data);
+      await loadWorkflows();
+    } finally {
+      setAssigningNode(false);
+    }
   }
 
   return (
@@ -254,9 +285,35 @@ export default function WorkflowsPage() {
                     {selected.lastRunStatus ?? 'never run'}
                   </div>
                   <div className="text-sm">
+                    <span className="text-[var(--text-muted)]">Assigned node:</span>{' '}
+                    {selected.nodeId ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Server className="h-3.5 w-3.5" />
+                        {nodes.find((n) => n.id === selected.nodeId)?.name ?? selected.nodeId}
+                      </span>
+                    ) : (
+                      'Any node'
+                    )}
+                  </div>
+                  <div className="text-sm">
                     <span className="text-[var(--text-muted)]">Nodes:</span>{' '}
                     {selected.workflowJson?.nodes.length ?? 0}
                   </div>
+                </div>
+                <div className="mt-4 flex items-center gap-2">
+                  <select
+                    value={selected.nodeId ?? ''}
+                    onChange={(e) => assignNode(selected.id, e.target.value)}
+                    disabled={assigningNode}
+                    className="h-9 rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] px-3 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)] disabled:opacity-50"
+                  >
+                    <option value="">Any node</option>
+                    {nodes.map((node) => (
+                      <option key={node.id} value={node.id}>
+                        {node.name} ({node.status})
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -302,6 +359,41 @@ export default function WorkflowsPage() {
                 </div>
               )}
 
+              {nodes.length > 0 && (
+                <div className="rounded-lg border p-4">
+                  <h3 className="mb-3 font-medium">Node assignments</h3>
+                  <div className="space-y-2">
+                    {nodes.map((node) => {
+                      const assigned = workflows.filter((wf) => wf.nodeId === node.id);
+                      return (
+                        <div
+                          key={node.id}
+                          className="flex items-center justify-between rounded-md bg-[var(--bg-surface-raised)] p-3 text-sm"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Server className="h-4 w-4 text-[var(--text-muted)]" />
+                            <span className="font-medium">{node.name}</span>
+                            <span
+                              className={cn(
+                                'rounded-full px-2 py-0.5 text-[10px] font-medium',
+                                node.status === 'up'
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-200'
+                                  : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-200'
+                              )}
+                            >
+                              {node.status}
+                            </span>
+                          </div>
+                          <span className="text-xs text-[var(--text-muted)]">
+                            {assigned.length} workflow{assigned.length === 1 ? '' : 's'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {runs.length > 0 && (
                 <div className="rounded-lg border p-4">
                   <h3 className="mb-3 font-medium">Recent runs</h3>
@@ -311,18 +403,32 @@ export default function WorkflowsPage() {
                         key={run.id}
                         className="flex items-center justify-between rounded-md bg-[var(--bg-surface-raised)] p-3 text-sm"
                       >
-                        <span
-                          className={cn(
-                            'rounded-full px-2 py-0.5 text-xs',
-                            run.status === 'done'
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200'
-                              : run.status === 'failed'
-                                ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-200'
-                                : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200'
+                        <div className="flex flex-col gap-0.5">
+                          <span
+                            className={cn(
+                              'w-fit rounded-full px-2 py-0.5 text-xs',
+                              run.status === 'done'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200'
+                                : run.status === 'failed'
+                                  ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-200'
+                                  : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200'
+                            )}
+                          >
+                            {run.status}
+                          </span>
+                          {(run.errorCode || typeof run.metadata?.targetNodeId === 'string') && (
+                            <span className="text-xs text-[var(--text-muted)]">
+                              {run.errorCode ?? ''}
+                              {run.errorCode && typeof run.metadata?.targetNodeId === 'string'
+                                ? ' · '
+                                : ''}
+                              {typeof run.metadata?.targetNodeId === 'string'
+                                ? (nodes.find((n) => n.id === run.metadata?.targetNodeId)?.name ??
+                                  run.metadata.targetNodeId)
+                                : ''}
+                            </span>
                           )}
-                        >
-                          {run.status}
-                        </span>
+                        </div>
                         <span className="text-xs text-[var(--text-muted)]">
                           {formatDate(run.createdAt)}
                         </span>

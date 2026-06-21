@@ -6,6 +6,11 @@ import {
   updateRoutineRunStatus,
 } from '../../repositories/routine';
 import { connectorRegistry } from '../connectors/registry';
+import {
+  NodeUnavailableError,
+  assertNodeAvailable,
+  recordTargetNode,
+} from '../routines/node-check';
 
 function topoSort(graph: WorkflowGraph): WorkflowNode[] {
   const nodesById = new Map(graph.nodes.map((n) => [n.id, n]));
@@ -53,6 +58,26 @@ export async function executeWorkflowGraph(
       message: `Routine ${input.routineId} is disabled`,
     });
     return;
+  }
+
+  let targetNode: { id: string; status: string } | undefined;
+  try {
+    const node = await assertNodeAvailable(ctx, routine.nodeId);
+    if (node) {
+      targetNode = { id: node.id, status: node.status };
+    }
+  } catch (error) {
+    if (error instanceof NodeUnavailableError) {
+      await updateRoutineRunStatus(ctx, input.runId, 'failed', {
+        code: 'NODE_UNAVAILABLE',
+        message: error.message,
+      });
+      await updateRoutineRun(ctx, input.runId, {
+        metadata: recordTargetNode(undefined, { id: error.nodeId, status: error.nodeStatus }),
+      });
+      return;
+    }
+    throw error;
   }
 
   await updateRoutineRunStatus(ctx, input.runId, 'running');
@@ -108,7 +133,7 @@ export async function executeWorkflowGraph(
 
     const failed = Object.values(nodeStatuses).some((s) => s.status === 'failed');
     await updateRoutineRun(ctx, input.runId, {
-      metadata: { nodeOutputs, nodeStatuses },
+      metadata: recordTargetNode({ nodeOutputs, nodeStatuses }, targetNode),
     });
     await updateRoutineRunStatus(
       ctx,
@@ -119,7 +144,7 @@ export async function executeWorkflowGraph(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await updateRoutineRun(ctx, input.runId, {
-      metadata: { nodeOutputs, nodeStatuses },
+      metadata: recordTargetNode({ nodeOutputs, nodeStatuses }, targetNode),
     });
     await updateRoutineRunStatus(ctx, input.runId, 'failed', {
       code: 'EXECUTION_FAILED',

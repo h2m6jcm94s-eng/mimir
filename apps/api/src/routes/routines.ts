@@ -34,6 +34,7 @@ function toSharedRoutine(row: typeof import('../db/schema').routine.$inferSelect
     nextRunAt: row.nextRunAt?.toISOString(),
     lastRunAt: row.lastRunAt?.toISOString(),
     lastRunStatus: row.lastRunStatus ?? undefined,
+    nodeId: row.nodeId ?? undefined,
     createdBy: row.createdBy ?? undefined,
     policyId: row.policyId ?? undefined,
     createdAt: row.createdAt.toISOString(),

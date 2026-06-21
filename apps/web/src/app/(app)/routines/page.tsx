@@ -2,9 +2,19 @@
 
 import { PageHeader } from '@/components/ui/PageHeader';
 import { cn } from '@/lib/utils';
-import type { Routine } from '@mimir/shared-types';
+import type { Node, Routine } from '@mimir/shared-types';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Calendar, Clock, Loader2, MoreHorizontal, Play, Plus, Search, Zap } from 'lucide-react';
+import {
+  Calendar,
+  Clock,
+  Loader2,
+  MoreHorizontal,
+  Play,
+  Plus,
+  Search,
+  Server,
+  Zap,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 type TriggerType = 'scheduled' | 'manual';
@@ -78,7 +88,9 @@ export default function RoutinesPage() {
     jobInput: '{}',
     tier: 0,
     enabled: true,
+    nodeId: '',
   });
+  const [nodes, setNodes] = useState<Node[]>([]);
 
   async function loadRoutines() {
     try {
@@ -99,9 +111,20 @@ export default function RoutinesPage() {
     }
   }
 
+  async function loadNodes() {
+    try {
+      const body = await fetchJson<{ data: Node[] }>('/api/v1/nodes');
+      setNodes(body.data);
+    } catch {
+      // nodes are optional for the list; don't surface as a page error
+      setNodes([]);
+    }
+  }
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: load on mount
   useEffect(() => {
     void loadRoutines();
+    void loadNodes();
   }, []);
 
   async function toggleStatus(id: string) {
@@ -160,6 +183,7 @@ export default function RoutinesPage() {
           jobInput,
           tier: draft.tier,
           enabled: draft.enabled,
+          ...(draft.nodeId && { nodeId: draft.nodeId }),
         }),
       });
 
@@ -172,6 +196,7 @@ export default function RoutinesPage() {
         jobInput: '{}',
         tier: 0,
         enabled: true,
+        nodeId: '',
       });
       await loadRoutines();
     } catch (err) {
@@ -281,6 +306,27 @@ export default function RoutinesPage() {
                 onChange={(e) => setDraft((d) => ({ ...d, jobType: e.target.value }))}
                 className="mt-1 h-9 w-full rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
               />
+            </div>
+            <div>
+              <label
+                htmlFor="routine-node"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                Run on node
+              </label>
+              <select
+                id="routine-node"
+                value={draft.nodeId}
+                onChange={(e) => setDraft((d) => ({ ...d, nodeId: e.target.value }))}
+                className="mt-1 h-9 w-full rounded-lg border border-[var(--border-subtle-solid)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+              >
+                <option value="">Any node</option>
+                {nodes.map((node) => (
+                  <option key={node.id} value={node.id}>
+                    {node.name} ({node.status})
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="sm:col-span-2">
               <label
@@ -411,6 +457,12 @@ export default function RoutinesPage() {
                         )}
                         {routine.nextRunAt && routine.status === 'enabled' && (
                           <span>Next: {formatDate(routine.nextRunAt)}</span>
+                        )}
+                        {routine.nodeId && (
+                          <span className="inline-flex items-center gap-1">
+                            <Server className="h-3 w-3" />
+                            {nodes.find((n) => n.id === routine.nodeId)?.name ?? 'Assigned node'}
+                          </span>
                         )}
                         <span data-testid="routine-last-run">
                           Last: {formatDate(routine.lastRunAt)}

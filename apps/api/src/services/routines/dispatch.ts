@@ -1,9 +1,14 @@
 import type { TenantContext } from '../../db/tenant-context';
 import { createJob } from '../../repositories/job';
-import { getRoutineById, updateRoutineRunStatus } from '../../repositories/routine';
+import {
+  getRoutineById,
+  updateRoutineRun,
+  updateRoutineRunStatus,
+} from '../../repositories/routine';
 import { startTaskWorkflow } from '../../temporal/client';
 import type { RoutineWorkflowInput } from '../../temporal/workflows';
 import { executeWorkflowGraph } from '../workflows/executor';
+import { NodeUnavailableError, assertNodeAvailable, recordTargetNode } from './node-check';
 
 export async function dispatchRoutineJob(
   ctx: TenantContext,
@@ -24,6 +29,26 @@ export async function dispatchRoutineJob(
       message: `Routine ${input.routineId} is disabled`,
     });
     return;
+  }
+
+  let targetNode: { id: string; status: string } | undefined;
+  try {
+    const node = await assertNodeAvailable(ctx, routine.nodeId);
+    if (node) {
+      targetNode = { id: node.id, status: node.status };
+    }
+  } catch (error) {
+    if (error instanceof NodeUnavailableError) {
+      await updateRoutineRunStatus(ctx, input.runId, 'failed', {
+        code: 'NODE_UNAVAILABLE',
+        message: error.message,
+      });
+      await updateRoutineRun(ctx, input.runId, {
+        metadata: recordTargetNode(undefined, { id: error.nodeId, status: error.nodeStatus }),
+      });
+      return;
+    }
+    throw error;
   }
 
   if (routine.workflowJson) {
@@ -53,9 +78,15 @@ export async function dispatchRoutineJob(
       payload: input.payload,
     });
 
+    await updateRoutineRun(ctx, input.runId, {
+      metadata: recordTargetNode(undefined, targetNode),
+    });
     await updateRoutineRunStatus(ctx, input.runId, 'done');
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    await updateRoutineRun(ctx, input.runId, {
+      metadata: recordTargetNode(undefined, targetNode),
+    });
     await updateRoutineRunStatus(ctx, input.runId, 'failed', {
       code: 'DISPATCH_FAILED',
       message,
