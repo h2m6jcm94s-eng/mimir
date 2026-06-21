@@ -51,6 +51,8 @@ export const Scopes = {
   VALUES_WRITE: 'values:write',
   PERSONAL_MODULES_READ: 'personal_modules:read',
   PERSONAL_MODULES_WRITE: 'personal_modules:write',
+  SCREEN_TIME_READ: 'screen_time:read',
+  SCREEN_TIME_WRITE: 'screen_time:write',
   MARKETPLACE_READ: 'marketplace:read',
   MARKETPLACE_WRITE: 'marketplace:write',
 } as const;
@@ -103,6 +105,8 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.VALUES_WRITE,
     Scopes.PERSONAL_MODULES_READ,
     Scopes.PERSONAL_MODULES_WRITE,
+    Scopes.SCREEN_TIME_READ,
+    Scopes.SCREEN_TIME_WRITE,
     Scopes.MARKETPLACE_READ,
     Scopes.MARKETPLACE_WRITE,
   ],
@@ -126,6 +130,7 @@ const ROLE_SCOPES: Record<string, string[]> = {
     Scopes.ROUTINES_READ,
     Scopes.VALUES_READ,
     Scopes.PERSONAL_MODULES_READ,
+    Scopes.SCREEN_TIME_READ,
     Scopes.MARKETPLACE_READ,
   ],
 };

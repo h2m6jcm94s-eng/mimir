@@ -26,4 +26,5 @@ export * from './personal-modules';
 export * from './model-leaderboard';
 export * from './agent-reputation';
 export * from './marketplace';
+export * from './screen-time';
 export * from './errors';

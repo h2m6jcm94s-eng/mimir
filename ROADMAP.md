@@ -1956,7 +1956,7 @@ Airtable base when M6 lands (F‑020).
 | F‑077 | Life documentation & legacy memory (stories, recipes, memoirs) | Free | P2 | ⬜ | api/web | 2027‑Q3 | post‑M10 |
 | F‑078 | Accessibility assistant (read aloud, describe images, simplify text) (Phase 1: text‑to‑speech, simplification heuristic, font/contrast controls) | Free | P1 | ✅ Phase 1 | web | 2027‑Q1 | M7 |
 | F‑079 | Values & decision journal with outcome tracking | Pro | P2 | ✅ | api | 2027‑Q2 | M8 |
-| F‑080 | Screen‑time & digital wellbeing coach | Free | P2 | ✅ Phase 1 (via personal modules) | api/web | 2027‑Q2 | M8 |
+| F‑080 | Screen‑time & digital wellbeing coach | Free | P2 | ✅ Phase 2 (dedicated dashboard + usage API + goals) | api/web | 2027‑Q2 | M8 |
 | F‑081 | Difficult conversation coach (role‑play, drafts, de‑escalation) | Free | P2 | ✅ Phase 1 (via personal modules) | api/web | 2027‑Q2 | M8 |
 | F‑082 | Family mesh / household coordination | Free | P2 | ✅ Phase 1 (via personal modules) | api/web | 2027‑Q3 | post‑M10 |
 | F‑083 | **Routine scheduler / cron jobs**: schedule recurring jobs from natural-language descriptions or YAML (e.g. daily bank CSV check, weekly report) | Free | P1 | ✅ Phase 1 | api | 2027‑Q1 | M7 |
