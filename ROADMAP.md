@@ -1964,11 +1964,14 @@ Airtable base when M6 lands (F‑020).
 | F‑085 | **Browser extension quick capture**: clip web pages, selected text, and images into the second brain with one click; trigger quick actions | Free | P1 | ✅ | web | 2026‑11 | M4 |
 | F‑086 | **Cross-device session handoff**: seamlessly continue a chat/session across laptop, desktop, and phone nodes | Free | P2 | ✅ | api | 2027‑Q1 | M7 |
 | F‑087 | **Local model runtime for T0**: ollama/llama.cpp provider integration so T0/private data never leaves the device | Free | P1 | ✅ Phase 1 | api | 2026‑12 | M4 |
+| F‑088 | **Workflow platform — n8n ingestion & visual builder**: import/export n8n workflows, build/edit workflows visually, AI task-delegation optimizer, and connector-action workflow nodes | Pro | P1 | ⬜ | api/web | 2027‑Q2 | M8 |
+| F‑089 | **Device-scoped workflow runtime**: bind workflows/routines to specific nodes/devices, node-aware execution, and per-device workflow assignments | Pro | P1 | ⬜ | api/web | 2027‑Q2 | M8 |
+| F‑090 | **Self-building skill agent + marketplace**: detect useful features, build them in an isolated sandbox with retry/give-up limits, and publish successful skills to a marketplace for Pro/Premium users | Enterprise | P1 | ⬜ | api/web | 2027‑Q3 | M9 |
 
 **Recommended next build order.** Based on current platform capabilities, the highest-leverage next items are:
-1. **F‑071 Phase 1 skill proposals** — pattern detector that proposes new tools/routines from the knowledge graph.
-2. **F‑079 Values & decision journal with outcome tracking** — turn reflections into measurable personal guidance.
-3. **F‑080 Screen‑time & digital wellbeing coach** — gentle nudges and summaries to help users reclaim attention.
+1. **F‑088 Workflow platform — n8n ingestion & visual builder** — turns F‑083 routines into a real automation product with n8n compatibility.
+2. **F‑089 Device-scoped workflow runtime** — extends workflows to the mesh/node layer so automations run on the right device.
+3. **F‑090 Self-building skill agent + marketplace** — the long-term self-improvement loop; start with a small proof-of-concept after F‑088/F‑089 are stable.
 
 ---
 
