@@ -1,5 +1,6 @@
 'use client';
 
+import { type PersonalModuleKind, moduleConfigs } from '@/lib/module-config';
 import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
 import { useCallback, useState } from 'react';
@@ -26,6 +27,8 @@ const pageTitles: Record<string, string> = {
   '/routines': 'Routines',
   '/reports': 'Reports',
   '/marketplace': 'Marketplace',
+  '/agents/reputation': 'Agent reputation',
+  '/model-leaderboard': 'Model leaderboard',
   '/notifications': 'Notifications',
   '/skills': 'Skills',
   '/skills/builder': 'Skill Builder',
@@ -39,6 +42,17 @@ const pageTitles: Record<string, string> = {
 
 interface AppShellProps {
   children: React.ReactNode;
+}
+
+function resolvePageTitle(pathname: string): string {
+  if (pageTitles[pathname]) return pageTitles[pathname];
+  const moduleMatch = pathname.match(/^\/modules\/([^/]+)$/);
+  if (moduleMatch) {
+    const kind = moduleMatch[1] as PersonalModuleKind;
+    const config = moduleConfigs[kind];
+    if (config) return config.title;
+  }
+  return 'Mimir';
 }
 
 export function AppShell({ children }: AppShellProps) {
@@ -59,7 +73,7 @@ export function AppShell({ children }: AppShellProps) {
           expanded ? 'lg:ml-60' : 'lg:ml-16'
         )}
       >
-        <TopBar pageTitle={pageTitles[pathname] || 'Mimir'} onSearchClick={handleSearchClick} />
+        <TopBar pageTitle={resolvePageTitle(pathname)} onSearchClick={handleSearchClick} />
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
         <Footer className="hidden sm:flex" />
       </div>

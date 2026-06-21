@@ -1916,7 +1916,7 @@ Airtable base when M6 lands (F‑020).
 | F‑038 | Agent hierarchy / role registry | Free | P0 | ✅ | api | 2026‑09 | M2 |
 | F‑039 | No‑code tool builder | Free | P2 | ✅ Phase 1 | web | 2027‑Q1 | M6 |
 | F‑040 | Natural‑language policy editor (Phase 2: fuzzy action matching, inline rule explanations, example-driven LLM fallback, one-click save translated draft) | Pro | P1 | ✅ Phase 2 | api/web | 2026‑11 | M5 |
-| F‑041 | Agent reputation / trust score | Pro | P2 | ⬜ | api | 2027‑Q1 | M7 |
+| F‑041 | Agent reputation / trust score | Pro | P2 | ✅ Phase 1 | api/web | 2027‑Q1 | M7 |
 | F‑042 | Resource‑aware scheduling (Phase 1: projects, resources, weekly assignments, utilization API + `/scheduling` UI) | Free | P1 | ✅ Phase 1 | api/web | 2026‑10 | M3 |
 | F‑043 | Energy/cost‑aware routing | Free | P2 | ⬜ | api | 2027‑Q1 | M8 |
 | F‑044 | Self‑healing remediation | Pro | P2 | ⬜ | api | 2027‑Q1 | M8 |
@@ -1925,7 +1925,7 @@ Airtable base when M6 lands (F‑020).
 | F‑047 | Cross‑device session handoff | Free | P2 | ⬜ | api | 2027‑Q2 | M7 |
 | F‑048 | Workflow visual editor | Pro | P2 | ⬜ | web | 2027‑Q2 | M7 |
 | F‑049 | A/B testing for prompts/policies | Pro | P3 | ⬜ | api | 2027‑Q2 | post‑M10 |
-| F‑050 | Model performance leaderboard | Free | P2 | ⬜ | web | 2027‑Q1 | M8 |
+| F‑050 | Model performance leaderboard | Free | P2 | ✅ Phase 1 | api/web | 2027‑Q1 | M8 |
 | F‑051 | Federated local model improvement | Ent | P3 | ⬜ | services | 2027‑Q3 | post‑M10 |
 | F‑052 | E2EE for sensitive chats | Pro | P2 | ⬜ | api | 2027‑Q2 | M8 |
 | F‑053 | Hardware attestation / TPM integration | Ent | P3 | ⬜ | infra | 2027‑Q3 | post‑M10 |
@@ -1934,31 +1934,31 @@ Airtable base when M6 lands (F‑020).
 | F‑055 | Usage insights / time‑saved dashboard (Phase 1: time‑saved estimate and automation rate added to CEO report + Reports UI cards) | Pro | P2 | ✅ Phase 1 | api/web | 2027‑Q1 | M9 |
 | F‑056 | Local webserver per node + mesh discovery | Free | P0 | ✅ | api/infra | 2026‑10 | M3 |
 | F‑057 | Companion mode: emotional context, long‑term personal memory, proactive check‑ins (Phase 1: emotional check‑in / private mood journal) | Free | P1 | ✅ Phase 1 | api | 2026‑11 | M4 |
-| F‑058 | Personal finance assistant: bank/CSV ingestion, budgeting, spend anomaly detection | Free | P1 | ⬜ | api | 2026‑12 | M6 |
+| F‑058 | Personal finance assistant: bank/CSV ingestion, budgeting, spend anomaly detection | Free | P1 | ✅ Phase 1 (via personal modules) | api/web | 2026‑12 | M6 |
 | F‑059 | Marketing/creator assistant: content calendar, brand‑voice drafting, campaign analytics (Phase 1: brand voice, campaigns, calendar, draft generation, analytics) | Pro | P1 | ✅ Phase 1 | api/web | 2027‑01 | M6 |
-| F‑060 | HR/people partner: 1:1 prep, feedback drafting, hiring pipeline memory | Pro | P2 | ⬜ | api | 2027‑01 | M7 |
+| F‑060 | HR/people partner: 1:1 prep, feedback drafting, hiring pipeline memory | Pro | P2 | ✅ Phase 1 (via personal modules) | api/web | 2027‑01 | M7 |
 | F‑061 | CEO/operator dashboard: burn, revenue, task health, risk rollup, decision briefings | Pro | P0 | ✅ | api/web | 2026‑12 | M5/M6 |
 | F‑062 | Document bonding & record unification: cross‑connector entity resolution (customer, vendor, project) | Pro | P1 | 🟦 | api | 2026‑12 | M6 |
 | F‑063 | Daily briefing & morning companion | Free | P1 | ✅ | api/web | 2027‑Q1 | M7 |
 | F‑064 | Emotional check‑in & private mood journal | Free | P2 | ✅ (shipped as F‑057 Phase 1) | api | 2026‑11 | M4 |
 | F‑065 | Relationship memory (birthdays, preferences, conversation follow‑ups) (Phase 1: `POST/GET /v1/memory/relationships` storing tagged semantic memory nodes) | Free | P2 | ✅ Phase 1 | api | 2027‑Q1 | M7 |
-| F‑066 | Nutrition & meal planner with grocery list | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
-| F‑067 | Fitness & workout coach with progress tracking | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
+| F‑066 | Nutrition & meal planner with grocery list | Free | P2 | ✅ Phase 1 (via personal modules) | api/web | 2027‑Q2 | M8 |
+| F‑067 | Fitness & workout coach with progress tracking | Free | P2 | ✅ Phase 1 (via personal modules) | api/web | 2027‑Q2 | M8 |
 | F‑068 | Life admin tracker (home, car, insurance, renewals, warranties) (Phase 1: `POST/GET /v1/life-admin` endpoints, dedicated `life_admin_item` table, `/life-admin` UI with create/mark-done and recurrence) | Free | P2 | ✅ Phase 1 | api/web | 2027‑Q1 | M7 |
-| F‑069 | Travel planner & itinerary assistant | Free | P2 | ⬜ | api/web | 2027‑Q2 | M8 |
-| F‑070 | Adaptive tutor & learning paths | Free | P1 | ⬜ | api/web | 2027‑Q1 | M7 |
+| F‑069 | Travel planner & itinerary assistant | Free | P2 | ✅ Phase 1 (via personal modules) | api/web | 2027‑Q2 | M8 |
+| F‑070 | Adaptive tutor & learning paths | Free | P1 | ✅ Phase 1 (via personal modules) | api/web | 2027‑Q1 | M7 |
 | F‑071 | Second brain / idea capture + self-improvement engine (notes, wiki-links, skill proposals, sandboxed upgrade, rollback) | Free | P1 | ✅ Phase 0 | api/web | 2026‑12 | M6 |
-| F‑072 | Meeting prep & automated follow‑up drafts | Pro | P1 | ⬜ | api | 2027‑Q1 | M7 |
-| F‑073 | Inbox Zero assistant (triage, draft replies, priorities) | Pro | P1 | ⬜ | api | 2027‑Q1 | M7 |
+| F‑072 | Meeting prep & automated follow‑up drafts | Pro | P1 | ✅ Phase 1 (via personal modules) | api/web | 2027‑Q1 | M7 |
+| F‑073 | Inbox Zero assistant (triage, draft replies, priorities) | Pro | P1 | ✅ Phase 1 (via personal modules) | api/web | 2027‑Q1 | M7 |
 | F‑074 | Conversational memory search across all chats | Free | P1 | ✅ | api | 2026‑11 | M4 |
-| F‑075 | Proactive contextual suggestions (opt‑in) | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
+| F‑075 | Proactive contextual suggestions (opt‑in) | Free | P2 | ✅ Phase 1 (via personal modules) | api/web | 2027‑Q2 | M8 |
 | F‑076 | Voice‑first hands‑free companion mode | Free | P2 | ⬜ | gateway | 2027‑Q2 | M8 |
 | F‑077 | Life documentation & legacy memory (stories, recipes, memoirs) | Free | P2 | ⬜ | api/web | 2027‑Q3 | post‑M10 |
 | F‑078 | Accessibility assistant (read aloud, describe images, simplify text) (Phase 1: text‑to‑speech, simplification heuristic, font/contrast controls) | Free | P1 | ✅ Phase 1 | web | 2027‑Q1 | M7 |
 | F‑079 | Values & decision journal with outcome tracking | Pro | P2 | ✅ | api | 2027‑Q2 | M8 |
-| F‑080 | Screen‑time & digital wellbeing coach | Free | P2 | ⬜ | web | 2027‑Q2 | M8 |
-| F‑081 | Difficult conversation coach (role‑play, drafts, de‑escalation) | Free | P2 | ⬜ | api | 2027‑Q2 | M8 |
-| F‑082 | Family mesh / household coordination | Free | P2 | ⬜ | api | 2027‑Q3 | post‑M10 |
+| F‑080 | Screen‑time & digital wellbeing coach | Free | P2 | ✅ Phase 1 (via personal modules) | api/web | 2027‑Q2 | M8 |
+| F‑081 | Difficult conversation coach (role‑play, drafts, de‑escalation) | Free | P2 | ✅ Phase 1 (via personal modules) | api/web | 2027‑Q2 | M8 |
+| F‑082 | Family mesh / household coordination | Free | P2 | ✅ Phase 1 (via personal modules) | api/web | 2027‑Q3 | post‑M10 |
 | F‑083 | **Routine scheduler / cron jobs**: schedule recurring jobs from natural-language descriptions or YAML (e.g. daily bank CSV check, weekly report) | Free | P1 | ✅ Phase 1 | api | 2027‑Q1 | M7 |
 | F‑084 | **Email digest delivery**: daily/weekly rollup of notifications, tasks, approvals, and reports via SMTP / MS Graph | Pro | P1 | ✅ Phase 1 | api | 2027‑Q1 | M8 |
 | F‑085 | **Browser extension quick capture**: clip web pages, selected text, and images into the second brain with one click; trigger quick actions | Free | P1 | ✅ | web | 2026‑11 | M4 |

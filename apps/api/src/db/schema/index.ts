@@ -28,3 +28,6 @@ export * from './routines';
 export * from './local-models';
 export * from './email-digest';
 export * from './values';
+export * from './personal-modules';
+export * from './model-leaderboard';
+export * from './agent-reputation';
