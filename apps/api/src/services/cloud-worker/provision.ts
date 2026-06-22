@@ -10,12 +10,19 @@ export interface ProvisionCloudWorkerInput {
   instanceType?: string;
   webhookBaseUrl: string;
   jobPayload?: unknown;
+  securityGroupIds?: string[];
+  subnetId?: string;
+  iamInstanceProfile?: string;
 }
 
 export interface ProvisionCloudWorkerResult {
   instanceId: string;
   privateIp?: string;
   returnUrl: string;
+}
+
+function requireHardenedNetworking(): boolean {
+  return process.env.NODE_ENV === 'production';
 }
 
 export async function provisionCloudWorker(
@@ -27,6 +34,27 @@ export async function provisionCloudWorker(
 
   if (!amiId) {
     throw new Error('CLOUD_WORKER_AMI_ID is required to provision a cloud worker');
+  }
+
+  const securityGroupIds =
+    input.securityGroupIds ??
+    process.env.CLOUD_WORKER_SECURITY_GROUP_IDS?.split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  const subnetId = input.subnetId ?? process.env.CLOUD_WORKER_SUBNET_ID;
+  const iamInstanceProfile =
+    input.iamInstanceProfile ?? process.env.CLOUD_WORKER_IAM_INSTANCE_PROFILE;
+
+  if (requireHardenedNetworking()) {
+    if (!securityGroupIds || securityGroupIds.length === 0) {
+      throw new Error('CLOUD_WORKER_SECURITY_GROUP_IDS is required in production');
+    }
+    if (!subnetId) {
+      throw new Error('CLOUD_WORKER_SUBNET_ID is required in production');
+    }
+    if (!iamInstanceProfile) {
+      throw new Error('CLOUD_WORKER_IAM_INSTANCE_PROFILE is required in production');
+    }
   }
 
   const returnUrl = input.webhookBaseUrl.endsWith('/')
@@ -47,7 +75,11 @@ export async function provisionCloudWorker(
     MaxCount: 1,
     MetadataOptions: {
       HttpTokens: 'required',
+      HttpPutResponseHopLimit: 1,
     },
+    ...(securityGroupIds ? { SecurityGroupIds: securityGroupIds } : {}),
+    ...(subnetId ? { SubnetId: subnetId } : {}),
+    ...(iamInstanceProfile ? { IamInstanceProfile: { Name: iamInstanceProfile } } : {}),
     TagSpecifications: [
       {
         ResourceType: 'instance',

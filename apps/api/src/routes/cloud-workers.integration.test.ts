@@ -1,7 +1,9 @@
+import { RunInstancesCommand } from '@aws-sdk/client-ec2';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { withTenantTransaction } from '../db/tenant-context';
 import { resolveAuthUser } from '../middleware/auth';
 import { createJob } from '../repositories/job';
+import { provisionCloudWorker } from '../services/cloud-worker/provision';
 import { buildTestApp } from '../test-helpers/build-app';
 import { cloudWorkerRoutes, cloudWorkerWebhookRoutes } from './cloud-workers';
 
@@ -27,6 +29,9 @@ describe('cloud worker routes', () => {
     process.env.CLOUD_WORKER_WEBHOOK_BASE_URL = 'http://localhost:3001';
     process.env.TAILSCALE_AUTH_KEY = 'tskey-test';
     process.env.CLOUD_WORKER_AMI_ID = 'ami-test';
+    process.env.CLOUD_WORKER_SECURITY_GROUP_IDS = '';
+    process.env.CLOUD_WORKER_SUBNET_ID = '';
+    process.env.CLOUD_WORKER_IAM_INSTANCE_PROFILE = '';
   });
 
   afterEach(() => {
@@ -99,4 +104,68 @@ describe('cloud worker routes', () => {
       expect(replayResponse.statusCode).toBe(401);
     }
   );
+
+  it.skipIf(!process.env.RUN_DB_TESTS)(
+    'uses hardened networking when environment variables are set',
+    async () => {
+      process.env.CLOUD_WORKER_SECURITY_GROUP_IDS = 'sg-123,sg-456';
+      process.env.CLOUD_WORKER_SUBNET_ID = 'subnet-789';
+      process.env.CLOUD_WORKER_IAM_INSTANCE_PROFILE = 'mimir-cloud-worker-profile';
+
+      const token = `cloud_net_${Date.now()}`;
+      const user = await resolveAuthUser(token, `${token}@test.local`);
+      const { job } = await withTenantTransaction(user.tenantId, async (ctx) => {
+        const created = await createJob(ctx, {
+          idempotencyKey: `cloud-worker-net-${Date.now()}`,
+          type: 'cloud-worker',
+          tier: 2,
+          input: {},
+        });
+        return { job: created };
+      });
+
+      const app = await buildTestApp(async (app) => {
+        await app.register(cloudWorkerRoutes, { prefix: '/v1/cloud-workers' });
+      });
+
+      const provisionResponse = await app.inject({
+        method: 'POST',
+        url: '/v1/cloud-workers',
+        headers: { authorization: `Bearer ${token}` },
+        payload: { jobId: job.id },
+      });
+
+      expect(provisionResponse.statusCode).toBe(201);
+      expect(RunInstancesCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          SecurityGroupIds: ['sg-123', 'sg-456'],
+          SubnetId: 'subnet-789',
+          IamInstanceProfile: { Name: 'mimir-cloud-worker-profile' },
+          MetadataOptions: expect.objectContaining({
+            HttpTokens: 'required',
+            HttpPutResponseHopLimit: 1,
+          }),
+        })
+      );
+    }
+  );
+
+  it('rejects provisioning in production without hardened networking', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    process.env.CLOUD_WORKER_SECURITY_GROUP_IDS = '';
+    process.env.CLOUD_WORKER_SUBNET_ID = '';
+    process.env.CLOUD_WORKER_IAM_INSTANCE_PROFILE = '';
+
+    await expect(
+      provisionCloudWorker({
+        tenantId: '00000000-0000-0000-0000-000000000001',
+        jobId: '00000000-0000-0000-0000-000000000002',
+        amiId: 'ami-test',
+        webhookBaseUrl: 'http://localhost:3001',
+      })
+    ).rejects.toThrow('CLOUD_WORKER_SECURITY_GROUP_IDS is required in production');
+
+    process.env.NODE_ENV = originalNodeEnv;
+  });
 });
