@@ -15,6 +15,7 @@ import { auditRoutes } from './routes/audit';
 import { briefingRoutes } from './routes/briefings';
 import { budgetRoutes } from './routes/budget';
 import { captureRoutes } from './routes/capture';
+import { chatRoutes } from './routes/chat';
 import { cloudWorkerRoutes, cloudWorkerWebhookRoutes } from './routes/cloud-workers';
 import { companionRoutes } from './routes/companion';
 import { connectorRoutes } from './routes/connectors';
@@ -121,6 +122,7 @@ async function main() {
   app.register(fencingRoutes, { prefix: '/v1/fencing' });
   app.register(briefingRoutes, { prefix: '/v1/briefings' });
   app.register(captureRoutes, { prefix: '/v1/capture' });
+  app.register(chatRoutes, { prefix: '/v1/chat' });
   app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
   app.register(knowledgeShareRoutes, { prefix: '/v1/knowledge/shares' });
   app.register(localModelRoutes, { prefix: '/v1/models/local' });

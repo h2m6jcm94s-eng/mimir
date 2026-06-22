@@ -93,6 +93,7 @@ const tertiary = [
   { href: '/meetings', label: 'Meetings', icon: CalendarClock },
   { href: '/modules/email', label: 'Inbox Zero', icon: Mail },
   { href: '/screen-time', label: 'Screen time', icon: ScreenShare },
+  { href: '/chat', label: 'Encrypted chat', icon: MessageSquare },
   { href: '/modules/conversation', label: 'Conversations', icon: MessageCircle },
   { href: '/modules/suggestion', label: 'Suggestions', icon: Wand2 },
   { href: '/modules/family', label: 'Family', icon: Users },
