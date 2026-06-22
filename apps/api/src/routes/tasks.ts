@@ -112,6 +112,18 @@ export async function taskRoutes(app: FastifyInstance) {
             retrievedContext: [],
           });
 
+          await createAuditEvent(ctx, {
+            actor: user.userId,
+            action: 'classified',
+            tier: classification.tier,
+            payload: {
+              confidence: classification.confidence,
+              fallback: classification.fallback,
+              reason: classification.reason,
+              policyVersion: classification.policyVersion,
+            } as unknown as Record<string, unknown>,
+          });
+
           try {
             await budgetService.checkAction(ctx, {
               tier: classification.tier,
