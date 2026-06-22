@@ -46,6 +46,7 @@ import { schedulingRoutes } from './routes/scheduling';
 import { scimRoutes } from './routes/scim';
 import { screenTimeRoutes } from './routes/screen-time';
 import { sessionRoutes } from './routes/sessions';
+import { skillRoutes } from './routes/skills';
 import { sshCaRoutes } from './routes/ssh-ca';
 import { ssoRoutes } from './routes/sso';
 import { taskRoutes } from './routes/tasks';
@@ -140,6 +141,7 @@ async function main() {
   app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
   app.register(schedulingRoutes, { prefix: '/v1/scheduling' });
   app.register(screenTimeRoutes, { prefix: '/v1/screen-time' });
+  app.register(skillRoutes, { prefix: '/v1/skills' });
   app.register(ssoRoutes, { prefix: '/v1/sso/providers' });
   app.register(sshCaRoutes, { prefix: '/v1' });
   app.register(haltRoutes, { prefix: '/v1/halt' });

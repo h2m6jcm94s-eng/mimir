@@ -20,9 +20,10 @@ export async function marketplaceRoutes(app: FastifyInstance) {
         return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
       }
 
-      const items = getMarketplaceCatalog();
-      const installedIds = await withTenantTransaction(user.tenantId, async (ctx) => {
-        return getInstalledItemIds(ctx, user.tenantId);
+      const { items, installedIds } = await withTenantTransaction(user.tenantId, async (ctx) => {
+        const catalog = await getMarketplaceCatalog(ctx);
+        const installed = await getInstalledItemIds(ctx, user.tenantId);
+        return { items: catalog, installedIds: installed };
       });
       const installed = new Set(installedIds);
 
@@ -45,7 +46,9 @@ export async function marketplaceRoutes(app: FastifyInstance) {
       }
 
       const params = paramsSchema.parse(request.params);
-      const item = getMarketplaceItem(params.id);
+      const item = await withTenantTransaction(user.tenantId, async (ctx) => {
+        return getMarketplaceItem(ctx, params.id);
+      });
       if (!item) {
         return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Item not found' } });
       }

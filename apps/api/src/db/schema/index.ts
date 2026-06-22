@@ -34,3 +34,4 @@ export * from './agent-reputation';
 export * from './marketplace';
 export * from './screen-time';
 export * from './chat';
+export * from './skills';

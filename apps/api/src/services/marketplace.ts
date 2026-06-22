@@ -1,6 +1,8 @@
 import { type MarketplaceItem, marketplaceItemSchema } from '@mimir/shared-types';
+import type { TenantContext } from '../db/tenant-context';
+import { listPublishedSkillDrafts } from '../repositories/skills';
 
-const catalog: MarketplaceItem[] = [
+const staticCatalog: MarketplaceItem[] = [
   {
     id: 'meeting-notes-pro',
     kind: 'skill',
@@ -68,10 +70,45 @@ const catalog: MarketplaceItem[] = [
   },
 ].map((i) => marketplaceItemSchema.parse(i));
 
-export function getMarketplaceCatalog(): MarketplaceItem[] {
-  return catalog;
+function skillDraftToMarketplaceItem(draft: {
+  id: string;
+  name: string;
+  description: string;
+  payload: unknown;
+  installs: number;
+  createdAt: Date;
+  updatedAt: Date;
+}): MarketplaceItem {
+  return marketplaceItemSchema.parse({
+    id: draft.id,
+    kind: 'skill',
+    status: 'published',
+    name: draft.name,
+    description: draft.description,
+    payload: draft.payload,
+    installs: draft.installs,
+    priceUsd: 0,
+    publishedAt: draft.updatedAt.toISOString(),
+    createdAt: draft.createdAt.toISOString(),
+    updatedAt: draft.updatedAt.toISOString(),
+  });
 }
 
-export function getMarketplaceItem(id: string): MarketplaceItem | undefined {
-  return catalog.find((item) => item.id === id);
+export async function getMarketplaceCatalog(ctx: TenantContext): Promise<MarketplaceItem[]> {
+  const publishedDrafts = await listPublishedSkillDrafts(ctx);
+  return [...staticCatalog, ...publishedDrafts.map(skillDraftToMarketplaceItem)];
+}
+
+export async function getMarketplaceItem(
+  ctx: TenantContext,
+  id: string
+): Promise<MarketplaceItem | undefined> {
+  const staticItem = staticCatalog.find((item) => item.id === id);
+  if (staticItem) return staticItem;
+
+  const draft = await listPublishedSkillDrafts(ctx).then((drafts) =>
+    drafts.find((d) => d.id === id)
+  );
+  if (!draft) return undefined;
+  return skillDraftToMarketplaceItem(draft);
 }

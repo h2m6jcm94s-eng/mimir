@@ -29,4 +29,5 @@ export * from './marketplace';
 export * from './screen-time';
 export * from './meetings';
 export * from './chat';
+export * from './skills';
 export * from './errors';
