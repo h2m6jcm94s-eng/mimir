@@ -30,6 +30,7 @@ import { lifeAdminRoutes } from './routes/life-admin';
 import { localModelRoutes } from './routes/local-models';
 import { marketingRoutes } from './routes/marketing';
 import { marketplaceRoutes } from './routes/marketplace';
+import { meetingRoutes } from './routes/meetings';
 import { memoryRoutes } from './routes/memory';
 import { metricsRoutes } from './routes/metrics';
 import { modelLeaderboardRoutes } from './routes/model-leaderboard';
@@ -126,6 +127,7 @@ async function main() {
   app.register(lifeAdminRoutes, { prefix: '/v1/life-admin' });
   app.register(marketingRoutes, { prefix: '/v1/marketing' });
   app.register(marketplaceRoutes, { prefix: '/v1/marketplace' });
+  app.register(meetingRoutes, { prefix: '/v1/meetings' });
   app.register(metricsRoutes, { prefix: '/v1/metrics' });
   app.register(modelLeaderboardRoutes, { prefix: '/v1/models/leaderboard' });
   app.register(memoryRoutes, { prefix: '/v1/memory' });

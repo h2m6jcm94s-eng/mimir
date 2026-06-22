@@ -90,7 +90,7 @@ const tertiary = [
   { href: '/modules/fitness', label: 'Fitness', icon: Dumbbell },
   { href: '/modules/travel', label: 'Travel', icon: Plane },
   { href: '/modules/tutor', label: 'Tutor', icon: UserSquare },
-  { href: '/modules/meeting', label: 'Meetings', icon: CalendarClock },
+  { href: '/meetings', label: 'Meetings', icon: CalendarClock },
   { href: '/modules/email', label: 'Inbox Zero', icon: Mail },
   { href: '/screen-time', label: 'Screen time', icon: ScreenShare },
   { href: '/modules/conversation', label: 'Conversations', icon: MessageCircle },
