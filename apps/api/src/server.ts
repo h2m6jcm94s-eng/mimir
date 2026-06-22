@@ -39,6 +39,7 @@ import { nodeHealthRoutes } from './routes/node-health';
 import { nodeRoutes } from './routes/nodes';
 import { notificationRoutes } from './routes/notifications';
 import { personalModuleRoutes } from './routes/personal-modules';
+import { remediationRoutes } from './routes/remediation';
 import { reportRoutes } from './routes/reports';
 import { routineRoutes } from './routes/routines';
 import { sandboxRoutes } from './routes/sandbox';
@@ -137,6 +138,7 @@ async function main() {
   app.register(notificationRoutes, { prefix: '/v1/notifications' });
   app.register(personalModuleRoutes, { prefix: '/v1/personal-modules' });
   app.register(reportRoutes, { prefix: '/v1/reports' });
+  app.register(remediationRoutes, { prefix: '/v1/remediations' });
   app.register(routineRoutes, { prefix: '/v1/routines' });
   app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
   app.register(schedulingRoutes, { prefix: '/v1/scheduling' });

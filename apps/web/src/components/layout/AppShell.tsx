@@ -42,6 +42,7 @@ const pageTitles: Record<string, string> = {
   '/voice': 'Voice companion',
   '/accessibility': 'Accessibility',
   '/sandbox': 'Sandbox playground',
+  '/remediation': 'Self-healing',
   '/settings': 'Settings',
 };
 

@@ -30,4 +30,5 @@ export * from './screen-time';
 export * from './meetings';
 export * from './chat';
 export * from './skills';
+export * from './remediation';
 export * from './errors';

@@ -379,6 +379,13 @@
       "when": 1782108001833,
       "tag": "0054_nappy_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1782108865143,
+      "tag": "0055_thick_firebrand",
+      "breakpoints": true
     }
   ]
 }
