@@ -45,6 +45,37 @@ describe('ModelRouter', () => {
     expect(output.model).toBe('local');
   });
 
+  it('scrubs PII from prompts and payloads before cloud dispatch', async () => {
+    process.env.OPENAI_API_KEY = 'test-openai-key';
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: 'redacted' } }] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const router = new ModelRouter(makeConfig());
+    await router.invoke(1, {
+      prompt: 'Email alice@example.com and SSN 123-45-6789',
+      payload: { phone: '555-555-5555', card: '4111 1111 1111 1111' },
+    });
+
+    const request = (fetchMock as Mock).mock.calls[0][1] as RequestInit;
+    const body = JSON.parse(request.body as string);
+    expect(body.messages[0].content).toBe('Email [EMAIL] and SSN [SSN]');
+    expect(body.messages[0].content).not.toContain('alice@example.com');
+
+    const logCalls = logSpy.mock.calls.filter((call) =>
+      String(call[0]).includes('model_routing_decision')
+    );
+    expect(logCalls.length).toBeGreaterThan(0);
+    const logEntry = JSON.parse(String(logCalls[0][0]));
+    expect(logEntry.tier).toBe(1);
+    expect(logEntry.providers).toContain('openai');
+
+    logSpy.mockRestore();
+  });
+
   it('routes T1 to the first available provider', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

@@ -1,8 +1,11 @@
+import { createHash } from 'node:crypto';
 import type { ModelInput, ModelOutput } from '@mimir/shared-types';
 import type { AppConfig } from '../../config';
 import { loadConfig } from '../../config';
 import type { TenantContext } from '../../db/tenant-context';
+import { createAuditEvent } from '../../repositories/audit';
 import { recordModelInvocation } from '../model-leaderboard/service';
+import { scrubForTier } from '../scrubber/scrubber';
 import { CircuitBreaker } from './circuit-breaker';
 import { computeCostUsd } from './pricing';
 import { LocalProvider } from './providers/local';
@@ -30,6 +33,15 @@ export interface ModelRouterOptions {
   model?: string;
   maxTokens?: number;
   ctx?: TenantContext;
+  actor?: string;
+}
+
+function sha256(input: string): string {
+  return createHash('sha256').update(input).digest('hex');
+}
+
+function hashInput(input: ModelInput): string {
+  return sha256(JSON.stringify({ prompt: input.prompt, payload: input.payload }));
 }
 
 export class ModelRouter {
@@ -50,17 +62,28 @@ export class ModelRouter {
     return breaker;
   }
 
-  route(tier: 0 | 1 | 2, providerId?: string, ctx?: TenantContext): ModelAdapter {
+  private scrubInput(tier: 0 | 1 | 2, input: ModelInput): ModelInput {
+    if (tier === 0) return input;
+    return {
+      prompt: scrubForTier(input.prompt, tier),
+      payload: scrubForTier(input.payload, tier),
+    };
+  }
+
+  route(tier: 0 | 1 | 2, providerId?: string, ctx?: TenantContext, actor?: string): ModelAdapter {
     const provider = this.registry.find(tier, providerId) ?? this.fallback;
     this.assertTierContainment(tier, [provider]);
     return {
       name: provider.id,
       tier,
-      invoke: (input) =>
-        this.invokeWithFailover(tier, input, [provider], {
+      invoke: (input) => {
+        const scrubbedInput = this.scrubInput(tier, input);
+        return this.invokeWithFailover(tier, scrubbedInput, [provider], {
           model: providerId ? undefined : undefined,
           ctx,
-        }),
+          actor,
+        });
+      },
     };
   }
 
@@ -69,6 +92,8 @@ export class ModelRouter {
     input: ModelInput,
     options?: ModelRouterOptions
   ): Promise<ModelOutput> {
+    const scrubbedInput = this.scrubInput(tier, input);
+
     const available = this.registry
       .getAvailable(tier)
       .filter((p) => !this.getBreaker(p.id).isOpen());
@@ -87,7 +112,53 @@ export class ModelRouter {
       }
     }
 
-    return this.invokeWithFailover(tier, input, providers, options);
+    return this.invokeWithFailover(tier, scrubbedInput, providers, options);
+  }
+
+  private async logRoutingDecision(
+    tier: 0 | 1 | 2,
+    input: ModelInput,
+    providers: ModelProviderLike[],
+    options: ModelRouterOptions | undefined
+  ): Promise<void> {
+    const providerIds = providers.map((p) => p.id);
+    const promptHash = hashInput(input);
+    const payloadKeys = Object.keys(input.payload ?? {});
+    const logEntry = {
+      ts: new Date().toISOString(),
+      event: 'model_routing_decision',
+      tier,
+      actor: options?.actor ?? null,
+      providers: providerIds,
+      model: options?.model ?? null,
+      maxTokens: options?.maxTokens ?? null,
+      promptHash,
+      payloadKeys,
+    };
+    // LiteLLM-style proxy logging: every routing decision is emitted.
+    // eslint-disable-next-line no-console
+    console.log(JSON.stringify(logEntry));
+
+    if (options?.ctx && options?.actor) {
+      try {
+        await createAuditEvent(options.ctx, {
+          actor: options.actor,
+          action: 'model_routing_decision',
+          tier,
+          payload: {
+            providers: providerIds,
+            model: options.model ?? null,
+            maxTokens: options.maxTokens ?? null,
+            promptHash,
+            payloadKeys,
+          },
+        });
+      } catch (err) {
+        // Non-fatal: logging must not break routing.
+        // eslint-disable-next-line no-console
+        console.warn('Failed to persist model routing audit event', err);
+      }
+    }
   }
 
   private async invokeWithFailover(
@@ -97,6 +168,8 @@ export class ModelRouter {
     options: ModelRouterOptions | undefined
   ): Promise<ModelOutput> {
     this.assertTierContainment(tier, providers);
+    await this.logRoutingDecision(tier, input, providers, options);
+
     if (providers.length === 0) {
       const start = Date.now();
       try {

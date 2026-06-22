@@ -94,7 +94,7 @@ export async function build(input: TaskRunInput): Promise<BuildResult> {
       payload: { step: 'build' },
     });
 
-    const scrubbedPayload = input.tier === 2 ? scrubForTier(input.payload, input.tier) : undefined;
+    const scrubbedPayload = scrubForTier(input.payload, input.tier);
 
     // TODO: wire real build step (sandboxed command, model call, etc.)
     let provider = input.payload.provider as string | undefined;
@@ -114,13 +114,14 @@ export async function build(input: TaskRunInput): Promise<BuildResult> {
     const { maxTokens, maxCostUsd, ...restPayload } = input.payload;
     const modelInput = {
       prompt: (restPayload.prompt as string) ?? '',
-      payload: input.tier === 2 ? (scrubbedPayload as Record<string, unknown>) : restPayload,
+      payload: restPayload,
     };
     const modelOutput = await router.invoke(input.tier as 0 | 1 | 2, modelInput, {
       provider,
       model,
       maxTokens: maxTokens as number | undefined,
       ctx,
+      actor: input.userId,
     });
 
     const callCostUsd = modelOutput.costUsd ?? 0;
