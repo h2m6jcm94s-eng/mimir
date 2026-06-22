@@ -175,7 +175,8 @@ describe('tasks routes', () => {
     });
 
     await withTenantTransaction(user.tenantId, async (ctx) => {
-      await bumpEpoch(ctx);
+      const current = await getEpoch(ctx);
+      await bumpEpoch(ctx, current);
     });
 
     const app = await buildTestApp(async (app) => {

@@ -30,7 +30,7 @@ import { approvalExpiresAt, buildBlastRadius, riskFromTier } from '../services/a
 import { ClassificationGateway } from '../services/classification/gateway';
 import { BudgetExceededError, BudgetService, BudgetThrottledError } from '../services/cost/budget';
 import { publishJobEvent } from '../services/events/publisher';
-import { StaleEpochError } from '../services/fencing/fencing';
+import { ReadOnlyError, StaleEpochError } from '../services/fencing/fencing';
 import { evaluateTenantPolicy } from '../services/governance/engine';
 import { jobsCreatedCounter } from '../services/metrics/registry';
 import { startTaskWorkflow, terminateWorkflow } from '../temporal/client';
@@ -384,7 +384,7 @@ export async function taskRoutes(app: FastifyInstance) {
             body.epoch
           );
         } catch (error) {
-          if (error instanceof StaleEpochError) {
+          if (error instanceof StaleEpochError || error instanceof ReadOnlyError) {
             return { staleEpoch: true };
           }
           throw error;
@@ -476,7 +476,7 @@ export async function taskRoutes(app: FastifyInstance) {
             cancelBody.epoch
           );
         } catch (error) {
-          if (error instanceof StaleEpochError) {
+          if (error instanceof StaleEpochError || error instanceof ReadOnlyError) {
             return { staleEpoch: true };
           }
           throw error;
@@ -568,7 +568,7 @@ export async function taskRoutes(app: FastifyInstance) {
             retryBody.epoch
           );
         } catch (error) {
-          if (error instanceof StaleEpochError) {
+          if (error instanceof StaleEpochError || error instanceof ReadOnlyError) {
             return { staleEpoch: true };
           }
           throw error;

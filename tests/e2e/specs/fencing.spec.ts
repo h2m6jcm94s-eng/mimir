@@ -63,4 +63,35 @@ test.describe('Leader/fencing', () => {
     const body = (await patchResponse.json()) as { error: { code: string } };
     expect(body.error.code).toBe('STALE_EPOCH');
   });
+
+  test('promotion lease prevents split-brain', async ({ apiRequest }) => {
+    const enrollResponse = await apiRequest.post('/v1/nodes/enroll', {
+      headers: apiRequestHeaders(),
+      data: { kind: 'brain', name: 'e2e-promote', tier: 0 },
+    });
+    expect(enrollResponse.status()).toBe(201);
+    const { id: nodeId } = (await enrollResponse.json()) as { id: string };
+
+    const epochResponse = await apiRequest.get('/v1/fencing/epoch', {
+      headers: apiRequestHeaders(),
+    });
+    expect(epochResponse.status()).toBe(200);
+    const { epoch: beforeEpoch } = (await epochResponse.json()) as { epoch: number };
+
+    const promoteResponse = await apiRequest.post('/v1/fencing/promote', {
+      headers: apiRequestHeaders(),
+      data: { candidateNodeId: nodeId },
+    });
+    expect(promoteResponse.status()).toBe(200);
+    const { epoch: afterEpoch } = (await promoteResponse.json()) as { epoch: number };
+    expect(afterEpoch).toBe(beforeEpoch + 1);
+
+    const demoteResponse = await apiRequest.post('/v1/fencing/demote', {
+      headers: apiRequestHeaders(),
+      data: { nodeId },
+    });
+    expect(demoteResponse.status()).toBe(200);
+    const demoteBody = (await demoteResponse.json()) as { demoted: boolean };
+    expect(demoteBody.demoted).toBe(true);
+  });
 });

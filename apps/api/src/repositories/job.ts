@@ -1,7 +1,7 @@
 import { and, count, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import type { TenantContext } from '../db/tenant-context';
-import { assertCurrentEpoch } from '../services/fencing/fencing';
+import { assertCanWrite } from '../services/fencing/fencing';
 import { jobsStatusChangedCounter } from '../services/metrics/registry';
 
 export interface CreateJobInput {
@@ -48,7 +48,7 @@ export async function updateJobStatus(
   claimedEpoch?: number
 ) {
   if (claimedEpoch !== undefined) {
-    await assertCurrentEpoch(ctx, claimedEpoch);
+    await assertCanWrite(ctx, claimedEpoch);
   }
 
   const existing = await getJob(ctx, jobId);
@@ -56,6 +56,7 @@ export async function updateJobStatus(
     status,
     ...update,
     updatedAt: new Date(),
+    ...(claimedEpoch !== undefined && { epoch: claimedEpoch }),
   };
 
   if (status === 'running' && !existing?.startedAt) {
