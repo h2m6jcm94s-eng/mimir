@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
+import { createSandboxRunner } from '../services/sandbox';
 import { buildTestApp } from '../test-helpers/build-app';
 import { sandboxRoutes } from './sandbox';
 
@@ -174,4 +175,76 @@ describe('sandbox routes', () => {
       expect(body.stdout).toContain('gvisor ok');
     }
   );
+
+  it.skipIf(!process.env.RUN_DB_TESTS)(
+    'execute requires a verified PIN and runs safe code through static analysis',
+    async () => {
+      const token = `sandbox_execute_safe_${Date.now()}`;
+      const app = await buildTestApp(async (app) => {
+        await app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
+      });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/sandbox/execute',
+        headers: { authorization: `Bearer ${token}` },
+        payload: {
+          code: 'export function add(a: number, b: number): number { return a + b; }',
+          command: 'echo',
+          args: ['execute ok'],
+          timeoutMs: 5_000,
+          pin: '1234',
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.allowed).toBe(true);
+      expect(body.analysis.ok).toBe(true);
+      expect(body.run.exitCode).toBe(0);
+      expect(body.run.stdout).toContain('execute ok');
+    }
+  );
+
+  it.skipIf(!process.env.RUN_DB_TESTS)(
+    'execute rejects dangerous code before running it',
+    async () => {
+      const token = `sandbox_execute_danger_${Date.now()}`;
+      const app = await buildTestApp(async (app) => {
+        await app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
+      });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/sandbox/execute',
+        headers: { authorization: `Bearer ${token}` },
+        payload: {
+          code: "fetch('https://example.com');",
+          command: 'echo',
+          args: ['should not run'],
+          timeoutMs: 5_000,
+          pin: '1234',
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('STATIC_ANALYSIS_FAILED');
+      expect(body.error.analysis.ok).toBe(false);
+    }
+  );
+
+  it('refuses passthrough mode in production', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalMode = process.env.SANDBOX_MODE;
+    process.env.NODE_ENV = 'production';
+    process.env.SANDBOX_MODE = 'passthrough';
+
+    await expect(createSandboxRunner()).rejects.toThrow(
+      'SANDBOX_MODE=passthrough is not allowed in production'
+    );
+
+    process.env.NODE_ENV = originalNodeEnv;
+    process.env.SANDBOX_MODE = originalMode;
+  });
 });

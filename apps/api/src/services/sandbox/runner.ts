@@ -97,9 +97,19 @@ function runWithTimeout(
   });
 }
 
+function enforceGvisor(): boolean {
+  if (process.env.SANDBOX_MODE === 'gvisor') return true;
+  if (process.env.SANDBOX_ENFORCE_GVISOR === '1') return true;
+  if (process.env.NODE_ENV === 'production') return true;
+  return false;
+}
+
 export async function createSandboxRunner(): Promise<SandboxRunner> {
   const mode = process.env.SANDBOX_MODE;
   if (mode === 'passthrough') {
+    if (enforceGvisor()) {
+      throw new Error('SANDBOX_MODE=passthrough is not allowed in production');
+    }
     return new PassthroughSandboxRunner();
   }
 
@@ -111,10 +121,16 @@ export async function createSandboxRunner(): Promise<SandboxRunner> {
     return new GvisorSandboxRunner(runsc);
   }
 
-  // Auto-detect: prefer gVisor if available, otherwise warn and fall back to passthrough.
+  // Auto-detect: prefer gVisor if available, otherwise fall back only outside production.
   const runsc = await which('runsc');
   if (runsc) {
     return new GvisorSandboxRunner(runsc);
+  }
+
+  if (enforceGvisor()) {
+    throw new Error(
+      'gVisor (runsc) is required in production but was not found in PATH. Install runsc or set SANDBOX_MODE=passthrough only in development.'
+    );
   }
 
   return new PassthroughSandboxRunner();
