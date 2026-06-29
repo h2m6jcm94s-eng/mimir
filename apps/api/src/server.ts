@@ -56,6 +56,7 @@ import { userRoutes } from './routes/users';
 import { valuesRoutes } from './routes/values';
 import { workflowRoutes } from './routes/workflows';
 import { httpRequestsCounter } from './services/metrics/registry';
+import { resolveDeploymentSecrets } from './services/secrets/bootstrap';
 import { initializeLibSqlSchema } from './services/state/libsql-schema';
 import { ensureDigestSchedule, getTemporalConnection } from './temporal/client';
 
@@ -70,6 +71,8 @@ const app = Fastify({
 });
 
 async function main() {
+  await resolveDeploymentSecrets();
+
   await app.register(cors, {
     origin: config.webAppDomain,
     allowedHeaders: ['Content-Type', 'Authorization', ...supertokens.getAllCORSHeaders()],

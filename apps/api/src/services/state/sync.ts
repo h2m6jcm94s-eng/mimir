@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { getLibSqlClient } from '../../db/libsql';
 import * as schema from '../../db/schema';
 import { withTenantTransaction } from '../../db/tenant-context';
@@ -112,12 +113,62 @@ export async function syncNodesToLibSql(tenantId: string, limit = 1000): Promise
   return postgresNodes.length;
 }
 
+async function writeReplicaWatermark(tenantId: string): Promise<void> {
+  const client = getLibSqlClient();
+  const syncStartedAt = new Date();
+
+  const epoch = await withTenantTransaction(tenantId, async (ctx) => {
+    const [meta] = await ctx.tenantScopedDb
+      .select({ epoch: schema.meshMeta.epoch })
+      .from(schema.meshMeta)
+      .where(eq(schema.meshMeta.tenantId, tenantId));
+    return meta?.epoch ?? 0;
+  });
+
+  const syncFinishedAt = new Date();
+  const lagMs = syncFinishedAt.getTime() - syncStartedAt.getTime();
+
+  await client.execute({
+    sql: `
+      INSERT INTO replica_watermark (tenant_id, last_sync_at, last_synced_epoch, lag_ms)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(tenant_id) DO UPDATE SET
+        last_sync_at = excluded.last_sync_at,
+        last_synced_epoch = excluded.last_synced_epoch,
+        lag_ms = excluded.lag_ms
+    `,
+    args: [tenantId, syncFinishedAt.toISOString(), epoch, lagMs],
+  });
+}
+
 export async function syncStateToLibSql(
   tenantId: string
-): Promise<{ jobs: number; nodes: number }> {
+): Promise<{ jobs: number; nodes: number; lagMs: number }> {
+  const syncStartedAt = Date.now();
   const [jobs, nodes] = await Promise.all([
     syncJobsToLibSql(tenantId),
     syncNodesToLibSql(tenantId),
   ]);
-  return { jobs, nodes };
+  await writeReplicaWatermark(tenantId);
+  return { jobs, nodes, lagMs: Date.now() - syncStartedAt };
+}
+
+const pendingSyncs = new Set<string>();
+
+export function scheduleSync(tenantId: string): void {
+  // Continuous background sync is disabled in unit/integration tests to avoid
+  // SQLite lock contention on the shared local replica file.
+  if (process.env.NODE_ENV === 'test' || process.env.VITEST === 'true') return;
+  if (pendingSyncs.has(tenantId)) return;
+  pendingSyncs.add(tenantId);
+  setImmediate(async () => {
+    pendingSyncs.delete(tenantId);
+    try {
+      await syncStateToLibSql(tenantId);
+    } catch (err) {
+      // Non-fatal: continuous sync should not break request paths.
+      // eslint-disable-next-line no-console
+      console.warn(`Scheduled LibSQL sync failed for tenant ${tenantId}`, err);
+    }
+  });
 }

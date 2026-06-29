@@ -4,6 +4,8 @@ import { TelegramClient } from './client';
 const resolver = {
   get: vi.fn(),
   getForTenant: vi.fn().mockResolvedValue('bot-token'),
+  getRequired: vi.fn().mockResolvedValue('bot-token'),
+  getRequiredForTenant: vi.fn().mockResolvedValue('bot-token'),
 };
 
 describe('TelegramClient', () => {

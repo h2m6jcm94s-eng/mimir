@@ -7,6 +7,8 @@ import { apiRequestHeaders, expect, test } from '../fixtures/base';
  * fencing endpoint bumps the tenant's epoch; writes that still carry the old
  * epoch are rejected so stale leaders transition to read-only.
  */
+test.describe.configure({ mode: 'serial' });
+
 test.describe('Leader/fencing', () => {
   async function createTask(apiRequest: typeof test.request, idempotencyKey: string) {
     const response = await apiRequest.post('/v1/tasks', {

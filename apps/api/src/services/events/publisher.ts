@@ -3,6 +3,7 @@ import type { TenantContext } from '../../db/tenant-context';
 import { getEventBus } from '../../event-bus';
 import { type CreateJobEventInput, createJobEvent } from '../../repositories/event';
 import { notify } from '../notifications/delivery';
+import { scheduleSync } from '../state/sync';
 
 export interface PublishJobEventInput {
   jobId: string;
@@ -69,6 +70,9 @@ export async function publishJobEvent(ctx: TenantContext, input: PublishJobEvent
     type: input.type as CreateJobEventInput['type'],
     payload: input.payload,
   });
+
+  // Replicate the updated state to the local LibSQL replica asynchronously.
+  scheduleSync(ctx.tenantId);
 
   const event = JobEvent.parse({
     id: persisted.id,

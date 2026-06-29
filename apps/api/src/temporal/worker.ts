@@ -1,6 +1,8 @@
 import http from 'node:http';
 import path from 'node:path';
 import { NativeConnection, Worker, bundleWorkflowCode } from '@temporalio/worker';
+import { resolveDeploymentSecrets } from '../services/secrets/bootstrap';
+import { initializeLibSqlSchema } from '../services/state/libsql-schema';
 import * as activities from './activities';
 
 const temporalHost = process.env.TEMPORAL_HOST || 'localhost:7233';
@@ -8,6 +10,12 @@ const taskQueue = process.env.TEMPORAL_TASK_QUEUE || 'mimir-task-queue';
 const healthPort = Number(process.env.WORKER_HEALTH_PORT) || 3002;
 
 async function run() {
+  // Load deployment secrets before any activity can use them.
+  await resolveDeploymentSecrets();
+
+  // Ensure the local LibSQL replica schema is ready before activities run.
+  await initializeLibSqlSchema();
+
   const connection = await NativeConnection.connect({ address: temporalHost });
 
   const workflowBundle = await bundleWorkflowCode({

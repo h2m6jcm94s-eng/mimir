@@ -43,9 +43,19 @@ CREATE TABLE IF NOT EXISTS node (
 );
 
 CREATE INDEX IF NOT EXISTS idx_node_tenant ON node (tenant_id);
+
+CREATE TABLE IF NOT EXISTS replica_watermark (
+  tenant_id TEXT PRIMARY KEY,
+  last_sync_at TEXT NOT NULL,
+  last_synced_epoch INTEGER NOT NULL DEFAULT 0,
+  lag_ms INTEGER
+);
 `;
 
 export async function initializeLibSqlSchema(): Promise<void> {
   const client = getLibSqlClient();
+  // PRAGMAs return rows, so they must run through execute(), not executeMultiple().
+  await client.execute('PRAGMA journal_mode = WAL;');
+  await client.execute('PRAGMA busy_timeout = 5000;');
   await client.executeMultiple(LIBSQL_SCHEMA);
 }

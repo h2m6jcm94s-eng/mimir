@@ -32,6 +32,7 @@ import { ReviewerRouter } from '../services/reviewers/router';
 import { scrubForTier } from '../services/scrubber/scrubber';
 import { throwIfHalted } from '../services/halt/state';
 import { publishJobEvent } from '../services/events/publisher';
+import { syncStateToLibSql } from '../services/state/sync';
 import type { RoutineWorkflowInput, TaskRunInput } from './workflows';
 import { dispatchRoutineJob } from '../services/routines/dispatch';
 import { sendEmailDigest } from '../services/email-digest/digest';
@@ -72,6 +73,11 @@ interface JobCheckpoint {
   reviews?: ReviewCheckpoint[];
   patches?: PatchCheckpoint[];
   apply?: { result: ApplyResult; finishedAt: string };
+}
+
+async function syncT0Completion(tier: number, tenantId: string): Promise<void> {
+  if (tier !== 0) return;
+  await syncStateToLibSql(tenantId);
 }
 
 export async function build(input: TaskRunInput): Promise<BuildResult> {
@@ -299,7 +305,7 @@ export async function apply(
   reviewResult: ReviewResult
 ): Promise<ApplyResult> {
   await throwIfHalted();
-  return withTenantTransaction(input.tenantId, async (ctx) => {
+  const result = await withTenantTransaction(input.tenantId, async (ctx) => {
     const job = await getJob(ctx, input.jobId);
     const existing = (job?.checkpoint as JobCheckpoint | undefined) ?? {};
 
@@ -331,34 +337,41 @@ export async function apply(
       return { applied: false, reason, output: {} };
     }
 
-    const result = await applyRegistry.handle(ctx, input.type, input, finalDraft, reviewResult);
+    const applyResult = await applyRegistry.handle(ctx, input.type, input, finalDraft, reviewResult);
 
-    await updateJobStatus(ctx, input.jobId, result.applied ? 'done' : 'failed', {
-      result: result.output,
-      checkpoint: { ...existing, apply: { result, finishedAt: new Date().toISOString() } },
+    await updateJobStatus(ctx, input.jobId, applyResult.applied ? 'done' : 'failed', {
+      result: applyResult.output,
+      checkpoint: { ...existing, apply: { result: applyResult, finishedAt: new Date().toISOString() } },
     });
 
     await publishJobEvent(ctx, {
       jobId: input.jobId,
-      type: result.applied ? 'job.apply.completed' : 'job.apply.failed',
-      payload: { applied: result.applied, reason: result.reason },
+      type: applyResult.applied ? 'job.apply.completed' : 'job.apply.failed',
+      payload: { applied: applyResult.applied, reason: applyResult.reason },
     });
 
     await publishJobEvent(ctx, {
       jobId: input.jobId,
-      type: result.applied ? 'job.done' : 'job.failed',
-      payload: { reason: result.reason },
+      type: applyResult.applied ? 'job.done' : 'job.failed',
+      payload: { reason: applyResult.reason },
     });
 
     await createAuditEvent(ctx, {
       actor: input.userId,
-      action: result.applied ? 'apply_completed' : 'apply_failed',
+      action: applyResult.applied ? 'apply_completed' : 'apply_failed',
       tier: input.tier,
-      payload: { jobId: input.jobId, applied: result.applied, reason: result.reason },
+      payload: { jobId: input.jobId, applied: applyResult.applied, reason: applyResult.reason },
     });
 
-    return result;
+    return applyResult;
   });
+
+  // Sync T0 state to the local LibSQL replica only after the Postgres
+  // transaction commits. Running it inside the transaction can deadlock the
+  // connection pool because sync opens its own tenant-scoped reads.
+  await syncT0Completion(input.tier, input.tenantId);
+
+  return result;
 }
 
 export async function recordFailure(
@@ -376,6 +389,8 @@ export async function recordFailure(
       payload: { error: code, reason },
     });
   });
+
+  await syncT0Completion(input.tier, input.tenantId);
 }
 
 export async function recordEscalation(
