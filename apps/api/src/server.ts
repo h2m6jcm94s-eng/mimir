@@ -55,6 +55,7 @@ import { toolsRoutes } from './routes/tools';
 import { userRoutes } from './routes/users';
 import { valuesRoutes } from './routes/values';
 import { workflowRoutes } from './routes/workflows';
+import { ClockSkewError } from './services/fencing/clock-skew';
 import { httpRequestsCounter } from './services/metrics/registry';
 import { resolveDeploymentSecrets } from './services/secrets/bootstrap';
 import { initializeLibSqlSchema } from './services/state/libsql-schema';
@@ -165,6 +166,15 @@ async function main() {
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error(error);
+    if (error instanceof ClockSkewError) {
+      return reply.status(503).send({
+        error: {
+          code: 'CLOCK_SKEW',
+          message: error.message,
+          traceId: 'todo',
+        },
+      });
+    }
     reply.status(error.statusCode || 500).send({
       error: {
         code: error.code || 'INTERNAL_ERROR',

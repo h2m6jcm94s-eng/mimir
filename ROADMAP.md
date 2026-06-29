@@ -1994,7 +1994,7 @@ reliability/governance claim** [validation C1].
 | R‑08 | Review‑loop deadlock / infinite cost | 🟡 | mitigating | max‑3 + cycle detect + token budget | api | M2 |
 | R‑09 | Ship‑and‑wipe leakage (EBS/swap residue) | 🟡 | open | instance‑store/tmpfs + crypto‑wipe + power‑off | infra | M3/M10 |
 | R‑10 | No DR for total loss (single house) | 🟡 | open | 3‑2‑1 encrypted offsite + weekly restore test | infra | M3 |
-| R‑11 | Clock skew → premature failover | 🟡 | open | monotonic clocks + skew detection | api | M3 |
+| R‑11 | Clock skew → premature failover | 🟡 | mitigating | monotonic clocks + skew detection; fencing operations reject when wall clock jumps beyond threshold | api | M3 |
 | R‑12 | WAL corruption replicated as "correct" | 🟡 | open | content‑hash + app‑validation + integrity_check + reconcile | api | M3 |
 | R‑13 | Cost runaway (loop) | 🟠 | mitigating | per‑task/agent/tenant ceilings + anomaly auto‑halt | api | M9 |
 | R‑14 | Tier‑0 leakage via telemetry/logs | 🟠 | open | tier‑aware redaction; tier‑0 telemetry‑leak CI test | infra | M9 |

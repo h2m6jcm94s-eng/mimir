@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, sql } from 'drizzle-orm';
 import * as schema from '../../db/schema';
 import type { TenantContext } from '../../db/tenant-context';
+import { ClockSkewError, assertNoClockSkew } from './clock-skew';
 
 export class StaleEpochError extends Error {
   constructor(message = 'Stale epoch: write rejected') {
@@ -23,6 +24,8 @@ export class PromotionInProgressError extends Error {
     this.name = 'PromotionInProgressError';
   }
 }
+
+export { ClockSkewError };
 
 type MeshMetaRow = typeof schema.meshMeta.$inferSelect;
 
@@ -64,6 +67,7 @@ export async function bumpEpoch(
   expectedEpoch: number,
   leaderNodeId?: string
 ): Promise<number | null> {
+  assertNoClockSkew('bumpEpoch');
   await acquireAdvisoryLock(ctx);
 
   const existing = await getMeshMeta(ctx);
@@ -106,6 +110,7 @@ export async function acquirePromotionLease(
   candidateNodeId: string,
   ttlSeconds = 30
 ): Promise<{ leaseToken: string; currentEpoch: number }> {
+  assertNoClockSkew('acquirePromotionLease');
   await acquireAdvisoryLock(ctx);
 
   const meta = await getMeshMeta(ctx);
