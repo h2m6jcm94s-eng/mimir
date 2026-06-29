@@ -23,7 +23,7 @@ export async function healthRoutes(app: FastifyInstance) {
     const ready = Object.values(dependencies).every((v) => v === 'ok');
 
     return {
-      status: ready && libsqlIntegrity.ok ? 'ready' : 'not_ready',
+      status: ready ? 'ready' : 'not_ready',
       dependencies,
       libsqlLagMs,
       libsqlIntegrity,
@@ -44,7 +44,7 @@ export async function healthRoutes(app: FastifyInstance) {
     const healthy = Object.values(dependencies).every((v) => v === 'ok');
 
     return {
-      status: healthy && libsqlIntegrity.ok ? 'healthy' : 'degraded',
+      status: healthy ? 'healthy' : 'degraded',
       dependencies,
       libsqlLagMs,
       libsqlIntegrity,

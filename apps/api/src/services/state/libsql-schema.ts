@@ -55,18 +55,30 @@ CREATE TABLE IF NOT EXISTS replica_watermark (
 `;
 
 async function runMigrations(): Promise<void> {
+  let columnAdded = false;
   try {
     await executeLibSqlWrite(
       'ALTER TABLE replica_watermark ADD COLUMN content_hash TEXT;',
       'libsqlMigrationContentHash'
     );
+    columnAdded = true;
   } catch (err) {
     if (err instanceof Error && err.message.includes('duplicate column name')) {
       // Already migrated.
-      return;
+      columnAdded = true;
+    } else {
+      // Re-throw fatal write errors; surface other migration errors.
+      throw err;
     }
-    // Re-throw fatal write errors; surface other migration errors.
-    throw err;
+  }
+
+  if (columnAdded) {
+    // Clear any stale checksums so the next sync recomputes them with the
+    // current normalization logic (snake_case keys matching the replica rows).
+    await executeLibSqlWrite(
+      'UPDATE replica_watermark SET content_hash = NULL;',
+      'libsqlMigrationClearStaleChecksums'
+    );
   }
 }
 

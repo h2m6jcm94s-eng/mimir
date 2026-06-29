@@ -4,6 +4,17 @@ import * as schema from '../../db/schema';
 import { withTenantTransaction } from '../../db/tenant-context';
 import { executeLibSqlWrite } from './lifecycle';
 
+function toSnakeCase(str: string): string {
+  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+function toSnakeCaseKeys(row: Record<string, unknown>): Record<string, unknown> {
+  return Object.entries(row).reduce<Record<string, unknown>>((acc, [key, value]) => {
+    acc[toSnakeCase(key)] = value;
+    return acc;
+  }, {});
+}
+
 function canonicalRow(row: Record<string, unknown>): string {
   const sorted = Object.keys(row)
     .sort()
@@ -26,7 +37,10 @@ export async function computePostgresChecksum(tenantId: string): Promise<string>
   return withTenantTransaction(tenantId, async (ctx) => {
     const jobs = await ctx.tenantScopedDb.select().from(schema.job).orderBy(schema.job.id);
     const nodes = await ctx.tenantScopedDb.select().from(schema.node).orderBy(schema.node.id);
-    return computeHash([...jobs, ...nodes] as Record<string, unknown>[]);
+    const normalized = [...jobs, ...nodes].map((row) =>
+      toSnakeCaseKeys(row as Record<string, unknown>)
+    );
+    return computeHash(normalized);
   });
 }
 
