@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- R-07 LibSQL state.db lifecycle management: configurable retention pruning (`LIBSQL_RETENTION_DAYS`), periodic `VACUUM` (`LIBSQL_VACUUM_INTERVAL_MS`), and disk-full/I/O write failure fatal exit (`LIBSQL_WRITE_FAILURE_FATAL`) to prevent disk-full zombie states.
+
 ### Fixed
 
 - Memory checkpoint diff now matches changed nodes by logical `key` rather than physical row `id`, so temporal versioning (which creates a new row on each PATCH) correctly reports value changes instead of treating them as unrelated removals/additions.

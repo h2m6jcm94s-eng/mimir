@@ -58,6 +58,7 @@ import { workflowRoutes } from './routes/workflows';
 import { httpRequestsCounter } from './services/metrics/registry';
 import { resolveDeploymentSecrets } from './services/secrets/bootstrap';
 import { initializeLibSqlSchema } from './services/state/libsql-schema';
+import { startLifecycleMaintenance } from './services/state/lifecycle';
 import { ensureDigestSchedule, getTemporalConnection } from './temporal/client';
 
 initSupertokens();
@@ -185,6 +186,8 @@ async function main() {
   try {
     await initializeLibSqlSchema();
     app.log.info('LibSQL schema initialized');
+    startLifecycleMaintenance();
+    app.log.info('LibSQL lifecycle maintenance started');
   } catch (err) {
     app.log.warn({ err }, 'LibSQL schema initialization failed at startup');
   }

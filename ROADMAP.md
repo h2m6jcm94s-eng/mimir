@@ -1988,9 +1988,9 @@ reliability/governance claim** [validation C1].
 | R‑02 | Kimi (PRC) data exposure — workhorse touches all data | 🔴 | mitigating | classification gateway: sensitive → Claude/local; scrub IDs for cloud; LiteLLM proxy logs routing | api | G1 |
 | R‑03 | Split‑brain (phone‑witness sole tiebreaker) | 🟠 | open | external lock (etcd/conditional‑write) + API‑side fencing + read‑only‑during‑transition | api | G1 |
 | R‑04 | Single‑writer SPOF during failover | 🟠 | mitigating | LibSQL embedded replicas + fencing‑epoch auto‑promote (zero‑loss) | api | G1 |
-| R‑05 | Plaintext state.db/secrets → theft = total loss | 🟠 | open | LUKS FDE + SQLCipher + vault + ephemeral SSH CA | infra | G1 |
+| R‑05 | Plaintext state.db/secrets → theft = total loss | 🟠 | mitigating | LUKS FDE + SQLCipher + vault + ephemeral SSH CA + encrypted backups + age-encrypted SSH CA rotation | infra | G1 |
 | R‑06 | Flat tailnet → lateral movement | 🟠 | open | Tailscale tag ACLs + air‑gap cloud | infra | G1 |
-| R‑07 | Unbounded state.db growth → disk‑full zombie | 🟡 | open | retention + VACUUM + write‑failure‑is‑fatal | api | M3 |
+| R‑07 | Unbounded state.db growth → disk‑full zombie | 🟡 | mitigating | retention + VACUUM + write‑failure‑is‑fatal | api | M3 |
 | R‑08 | Review‑loop deadlock / infinite cost | 🟡 | mitigating | max‑3 + cycle detect + token budget | api | M2 |
 | R‑09 | Ship‑and‑wipe leakage (EBS/swap residue) | 🟡 | open | instance‑store/tmpfs + crypto‑wipe + power‑off | infra | M3/M10 |
 | R‑10 | No DR for total loss (single house) | 🟡 | open | 3‑2‑1 encrypted offsite + weekly restore test | infra | M3 |
