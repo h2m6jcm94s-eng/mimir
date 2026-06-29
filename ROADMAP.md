@@ -1999,7 +1999,7 @@ reliability/governance claim** [validation C1].
 | R‑13 | Cost runaway (loop) | 🟠 | mitigating | per‑task/agent/tenant ceilings + anomaly auto‑halt | api | M9 |
 | R‑14 | Tier‑0 leakage via telemetry/logs | 🟠 | open | tier‑aware redaction; tier‑0 telemetry‑leak CI test | infra | M9 |
 | R‑15 | Classifier misclassification / low‑confidence → T0 leakage | 🔴 | open | confidence threshold + conservative T0 fallback + per‑decision audit event + classifier‑vs‑policy conformance test | api | G1 |
-| R‑16 | Worker/cron RLS bypass → cross‑tenant access | 🔴 | open | mandatory tenant‑context wrapper enforced through repository/DB‑client layer + property test of worker paths | api | M1 |
+| R‑16 | Worker/cron RLS bypass → cross‑tenant access | 🔴 | mitigating | `TenantContext.tenantScopedDb` now throws outside a transaction; `withTenantTransaction` required for all tenant-scoped DB work; explicit `getGlobalDb()` escape hatch for global queries | api | M1 |
 | R‑17 | GDPR crypto‑delete incomplete for embeddings | 🟠 | open | per‑subject embedding linkage + derived‑vector deletion; disclose residual nearest‑neighbor semantic risk | api | M5 |
 | R‑19 | No brain DR playbook (RTO ≤ 4h replacement, RPO ≤ 1h T0) | 🟡 | open | documented replace‑stolen‑laptop ceremony + key‑recovery/sharding flow; see also R‑10 / I.11 | infra | M3 |
 | R‑20 | TS↔Python contract drift (no OpenAPI→Pydantic server models) | 🟡 | open | generate Pydantic from same OpenAPI spec + CI gate fails on drift | api/infra | M1/M2 |

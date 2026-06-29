@@ -37,7 +37,7 @@ import type { RoutineWorkflowInput, TaskRunInput } from './workflows';
 import { dispatchRoutineJob } from '../services/routines/dispatch';
 import { sendEmailDigest } from '../services/email-digest/digest';
 import { listDueEmailDigestPreferences } from '../repositories/email-digest';
-import { db } from '../db/client';
+import { getGlobalDb } from '../db/tenant-context';
 import * as schema from '../db/schema';
 
 const budgetService = new BudgetService();
@@ -422,7 +422,7 @@ export async function sendPendingDigests(input: { frequency: 'daily' | 'weekly' 
   const windowMs = input.frequency === 'daily' ? 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
   const windowStart = new Date(now.getTime() - windowMs);
 
-  const tenants = await db.select({ id: schema.tenant.id }).from(schema.tenant);
+  const tenants = await getGlobalDb().select({ id: schema.tenant.id }).from(schema.tenant);
 
   for (const tenant of tenants) {
     await withTenantTransaction(tenant.id, async (ctx) => {
