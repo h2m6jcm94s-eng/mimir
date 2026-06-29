@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Memory checkpoint diff now matches changed nodes by logical `key` rather than physical row `id`, so temporal versioning (which creates a new row on each PATCH) correctly reports value changes instead of treating them as unrelated removals/additions.
 - Cloud-worker return webhook event type aligned across the DB enum (`job_event_type`), shared Zod types, and the event publisher (`cloud_worker.returned`). Added migration `0041_cloud_worker_returned_event.sql` and updated the integration test to seed a real job before calling the return webhook, fixing the `job_event_job_id_fkey` violation.
 - Gated the `tools routes > lists available connector actions` test behind `RUN_DB_TESTS` so CI's database-less unit-test job doesn't fail with `ECONNREFUSED` on Postgres.
+- R-12 checksum normalization fix: normalize Postgres row keys to snake_case before hashing so replica checksums match LibSQL rows; clear stale checksums on schema init; keep integrity check informational in `/readyz`/`/healthz` so transient mismatches don't mark the API not_ready.
 - F-040 natural-language policy editor: heuristic translator now strips trailing punctuation from extracted actions and supports `Deny all` / `Deny everything` / `Default deny` catch-all rules.
 
 ### Changed
