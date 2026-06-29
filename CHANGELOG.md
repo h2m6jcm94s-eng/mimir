@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - R-07 LibSQL state.db lifecycle management: configurable retention pruning (`LIBSQL_RETENTION_DAYS`), periodic `VACUUM` (`LIBSQL_VACUUM_INTERVAL_MS`), and disk-full/I/O write failure fatal exit (`LIBSQL_WRITE_FAILURE_FATAL`) to prevent disk-full zombie states.
 - R-11 Clock-skew guard for fencing: compares wall clock with monotonic clock; rejects epoch bumps and promotion leases when skew exceeds `CLOCK_SKEW_THRESHOLD_MS` (default 5000ms); returns 503 `CLOCK_SKEW`.
+- R-12 LibSQL replica integrity: periodic `PRAGMA integrity_check`, per-tenant SHA-256 content checksums stored in `replica_watermark`, and automatic reconcile from Postgres when corruption/mismatch is detected; surfaced in `/readyz` and `/healthz`.
 
 ### Fixed
 

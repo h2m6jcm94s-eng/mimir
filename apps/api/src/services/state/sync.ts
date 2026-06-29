@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import * as schema from '../../db/schema';
 import { withTenantTransaction } from '../../db/tenant-context';
+import { computePostgresChecksum, updateExpectedChecksum } from './checksum';
 import { executeLibSqlWrite } from './lifecycle';
 
 function serialize(value: unknown): string | null {
@@ -156,6 +157,8 @@ export async function syncStateToLibSql(
     syncNodesToLibSql(tenantId),
   ]);
   await writeReplicaWatermark(tenantId);
+  const expectedHash = await computePostgresChecksum(tenantId);
+  await updateExpectedChecksum(tenantId, expectedHash);
   return { jobs, nodes, lagMs: Date.now() - syncStartedAt };
 }
 

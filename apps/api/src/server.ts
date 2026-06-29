@@ -58,6 +58,7 @@ import { workflowRoutes } from './routes/workflows';
 import { ClockSkewError } from './services/fencing/clock-skew';
 import { httpRequestsCounter } from './services/metrics/registry';
 import { resolveDeploymentSecrets } from './services/secrets/bootstrap';
+import { startIntegrityMonitoring } from './services/state/integrity';
 import { initializeLibSqlSchema } from './services/state/libsql-schema';
 import { startLifecycleMaintenance } from './services/state/lifecycle';
 import { ensureDigestSchedule, getTemporalConnection } from './temporal/client';
@@ -198,6 +199,8 @@ async function main() {
     app.log.info('LibSQL schema initialized');
     startLifecycleMaintenance();
     app.log.info('LibSQL lifecycle maintenance started');
+    startIntegrityMonitoring();
+    app.log.info('LibSQL integrity monitoring started');
   } catch (err) {
     app.log.warn({ err }, 'LibSQL schema initialization failed at startup');
   }

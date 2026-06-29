@@ -49,13 +49,31 @@ CREATE TABLE IF NOT EXISTS replica_watermark (
   tenant_id TEXT PRIMARY KEY,
   last_sync_at TEXT NOT NULL,
   last_synced_epoch INTEGER NOT NULL DEFAULT 0,
-  lag_ms INTEGER
+  lag_ms INTEGER,
+  content_hash TEXT
 );
 `;
+
+async function runMigrations(): Promise<void> {
+  try {
+    await executeLibSqlWrite(
+      'ALTER TABLE replica_watermark ADD COLUMN content_hash TEXT;',
+      'libsqlMigrationContentHash'
+    );
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('duplicate column name')) {
+      // Already migrated.
+      return;
+    }
+    // Re-throw fatal write errors; surface other migration errors.
+    throw err;
+  }
+}
 
 export async function initializeLibSqlSchema(): Promise<void> {
   // PRAGMAs return rows, so they must run through execute(), not executeMultiple().
   await executeLibSqlWrite('PRAGMA journal_mode = WAL;', 'initializeLibSqlSchema');
   await executeLibSqlWrite('PRAGMA busy_timeout = 5000;', 'initializeLibSqlSchema');
   await executeMultipleLibSqlWrite(LIBSQL_SCHEMA, 'initializeLibSqlSchema');
+  await runMigrations();
 }
