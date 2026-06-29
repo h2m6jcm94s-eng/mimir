@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - R-11 Clock-skew guard for fencing: compares wall clock with monotonic clock; rejects epoch bumps and promotion leases when skew exceeds `CLOCK_SKEW_THRESHOLD_MS` (default 5000ms); returns 503 `CLOCK_SKEW`.
 - R-12 LibSQL replica integrity: periodic `PRAGMA integrity_check`, per-tenant SHA-256 content checksums stored in `replica_watermark`, and automatic reconcile from Postgres when corruption/mismatch is detected; surfaced in `/readyz` and `/healthz`.
 - R-16 Enforced tenant-context wrapper: `TenantContext.tenantScopedDb` now throws outside a transaction, forcing all tenant-scoped database work through `withTenantTransaction`; added explicit `getGlobalDb()` escape hatch for non-tenant-scoped global queries.
+- R-20 TS↔Python contract drift gate: `scripts/generate-python-contracts.py` generates Pydantic v2 models from `apps/api/openapi.json`; CI drift check fails if OpenAPI spec, TypeScript contracts, or Python generated models are out of sync; expanded `generate-openapi.ts` to register all routes.
 
 ### Fixed
 

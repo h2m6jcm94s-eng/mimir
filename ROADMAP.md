@@ -2002,7 +2002,7 @@ reliability/governance claim** [validation C1].
 | R‑16 | Worker/cron RLS bypass → cross‑tenant access | 🔴 | mitigating | `TenantContext.tenantScopedDb` now throws outside a transaction; `withTenantTransaction` required for all tenant-scoped DB work; explicit `getGlobalDb()` escape hatch for global queries | api | M1 |
 | R‑17 | GDPR crypto‑delete incomplete for embeddings | 🟠 | open | per‑subject embedding linkage + derived‑vector deletion; disclose residual nearest‑neighbor semantic risk | api | M5 |
 | R‑19 | No brain DR playbook (RTO ≤ 4h replacement, RPO ≤ 1h T0) | 🟡 | open | documented replace‑stolen‑laptop ceremony + key‑recovery/sharding flow; see also R‑10 / I.11 | infra | M3 |
-| R‑20 | TS↔Python contract drift (no OpenAPI→Pydantic server models) | 🟡 | open | generate Pydantic from same OpenAPI spec + CI gate fails on drift | api/infra | M1/M2 |
+| R‑20 | TS↔Python contract drift (no OpenAPI→Pydantic server models) | 🟡 | mitigating | generate Pydantic from same OpenAPI spec; CI drift check fails when TS contracts or Python models are out of sync with openapi.json | api/infra | M1/M2 |
 | R‑21 | LAN‑local fallback absent (phone↔brain dies if DERP path down) | 🟡 | open | mDNS/LAN discovery for phone↔brain when Tailscale relay unavailable; P2 feature | api | post‑M3 |
 | R‑22 | Engine self‑ownership → slower parity vs proven runtimes like Hermes | 🟡 | accepted | Mimir owns the engine (§5.1); Hermes is a design reference, not a dependency. Mitigate by keeping Hermes' connector/tool/skill patterns as a reference spec and benchmarking against it. | api | M2 |
 | **Business risks** | | | | | | |
