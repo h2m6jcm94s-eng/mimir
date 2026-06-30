@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { secrets } from '../../config/secrets';
 import { redis } from '../../db/redis';
 
 const DEFAULT_TTL_SECONDS = 15 * 60; // 15 minutes
@@ -10,8 +11,14 @@ export class CloudWorkerTokenError extends Error {
   }
 }
 
+let cachedCloudWorkerSecret: string | undefined;
+
+export async function resolveCloudWorkerSecret(): Promise<void> {
+  cachedCloudWorkerSecret = await secrets.get('cloud-worker-secret');
+}
+
 function getSecret(): string {
-  const secret = process.env.CLOUD_WORKER_SECRET;
+  const secret = cachedCloudWorkerSecret ?? process.env.CLOUD_WORKER_SECRET;
   if (!secret) {
     throw new CloudWorkerTokenError('CLOUD_WORKER_SECRET is not configured');
   }

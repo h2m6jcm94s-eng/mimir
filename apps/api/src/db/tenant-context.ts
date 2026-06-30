@@ -7,8 +7,6 @@ import * as schema from './schema';
  */
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-let rawDbWarningLogged = false;
-
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function assertUuid(tenantId: string): void {
@@ -38,16 +36,12 @@ export class TenantContext {
       return this.tx;
     }
 
-    if (!rawDbWarningLogged && process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
-      rawDbWarningLogged = true;
-      // eslint-disable-next-line no-console
-      console.warn(
-        '[TenantContext] Using raw db outside of a transaction; RLS is not enforced. ' +
-          'Use withTenantTransaction for tenant-scoped database work.'
-      );
-    }
-
-    return db;
+    // R-16 enforcement: tenant-scoped database work must run inside withTenantTransaction
+    // so Postgres RLS is active. Using the raw db outside a transaction bypasses isolation.
+    throw new Error(
+      'Tenant-scoped database access outside of a transaction is not allowed. ' +
+        'Use withTenantTransaction for all tenant-scoped database work.'
+    );
   }
 
   async ensureTenantExists() {
@@ -90,4 +84,12 @@ export async function withTenant<T>(
 ): Promise<T> {
   const ctx = new TenantContext(tenantId);
   return fn(ctx);
+}
+
+/**
+ * Explicit escape hatch for global (non-tenant-scoped) queries such as listing tenants
+ * for cron/scheduler fan-out. Never use this for tenant-scoped tables.
+ */
+export function getGlobalDb(): typeof db {
+  return db;
 }

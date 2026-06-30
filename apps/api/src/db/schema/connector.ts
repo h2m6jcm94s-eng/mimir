@@ -21,6 +21,7 @@ export const connectorKindEnum = pgEnum('connector_kind', [
   'csv',
   'xlsx',
   'googleSheets',
+  'notion',
 ]);
 export const connectorStatusEnum = pgEnum('connector_status', [
   'connected',

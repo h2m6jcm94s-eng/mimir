@@ -6,11 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Slack inbound webhook: `POST /webhooks/slack/:tenantId` verifies Slack signing signatures, handles URL verification challenges, deduplicates events by `event_id`, and routes `message` events through the shared chat-webhook framework to start a `slack.chat` reply workflow; `slack.chat` apply handler posts replies back to the channel/thread via `chat.postMessage`.
+- Notion connector backend: added `notion` to the connector kind enum; new `NotionClient` with search, get page/database, query database, and append block children; read actions exposed through the connector registry and `appendBlockChildren` registered as a write/approval action.
+- Airtable write actions: added `createRecord` and `updateRecord` to `AirtableClient` and registered them as approval-gated write actions, moving Airtable from read-only to read/write.
+- R-07 LibSQL state.db lifecycle management: configurable retention pruning (`LIBSQL_RETENTION_DAYS`), periodic `VACUUM` (`LIBSQL_VACUUM_INTERVAL_MS`), and disk-full/I/O write failure fatal exit (`LIBSQL_WRITE_FAILURE_FATAL`) to prevent disk-full zombie states.
+- R-11 Clock-skew guard for fencing: compares wall clock with monotonic clock; rejects epoch bumps and promotion leases when skew exceeds `CLOCK_SKEW_THRESHOLD_MS` (default 5000ms); returns 503 `CLOCK_SKEW`.
+- R-12 LibSQL replica integrity: periodic `PRAGMA integrity_check`, per-tenant SHA-256 content checksums stored in `replica_watermark`, and automatic reconcile from Postgres when corruption/mismatch is detected; surfaced in `/readyz` and `/healthz`.
+- R-16 Enforced tenant-context wrapper: `TenantContext.tenantScopedDb` now throws outside a transaction, forcing all tenant-scoped database work through `withTenantTransaction`; added explicit `getGlobalDb()` escape hatch for non-tenant-scoped global queries.
+- R-20 TS↔Python contract drift gate: `scripts/generate-python-contracts.py` generates Pydantic v2 models from `apps/api/openapi.json`; CI drift check fails if OpenAPI spec, TypeScript contracts, or Python generated models are out of sync; expanded `generate-openapi.ts` to register all routes.
+
 ### Fixed
 
 - Memory checkpoint diff now matches changed nodes by logical `key` rather than physical row `id`, so temporal versioning (which creates a new row on each PATCH) correctly reports value changes instead of treating them as unrelated removals/additions.
 - Cloud-worker return webhook event type aligned across the DB enum (`job_event_type`), shared Zod types, and the event publisher (`cloud_worker.returned`). Added migration `0041_cloud_worker_returned_event.sql` and updated the integration test to seed a real job before calling the return webhook, fixing the `job_event_job_id_fkey` violation.
 - Gated the `tools routes > lists available connector actions` test behind `RUN_DB_TESTS` so CI's database-less unit-test job doesn't fail with `ECONNREFUSED` on Postgres.
+- R-12 checksum normalization fix: normalize Postgres row keys to snake_case before hashing so replica checksums match LibSQL rows; clear stale checksums on schema init; keep integrity check informational in `/readyz`/`/healthz` so transient mismatches don't mark the API not_ready.
 - F-040 natural-language policy editor: heuristic translator now strips trailing punctuation from extracted actions and supports `Deny all` / `Deny everything` / `Default deny` catch-all rules.
 
 ### Changed

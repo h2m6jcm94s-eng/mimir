@@ -24,6 +24,12 @@ export interface ProviderCredentials {
   baseUrl?: string;
 }
 
+const resolvedSecrets: Record<string, string | undefined> = {};
+
+export function setResolvedModelSecret(name: string, value: string | undefined): void {
+  resolvedSecrets[name] = value;
+}
+
 export function getEnv(name: string): string | undefined {
-  return process.env[name];
+  return resolvedSecrets[name] ?? process.env[name];
 }

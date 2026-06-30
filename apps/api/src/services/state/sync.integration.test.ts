@@ -4,7 +4,7 @@ import { resolveAuthUser } from '../../middleware/auth';
 import { createDevice } from '../../repositories/device';
 import { createJob } from '../../repositories/job';
 import { initializeLibSqlSchema } from './libsql-schema';
-import { getReplicaJob, listReplicaJobsByTenant } from './read';
+import { getReplicaJob, getReplicaWatermark, listReplicaJobsByTenant } from './read';
 import { syncStateToLibSql } from './sync';
 
 describe('LibSQL state store sync', () => {
@@ -23,7 +23,7 @@ describe('LibSQL state store sync', () => {
       return { job: created };
     });
 
-    await syncStateToLibSql(user.tenantId);
+    const result = await syncStateToLibSql(user.tenantId);
 
     const replica = await getReplicaJob(job.id);
     expect(replica).toBeDefined();
@@ -33,6 +33,11 @@ describe('LibSQL state store sync', () => {
 
     const list = await listReplicaJobsByTenant(user.tenantId);
     expect(list.some((j) => j.id === job.id)).toBe(true);
+
+    const watermark = await getReplicaWatermark(user.tenantId);
+    expect(watermark).toBeDefined();
+    expect(watermark?.last_synced_epoch).toBeGreaterThanOrEqual(0);
+    expect(result.lagMs).toBeGreaterThanOrEqual(0);
   });
 
   it.skipIf(!process.env.RUN_DB_TESTS)('replicates a node from Postgres to LibSQL', async () => {

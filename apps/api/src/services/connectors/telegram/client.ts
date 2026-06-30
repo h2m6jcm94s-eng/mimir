@@ -46,4 +46,12 @@ export class TelegramClient {
       text: input.text,
     });
   }
+
+  async setWebhook(input: { url: string; secretToken: string }): Promise<unknown> {
+    return this.request<unknown>('setWebhook', {
+      url: input.url,
+      secret_token: input.secretToken,
+      allowed_updates: ['message', 'edited_message'],
+    });
+  }
 }

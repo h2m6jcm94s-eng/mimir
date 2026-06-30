@@ -74,5 +74,21 @@ services:
       timeout: 5s
       retries: 5
 
+  libsql-primary:
+    image: ghcr.io/tursodatabase/libsql-server:latest
+    environment:
+      SQLD_NODE: primary
+    ports:
+      - '8081:8080'
+      - '5001:5001'
+    volumes:
+      - libsql_data:/var/lib/sqld
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080/health']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
+  libsql_data:

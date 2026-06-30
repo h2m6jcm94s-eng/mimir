@@ -20,6 +20,7 @@ import { cloudWorkerRoutes, cloudWorkerWebhookRoutes } from './routes/cloud-work
 import { companionRoutes } from './routes/companion';
 import { connectorRoutes } from './routes/connectors';
 import { demoStatusRoutes } from './routes/demo';
+import { discordWebhookRoutes } from './routes/discord-webhook';
 import { emailDigestRoutes } from './routes/email-digest';
 import { fencingRoutes } from './routes/fencing';
 import { governanceRoutes } from './routes/governance';
@@ -48,15 +49,21 @@ import { scimRoutes } from './routes/scim';
 import { screenTimeRoutes } from './routes/screen-time';
 import { sessionRoutes } from './routes/sessions';
 import { skillRoutes } from './routes/skills';
+import { slackWebhookRoutes } from './routes/slack-webhook';
 import { sshCaRoutes } from './routes/ssh-ca';
 import { ssoRoutes } from './routes/sso';
 import { taskRoutes } from './routes/tasks';
+import { telegramWebhookRoutes } from './routes/telegram-webhook';
 import { toolsRoutes } from './routes/tools';
 import { userRoutes } from './routes/users';
 import { valuesRoutes } from './routes/values';
 import { workflowRoutes } from './routes/workflows';
+import { ClockSkewError } from './services/fencing/clock-skew';
 import { httpRequestsCounter } from './services/metrics/registry';
+import { resolveDeploymentSecrets } from './services/secrets/bootstrap';
+import { startIntegrityMonitoring } from './services/state/integrity';
 import { initializeLibSqlSchema } from './services/state/libsql-schema';
+import { startLifecycleMaintenance } from './services/state/lifecycle';
 import { ensureDigestSchedule, getTemporalConnection } from './temporal/client';
 
 initSupertokens();
@@ -70,6 +77,8 @@ const app = Fastify({
 });
 
 async function main() {
+  await resolveDeploymentSecrets();
+
   await app.register(cors, {
     origin: config.webAppDomain,
     allowedHeaders: ['Content-Type', 'Authorization', ...supertokens.getAllCORSHeaders()],
@@ -90,6 +99,9 @@ async function main() {
 
   // Public webhooks (registered before the auth hook so they skip session checks).
   app.register(cloudWorkerWebhookRoutes, { prefix: '/webhooks' });
+  app.register(telegramWebhookRoutes, { prefix: '/webhooks' });
+  app.register(discordWebhookRoutes, { prefix: '/webhooks' });
+  app.register(slackWebhookRoutes, { prefix: '/webhooks' });
   app.register(nodeHealthRoutes, { prefix: '/health/nodes' });
   app.register(scimRoutes, { prefix: '/scim/v2' });
 
@@ -161,6 +173,15 @@ async function main() {
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error(error);
+    if (error instanceof ClockSkewError) {
+      return reply.status(503).send({
+        error: {
+          code: 'CLOCK_SKEW',
+          message: error.message,
+          traceId: 'todo',
+        },
+      });
+    }
     reply.status(error.statusCode || 500).send({
       error: {
         code: error.code || 'INTERNAL_ERROR',
@@ -182,6 +203,10 @@ async function main() {
   try {
     await initializeLibSqlSchema();
     app.log.info('LibSQL schema initialized');
+    startLifecycleMaintenance();
+    app.log.info('LibSQL lifecycle maintenance started');
+    startIntegrityMonitoring();
+    app.log.info('LibSQL integrity monitoring started');
   } catch (err) {
     app.log.warn({ err }, 'LibSQL schema initialization failed at startup');
   }

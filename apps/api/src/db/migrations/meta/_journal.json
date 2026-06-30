@@ -393,6 +393,20 @@
       "when": 1782136588603,
       "tag": "0056_old_nightshade",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1782752332428,
+      "tag": "0057_glossy_wendigo",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1782762020668,
+      "tag": "0058_lush_night_thrasher",
+      "breakpoints": true
     }
   ]
 }

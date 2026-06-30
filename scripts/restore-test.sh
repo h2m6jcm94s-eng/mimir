@@ -3,6 +3,9 @@ set -euo pipefail
 
 # Restore the latest backup into a throwaway database and verify it.
 #
+# Encrypted backups require AGE_IDENTITY. Plaintext backups are supported when
+# no .age file is present.
+#
 # Usage:
 #   RESTORE_DATABASE_URL=postgresql://mimir_app:mimir_app@localhost:5433/mimir_restore ./scripts/restore-test.sh
 
@@ -17,16 +20,22 @@ fi
 
 echo "[restore-test] Restoring from ${LATEST}"
 
-DUMP="${LATEST}/mimir.sql"
+SQL_DUMP="${LATEST}/mimir.sql"
 if [ -f "${LATEST}/mimir.sql.age" ]; then
   if ! command -v age >/dev/null 2>&1; then
     echo "[restore-test] age not installed, cannot decrypt"
     exit 1
   fi
-  DUMP="${LATEST}/mimir.sql.age"
-  age -d -i "${AGE_IDENTITY:?AGE_IDENTITY required}" -o - "${DUMP}" | psql "${RESTORE_DATABASE_URL}" -q
+  if [ -z "${AGE_IDENTITY:-}" ]; then
+    echo "[restore-test] AGE_IDENTITY is required to decrypt ${LATEST}/mimir.sql.age"
+    exit 1
+  fi
+  age -d -i "${AGE_IDENTITY}" -o - "${LATEST}/mimir.sql.age" | psql "${RESTORE_DATABASE_URL}" -q
+elif [ -f "${SQL_DUMP}" ]; then
+  psql "${RESTORE_DATABASE_URL}" -q < "${SQL_DUMP}"
 else
-  psql "${RESTORE_DATABASE_URL}" -q < "${DUMP}"
+  echo "[restore-test] No mimir.sql or mimir.sql.age found in ${LATEST}"
+  exit 1
 fi
 
 # Verify restore by counting key tables

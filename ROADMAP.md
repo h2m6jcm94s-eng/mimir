@@ -1345,6 +1345,7 @@ Common contract: each connector implements `connect()/disconnect()/status()/sync
 | **Mail (Gmail)** | OAuth (Google) | T0 (content) | read/triage, **draft‑for‑approval**, send (gated) | minimal scopes; send‑gated |
 | **Mail (MS Graph)** | OAuth (Entra) | T0 | inbox triage, calendar, draft replies | webhook change‑notifications |
 | **Airtable** | OAuth / PAT | T1 | list bases/tables, read/write rows | also the §23 features‑table sink |
+| **Notion** | OAuth / integration token | T1 | search pages, read pages/databases, query databases, append blocks | write‑back gated; page/database ID as account |
 | **Contacts** | OAuth (Google/MS) | T0 | read contacts for context | minimal scope; read‑only default |
 | **Docs** | OAuth (Google/Notion) / local | T0/T1 | read for RAG; generate `.docx/.pptx` | office‑gen via worker |
 | **Screenshots‑refs** | local capture | T0 | capture → OCR → tag → searchable; "look at my screen" | vision pipeline; tmpfs cache |
@@ -1415,7 +1416,9 @@ Airtable → Contacts → Docs → Screenshots → Mail(MS Graph).
 ### 15.6 Slack (F‑021) — default tier **T1** · *connector **and** embedded chat surface*
 - **Auth:** Slack app OAuth (bot + user tokens as needed); token in vault; minimal scopes
   (`channels:read`, `chat:write`, `channels:history` as required).
-- **Capabilities:** list channels, read threads, send messages, embedded UI, notifications.
+- **Capabilities:** inbound webhook (`POST /webhooks/slack/:tenantId`) with signing‑secret verification,
+  URL‑verification handling, event deduplication, and `slack.chat` reply workflow; list channels, read
+  threads, send messages, embedded UI, notifications.
 - **Security:** workspace allowlist; T1 only; signed/verified events (Slack signing secret);
   no auto‑execute without 2FA.
 - **Tests:** integration (mock Slack) + signing‑secret verification test.
@@ -1427,7 +1430,17 @@ Airtable → Contacts → Docs → Screenshots → Mail(MS Graph).
 - **Privacy:** treat base content per its sensitivity (default T1); user can mark a base T0.
 - **Tests:** integration (mock Airtable) for read/write; round‑trip test of the features‑table sync.
 
-### 15.8 Contacts (F‑020) — default tier **T0**
+### 15.8 Notion (F‑020a) — default tier **T1**
+- **Auth:** OAuth integration token or internal integration token; token in vault; `secret_ref`
+  points to the alias.
+- **Capabilities:** search pages/databases, retrieve a page, retrieve a database, query a database,
+  and append block children to a page/database (write‑back gated by the approval workflow).
+- **Privacy:** treat workspace content as T1 by default; user can mark specific pages/databases T0.
+  No base content is routed to the cloud workhorse without explicit tier downgrade approval.
+- **Tests:** unit tests for the REST client; integration tests against a mocked Notion API for
+  search/read/append; contract test for the append block payload.
+
+### 15.9 Contacts (F‑020) — default tier **T0**
 - **Auth:** Google/Microsoft People/Graph OAuth; token in vault; scope `contacts.readonly` by
   default (read‑only).
 - **Capabilities:** read contacts to enrich context (e.g. "who is this email from?").
@@ -1435,14 +1448,14 @@ Airtable → Contacts → Docs → Screenshots → Mail(MS Graph).
   user action.
 - **Tests:** integration (mock) + privacy assertion (no egress).
 
-### 15.9 Docs (F‑020) — default tier **T0/T1**
+### 15.10 Docs (F‑020) — default tier **T0/T1**
 - **Auth:** Google Docs / Notion OAuth, or local files; token in vault.
 - **Capabilities:** read documents for RAG; **generate `.docx`/`.pptx`** via Python worker
   (e.g. the `pptx-author` skill); write‑back optional + gated.
 - **Privacy:** document content tiered (default T0 for personal/proprietary); local embedding.
 - **Tests:** integration (mock) for read; golden test for generated artifact structure.
 
-### 15.10 Screenshots‑as‑references (F‑015) — default tier **T0**
+### 15.11 Screenshots‑as‑references (F‑015) — default tier **T0**
 - **Auth:** local capture (OS screenshot) — no external auth; OCR via local/worker.
 - **Capabilities:** capture → OCR → auto‑tag → store as `knowledge_item{kind:screenshot}` →
   searchable; powers **"look at my screen and fix it"** (image → vision → action, gated).
@@ -1450,7 +1463,7 @@ Airtable → Contacts → Docs → Screenshots → Mail(MS Graph).
   private/local multimodal model for T0; never to cloud.
 - **Tests:** e2e: capture → searchable → cited in an answer; privacy: tmpfs‑only, auto‑purge.
 
-### 15.11 Connector cross‑cutting requirements (all)
+### 15.12 Connector cross‑cutting requirements (all)
 - Implement the common interface (`connect/disconnect/status/sync/test`), declare **scopes + default
   tier**, store only a `secret_ref`, expose a **test** action, and ship **integration + contract
   tests**. Every connector action is **audited**. OAuth flows built UI‑first against mock auth; real
@@ -1895,7 +1908,8 @@ Airtable base when M6 lands (F‑020).
 | F‑017 | Governance‑as‑code (OPA) + immutable audit | Pro | P0 | ✅ | api | 2026‑11 | M5 |
 | F‑018 | Connector: GitHub | Free | P0 | ✅ | api | 2026‑12 | M6 |
 | F‑019 | Connector: Mail (Gmail / MS Graph) | Pro | P1 | ✅ Phase 1 | api | 2026‑06 | M4 |
-| F‑020 | Connectors: Airtable, Contacts, Docs | Pro | P1 | ✅ Phase 1 | api | 2026‑06 | M4 |
+| F‑020 | Connectors: Airtable, Contacts, Docs | Pro | P1 | ✅ Phase 1 (Airtable read/write; Contacts/Docs read) | api | 2026‑06 | M4 |
+| F‑020a | Connector: Notion (search, pages, databases, append blocks) | Pro | P1 | ✅ Phase 1 | api | 2026‑06 | M4 |
 | F‑021 | Chat surfaces: Telegram, Discord, Slack | Free | P1 | ✅ Phase 1 | gateway | 2026‑06 | M4 |
 | F‑022 | Web: console, status topology, tasks | Free | P0 | ✅ | web | 2026‑12 | M2/M3 |
 | F‑023 | Web: approvals, reports, knowledge, memory | Pro | P1 | 🟦 | web | 2027‑01 | M4/M7 |
@@ -1988,21 +2002,21 @@ reliability/governance claim** [validation C1].
 | R‑02 | Kimi (PRC) data exposure — workhorse touches all data | 🔴 | mitigating | classification gateway: sensitive → Claude/local; scrub IDs for cloud; LiteLLM proxy logs routing | api | G1 |
 | R‑03 | Split‑brain (phone‑witness sole tiebreaker) | 🟠 | open | external lock (etcd/conditional‑write) + API‑side fencing + read‑only‑during‑transition | api | G1 |
 | R‑04 | Single‑writer SPOF during failover | 🟠 | mitigating | LibSQL embedded replicas + fencing‑epoch auto‑promote (zero‑loss) | api | G1 |
-| R‑05 | Plaintext state.db/secrets → theft = total loss | 🟠 | open | LUKS FDE + SQLCipher + vault + ephemeral SSH CA | infra | G1 |
+| R‑05 | Plaintext state.db/secrets → theft = total loss | 🟠 | mitigating | LUKS FDE + SQLCipher + vault + ephemeral SSH CA + encrypted backups + age-encrypted SSH CA rotation | infra | G1 |
 | R‑06 | Flat tailnet → lateral movement | 🟠 | open | Tailscale tag ACLs + air‑gap cloud | infra | G1 |
-| R‑07 | Unbounded state.db growth → disk‑full zombie | 🟡 | open | retention + VACUUM + write‑failure‑is‑fatal | api | M3 |
+| R‑07 | Unbounded state.db growth → disk‑full zombie | 🟡 | mitigating | retention + VACUUM + write‑failure‑is‑fatal | api | M3 |
 | R‑08 | Review‑loop deadlock / infinite cost | 🟡 | mitigating | max‑3 + cycle detect + token budget | api | M2 |
 | R‑09 | Ship‑and‑wipe leakage (EBS/swap residue) | 🟡 | open | instance‑store/tmpfs + crypto‑wipe + power‑off | infra | M3/M10 |
 | R‑10 | No DR for total loss (single house) | 🟡 | open | 3‑2‑1 encrypted offsite + weekly restore test | infra | M3 |
-| R‑11 | Clock skew → premature failover | 🟡 | open | monotonic clocks + skew detection | api | M3 |
-| R‑12 | WAL corruption replicated as "correct" | 🟡 | open | content‑hash + app‑validation + integrity_check + reconcile | api | M3 |
+| R‑11 | Clock skew → premature failover | 🟡 | mitigating | monotonic clocks + skew detection; fencing operations reject when wall clock jumps beyond threshold | api | M3 |
+| R‑12 | WAL corruption replicated as "correct" | 🟡 | mitigating | content‑hash + app‑validation + `PRAGMA integrity_check` + automatic reconcile from Postgres | api | M3 |
 | R‑13 | Cost runaway (loop) | 🟠 | mitigating | per‑task/agent/tenant ceilings + anomaly auto‑halt | api | M9 |
 | R‑14 | Tier‑0 leakage via telemetry/logs | 🟠 | open | tier‑aware redaction; tier‑0 telemetry‑leak CI test | infra | M9 |
 | R‑15 | Classifier misclassification / low‑confidence → T0 leakage | 🔴 | open | confidence threshold + conservative T0 fallback + per‑decision audit event + classifier‑vs‑policy conformance test | api | G1 |
-| R‑16 | Worker/cron RLS bypass → cross‑tenant access | 🔴 | open | mandatory tenant‑context wrapper enforced through repository/DB‑client layer + property test of worker paths | api | M1 |
+| R‑16 | Worker/cron RLS bypass → cross‑tenant access | 🔴 | mitigating | `TenantContext.tenantScopedDb` now throws outside a transaction; `withTenantTransaction` required for all tenant-scoped DB work; explicit `getGlobalDb()` escape hatch for global queries | api | M1 |
 | R‑17 | GDPR crypto‑delete incomplete for embeddings | 🟠 | open | per‑subject embedding linkage + derived‑vector deletion; disclose residual nearest‑neighbor semantic risk | api | M5 |
 | R‑19 | No brain DR playbook (RTO ≤ 4h replacement, RPO ≤ 1h T0) | 🟡 | open | documented replace‑stolen‑laptop ceremony + key‑recovery/sharding flow; see also R‑10 / I.11 | infra | M3 |
-| R‑20 | TS↔Python contract drift (no OpenAPI→Pydantic server models) | 🟡 | open | generate Pydantic from same OpenAPI spec + CI gate fails on drift | api/infra | M1/M2 |
+| R‑20 | TS↔Python contract drift (no OpenAPI→Pydantic server models) | 🟡 | mitigating | generate Pydantic from same OpenAPI spec; CI drift check fails when TS contracts or Python models are out of sync with openapi.json | api/infra | M1/M2 |
 | R‑21 | LAN‑local fallback absent (phone↔brain dies if DERP path down) | 🟡 | open | mDNS/LAN discovery for phone↔brain when Tailscale relay unavailable; P2 feature | api | post‑M3 |
 | R‑22 | Engine self‑ownership → slower parity vs proven runtimes like Hermes | 🟡 | accepted | Mimir owns the engine (§5.1); Hermes is a design reference, not a dependency. Mitigate by keeping Hermes' connector/tool/skill patterns as a reference spec and benchmarking against it. | api | M2 |
 | **Business risks** | | | | | | |

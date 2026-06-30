@@ -1,4 +1,4 @@
-import { getLibSqlClient } from '../../db/libsql';
+import { executeLibSqlWrite, executeMultipleLibSqlWrite } from './lifecycle';
 
 export const LIBSQL_SCHEMA = `
 CREATE TABLE IF NOT EXISTS job (
@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS job (
 );
 
 CREATE INDEX IF NOT EXISTS idx_job_tenant_status ON job (tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_job_finished_at ON job (finished_at);
 
 CREATE TABLE IF NOT EXISTS node (
   id TEXT PRIMARY KEY,
@@ -43,9 +44,48 @@ CREATE TABLE IF NOT EXISTS node (
 );
 
 CREATE INDEX IF NOT EXISTS idx_node_tenant ON node (tenant_id);
+
+CREATE TABLE IF NOT EXISTS replica_watermark (
+  tenant_id TEXT PRIMARY KEY,
+  last_sync_at TEXT NOT NULL,
+  last_synced_epoch INTEGER NOT NULL DEFAULT 0,
+  lag_ms INTEGER,
+  content_hash TEXT
+);
 `;
 
+async function runMigrations(): Promise<void> {
+  let columnAdded = false;
+  try {
+    await executeLibSqlWrite(
+      'ALTER TABLE replica_watermark ADD COLUMN content_hash TEXT;',
+      'libsqlMigrationContentHash'
+    );
+    columnAdded = true;
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('duplicate column name')) {
+      // Already migrated.
+      columnAdded = true;
+    } else {
+      // Re-throw fatal write errors; surface other migration errors.
+      throw err;
+    }
+  }
+
+  if (columnAdded) {
+    // Clear any stale checksums so the next sync recomputes them with the
+    // current normalization logic (snake_case keys matching the replica rows).
+    await executeLibSqlWrite(
+      'UPDATE replica_watermark SET content_hash = NULL;',
+      'libsqlMigrationClearStaleChecksums'
+    );
+  }
+}
+
 export async function initializeLibSqlSchema(): Promise<void> {
-  const client = getLibSqlClient();
-  await client.executeMultiple(LIBSQL_SCHEMA);
+  // PRAGMAs return rows, so they must run through execute(), not executeMultiple().
+  await executeLibSqlWrite('PRAGMA journal_mode = WAL;', 'initializeLibSqlSchema');
+  await executeLibSqlWrite('PRAGMA busy_timeout = 5000;', 'initializeLibSqlSchema');
+  await executeMultipleLibSqlWrite(LIBSQL_SCHEMA, 'initializeLibSqlSchema');
+  await runMigrations();
 }

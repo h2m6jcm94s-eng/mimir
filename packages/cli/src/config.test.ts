@@ -39,4 +39,28 @@ describe('CLI config', () => {
     expect(config.apiUrl).toBe('http://env.com');
     expect(config.apiKey).toBe('env-key');
   });
+
+  it('encrypts the config when MIMIR_CLI_PASSPHRASE is set', () => {
+    vi.stubEnv('MIMIR_CLI_PASSPHRASE', 'super-secret-passphrase');
+    writeConfig({ apiUrl: 'http://encrypted.example', apiKey: 'encrypted-key' });
+
+    const raw = readFileSync(join(tempDir, 'config.json'), 'utf8');
+    expect(raw).toContain('mimir:enc:v1:');
+
+    const config = readConfig();
+    expect(config.apiUrl).toBe('http://encrypted.example');
+    expect(config.apiKey).toBe('encrypted-key');
+  });
+
+  it('throws a clear error when reading encrypted config without passphrase', () => {
+    vi.stubEnv('MIMIR_CLI_PASSPHRASE', 'super-secret-passphrase');
+    writeConfig({ apiUrl: 'http://encrypted.example', apiKey: 'encrypted-key' });
+
+    vi.stubEnv('MIMIR_CLI_PASSPHRASE', '');
+    expect(() => readConfig()).toThrow('MIMIR_CLI_PASSPHRASE');
+  });
 });
+
+function readFileSync(path: string, encoding: BufferEncoding): string {
+  return require('node:fs').readFileSync(path, encoding);
+}

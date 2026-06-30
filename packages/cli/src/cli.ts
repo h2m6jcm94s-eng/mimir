@@ -15,7 +15,11 @@ program
   .description('Store API URL and key')
   .requiredOption('--api-url <url>', 'Mimir API base URL')
   .requiredOption('--api-key <key>', 'Mimir API key')
-  .action((options) => login(options.apiUrl, options.apiKey));
+  .option(
+    '-p, --passphrase <passphrase>',
+    'Passphrase to encrypt the config file (also reads MIMIR_CLI_PASSPHRASE)'
+  )
+  .action((options) => login(options.apiUrl, options.apiKey, options.passphrase));
 
 program
   .command('status')

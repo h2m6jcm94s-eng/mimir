@@ -14,6 +14,14 @@ describe('TenantContext', () => {
     expect(result).toBe('tenant-123');
   });
 
+  it('tenantScopedDb throws outside a transaction (R-16 enforcement)', async () => {
+    await withTenant('00000000-0000-0000-0000-000000000001', async (ctx) => {
+      expect(() => ctx.tenantScopedDb).toThrow(
+        'Tenant-scoped database access outside of a transaction is not allowed'
+      );
+    });
+  });
+
   it.skipIf(!process.env.RUN_DB_TESTS)(
     'withTenantTransaction sets app.tenant_id for RLS',
     async () => {

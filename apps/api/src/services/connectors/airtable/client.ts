@@ -68,4 +68,37 @@ export class AirtableClient {
       )}/${encodeURIComponent(input.recordId)}`
     );
   }
+
+  async createRecord(input: {
+    baseId: string;
+    tableId: string;
+    fields: Record<string, unknown>;
+  }): Promise<unknown> {
+    return this.request<unknown>(
+      `https://api.airtable.com/v0/${encodeURIComponent(input.baseId)}/${encodeURIComponent(
+        input.tableId
+      )}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ fields: input.fields }),
+      }
+    );
+  }
+
+  async updateRecord(input: {
+    baseId: string;
+    tableId: string;
+    recordId: string;
+    fields: Record<string, unknown>;
+  }): Promise<unknown> {
+    return this.request<unknown>(
+      `https://api.airtable.com/v0/${encodeURIComponent(input.baseId)}/${encodeURIComponent(
+        input.tableId
+      )}/${encodeURIComponent(input.recordId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ fields: input.fields }),
+      }
+    );
+  }
 }

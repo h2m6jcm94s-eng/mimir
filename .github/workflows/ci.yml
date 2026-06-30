@@ -45,6 +45,17 @@ jobs:
       - name: Generate contracts
         run: pnpm --filter @mimir/contracts generate
 
+      - name: Generate Python contracts
+        run: uv run python scripts/generate-python-contracts.py
+
+      - name: Check contract drift
+        run: |
+          git diff --quiet -- apps/api/openapi.json packages/contracts services/shared/src/mimir_shared/generated_models.py || {
+            echo "Contract drift detected. Regenerate and commit the changes.";
+            git diff -- apps/api/openapi.json packages/contracts services/shared/src/mimir_shared/generated_models.py;
+            exit 1;
+          }
+
       - name: Lint
         run: |
           pnpm exec biome ci .

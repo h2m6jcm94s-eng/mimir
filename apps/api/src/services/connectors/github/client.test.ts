@@ -9,6 +9,14 @@ class FakeResolver {
   async getForTenant(): Promise<string | undefined> {
     return 'test-token';
   }
+
+  async getRequired(): Promise<string> {
+    return 'test-token';
+  }
+
+  async getRequiredForTenant(): Promise<string> {
+    return 'test-token';
+  }
 }
 
 function makeClient(account?: string) {
