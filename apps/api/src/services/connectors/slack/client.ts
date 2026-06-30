@@ -57,10 +57,18 @@ export class SlackClient {
     });
   }
 
-  async sendMessage(input: { channelId: string; text: string }): Promise<unknown> {
-    return this.slackRequest<unknown>('chat.postMessage', {
+  async sendMessage(input: {
+    channelId: string;
+    text: string;
+    threadTs?: string;
+  }): Promise<unknown> {
+    const body: Record<string, unknown> = {
       channel: input.channelId,
       text: input.text,
-    });
+    };
+    if (input.threadTs) {
+      body.thread_ts = input.threadTs;
+    }
+    return this.slackRequest<unknown>('chat.postMessage', body);
   }
 }

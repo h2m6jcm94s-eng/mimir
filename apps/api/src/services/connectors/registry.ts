@@ -18,6 +18,7 @@ import { googleDocsHandlers } from './googleDocs/handlers';
 import { instagramHandlers } from './instagram/handlers';
 import { lemonSqueezyHandlers } from './lemon-squeezy/handlers';
 import { microsoftGraphHandlers } from './microsoftGraph/handlers';
+import { notionHandlers } from './notion/handlers';
 import { paddleHandlers } from './paddle/handlers';
 import { pinterestHandlers } from './pinterest/handlers';
 import { slackHandlers } from './slack/handlers';
@@ -116,6 +117,7 @@ const handlersByKind: Record<string, Record<string, ConnectorActionHandler>> = {
   googleDocs: googleDocsHandlers,
   discord: discordHandlers,
   slack: slackHandlers,
+  notion: notionHandlers,
 };
 
 export class ConnectorRegistry {

@@ -14,6 +14,9 @@ import { applyPatch as applyJsonPatch } from '../services/patch/json-patch';
 import { agentRoleRegistry } from '../services/agents/registry';
 import { ApplyRegistry } from '../services/apply/registry';
 import { connectorWriteRegistry } from '../services/connectors/write-registry';
+import { telegramChatApplyHandler } from '../services/connectors/telegram/handlers';
+import { discordChatApplyHandler } from '../services/connectors/discord/handlers';
+import { slackChatApplyHandler } from '../services/connectors/slack/handlers';
 import '../services/connectors/airtable/handlers';
 import '../services/connectors/discord/handlers';
 import '../services/connectors/facebook/handlers';
@@ -298,6 +301,9 @@ for (const descriptor of connectorWriteRegistry.values()) {
     connectorWriteRegistry.applyHandlerFor(descriptor)
   );
 }
+applyRegistry.register('telegram.chat', telegramChatApplyHandler);
+applyRegistry.register('discord.chat', discordChatApplyHandler);
+applyRegistry.register('slack.chat', slackChatApplyHandler);
 
 export async function apply(
   input: TaskRunInput,

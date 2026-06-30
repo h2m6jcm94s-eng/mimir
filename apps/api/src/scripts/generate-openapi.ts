@@ -15,6 +15,7 @@ import { cloudWorkerRoutes, cloudWorkerWebhookRoutes } from '../routes/cloud-wor
 import { companionRoutes } from '../routes/companion';
 import { connectorRoutes } from '../routes/connectors';
 import { demoStatusRoutes } from '../routes/demo';
+import { discordWebhookRoutes } from '../routes/discord-webhook';
 import { emailDigestRoutes } from '../routes/email-digest';
 import { fencingRoutes } from '../routes/fencing';
 import { governanceRoutes } from '../routes/governance';
@@ -43,9 +44,11 @@ import { scimRoutes } from '../routes/scim';
 import { screenTimeRoutes } from '../routes/screen-time';
 import { sessionRoutes } from '../routes/sessions';
 import { skillRoutes } from '../routes/skills';
+import { slackWebhookRoutes } from '../routes/slack-webhook';
 import { sshCaRoutes } from '../routes/ssh-ca';
 import { ssoRoutes } from '../routes/sso';
 import { taskRoutes } from '../routes/tasks';
+import { telegramWebhookRoutes } from '../routes/telegram-webhook';
 import { toolsRoutes } from '../routes/tools';
 import { userRoutes } from '../routes/users';
 import { valuesRoutes } from '../routes/values';
@@ -77,6 +80,9 @@ async function main() {
 
   app.register(healthRoutes, { prefix: '/' });
   app.register(cloudWorkerWebhookRoutes, { prefix: '/webhooks' });
+  app.register(telegramWebhookRoutes, { prefix: '/webhooks' });
+  app.register(discordWebhookRoutes, { prefix: '/webhooks' });
+  app.register(slackWebhookRoutes, { prefix: '/webhooks' });
   app.register(nodeHealthRoutes, { prefix: '/health/nodes' });
   app.register(scimRoutes, { prefix: '/scim/v2' });
 

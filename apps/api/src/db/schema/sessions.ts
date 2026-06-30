@@ -1,4 +1,4 @@
-import { integer, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { index, integer, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { tenant } from './tenancy';
 
 export const messageRoleEnum = pgEnum('message_role', ['user', 'assistant', 'system', 'tool']);
@@ -11,16 +11,27 @@ export const sessionSourceEnum = pgEnum('session_source', [
   'api',
 ]);
 
-export const session = pgTable('session', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  tenantId: uuid('tenant_id')
-    .notNull()
-    .references(() => tenant.id, { onDelete: 'cascade' }),
-  parentId: uuid('parent_id'),
-  source: sessionSourceEnum('source').notNull(),
-  model: text('model'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const session = pgTable(
+  'session',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    parentId: uuid('parent_id'),
+    source: sessionSourceEnum('source').notNull(),
+    externalId: text('external_id'),
+    model: text('model'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    externalIdIdx: index('session_external_id_idx').on(
+      table.tenantId,
+      table.source,
+      table.externalId
+    ),
+  })
+);
 
 export const message = pgTable('message', {
   id: uuid('id').primaryKey().defaultRandom(),

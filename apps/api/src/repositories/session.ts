@@ -6,6 +6,7 @@ export interface CreateSessionInput {
   source: string;
   model?: string;
   parentId?: string;
+  externalId?: string;
 }
 
 export interface CreateMessageInput {
@@ -35,6 +36,7 @@ export async function createSession(
     .values({
       tenantId: ctx.tenantId,
       source: input.source as (typeof schema.session.source.enumValues)[number],
+      externalId: input.externalId,
       model: input.model,
       parentId: input.parentId,
     })
@@ -121,6 +123,26 @@ export async function getSessionById(
   return row;
 }
 
+export async function findSessionByExternalId(
+  ctx: TenantContext,
+  source: string,
+  externalId: string
+): Promise<typeof schema.session.$inferSelect | undefined> {
+  const [row] = await ctx.tenantScopedDb
+    .select()
+    .from(schema.session)
+    .where(
+      and(
+        eq(schema.session.tenantId, ctx.tenantId),
+        eq(schema.session.source, source as (typeof schema.session.source.enumValues)[number]),
+        eq(schema.session.externalId, externalId)
+      )
+    )
+    .orderBy(desc(schema.session.createdAt))
+    .limit(1);
+  return row;
+}
+
 export async function getSessionRootId(ctx: TenantContext, id: string): Promise<string> {
   const visited = new Set<string>();
   let current = id;
@@ -170,6 +192,7 @@ export async function createChildSession(
     .values({
       tenantId: ctx.tenantId,
       source: input.source as (typeof schema.session.source.enumValues)[number],
+      externalId: input.externalId,
       model: input.model,
       parentId: input.parentId,
     })

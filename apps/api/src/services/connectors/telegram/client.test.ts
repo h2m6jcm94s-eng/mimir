@@ -47,4 +47,30 @@ describe('TelegramClient', () => {
     );
     expect(result).toEqual({ ok: true, result: { message_id: 42 } });
   });
+
+  it('setWebhook calls the Telegram Bot API', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, result: true }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = new TelegramClient({ tenantId: 't1', secretRef: 'telegram' }, resolver);
+    const result = await client.setWebhook({
+      url: 'https://mimir.example.com/webhooks/telegram/t1',
+      secretToken: 'secret',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.telegram.org/botbot-token/setWebhook',
+      expect.objectContaining({
+        body: JSON.stringify({
+          url: 'https://mimir.example.com/webhooks/telegram/t1',
+          secret_token: 'secret',
+          allowed_updates: ['message', 'edited_message'],
+        }),
+      })
+    );
+    expect(result).toEqual({ ok: true, result: true });
+  });
 });

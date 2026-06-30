@@ -1,10 +1,13 @@
 import {
+  AirtableCreateRecordInput,
   AirtableGetRecordInput,
   AirtableListBasesInput,
   AirtableListRecordsInput,
+  AirtableUpdateRecordInput,
 } from '@mimir/shared-types';
 import { secrets } from '../../../config/secrets';
 import type { ConnectorActionHandler } from '../registry';
+import { connectorWriteRegistry } from '../write-registry';
 import { AirtableClient } from './client';
 
 export const airtableHandlers: Record<string, ConnectorActionHandler> = {
@@ -38,3 +41,54 @@ export const airtableHandlers: Record<string, ConnectorActionHandler> = {
     return { record };
   },
 };
+
+connectorWriteRegistry.register({
+  kind: 'airtable',
+  action: 'createRecord',
+  inputSchema: AirtableCreateRecordInput as unknown as import('zod').ZodType<unknown>,
+  preview: (input) => (input as { tableId: string }).tableId,
+  approvalMessage: (input) => {
+    const payload = input as { baseId: string; tableId: string };
+    return {
+      title: 'Create Airtable record',
+      description: `Create a record in base "${payload.baseId}" / table "${payload.tableId}"`,
+    };
+  },
+  apply: async (_ctx, config, input) => {
+    const client = new AirtableClient(
+      { tenantId: config.tenantId, secretRef: config.secretRef },
+      secrets
+    );
+    const payload = input as { baseId: string; tableId: string; fields: Record<string, unknown> };
+    const result = await client.createRecord(payload);
+    return { applied: true, reason: 'Record created', output: result as Record<string, unknown> };
+  },
+});
+
+connectorWriteRegistry.register({
+  kind: 'airtable',
+  action: 'updateRecord',
+  inputSchema: AirtableUpdateRecordInput as unknown as import('zod').ZodType<unknown>,
+  preview: (input) => (input as { recordId: string }).recordId,
+  approvalMessage: (input) => {
+    const payload = input as { baseId: string; tableId: string; recordId: string };
+    return {
+      title: 'Update Airtable record',
+      description: `Update record "${payload.recordId}" in base "${payload.baseId}" / table "${payload.tableId}"`,
+    };
+  },
+  apply: async (_ctx, config, input) => {
+    const client = new AirtableClient(
+      { tenantId: config.tenantId, secretRef: config.secretRef },
+      secrets
+    );
+    const payload = input as {
+      baseId: string;
+      tableId: string;
+      recordId: string;
+      fields: Record<string, unknown>;
+    };
+    const result = await client.updateRecord(payload);
+    return { applied: true, reason: 'Record updated', output: result as Record<string, unknown> };
+  },
+});
