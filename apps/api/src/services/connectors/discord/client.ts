@@ -61,4 +61,16 @@ export class DiscordClient {
       body: JSON.stringify({ content: input.content }),
     });
   }
+
+  async createDm(recipientId: string): Promise<{ id: string }> {
+    return this.request<{ id: string }>('/users/@me/channels', {
+      method: 'POST',
+      body: JSON.stringify({ recipient_id: recipientId }),
+    });
+  }
+
+  async sendDm(input: { recipientId: string; content: string }): Promise<unknown> {
+    const channel = await this.createDm(input.recipientId);
+    return this.sendMessage({ channelId: channel.id, content: input.content });
+  }
 }

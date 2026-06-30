@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Slack inbound webhook: `POST /webhooks/slack/:tenantId` verifies Slack signing signatures, handles URL verification challenges, deduplicates events by `event_id`, and routes `message` events through the shared chat-webhook framework to start a `slack.chat` reply workflow; `slack.chat` apply handler posts replies back to the channel/thread via `chat.postMessage`.
+- Notion connector backend: added `notion` to the connector kind enum; new `NotionClient` with search, get page/database, query database, and append block children; read actions exposed through the connector registry and `appendBlockChildren` registered as a write/approval action.
+- Airtable write actions: added `createRecord` and `updateRecord` to `AirtableClient` and registered them as approval-gated write actions, moving Airtable from read-only to read/write.
 - R-07 LibSQL state.db lifecycle management: configurable retention pruning (`LIBSQL_RETENTION_DAYS`), periodic `VACUUM` (`LIBSQL_VACUUM_INTERVAL_MS`), and disk-full/I/O write failure fatal exit (`LIBSQL_WRITE_FAILURE_FATAL`) to prevent disk-full zombie states.
 - R-11 Clock-skew guard for fencing: compares wall clock with monotonic clock; rejects epoch bumps and promotion leases when skew exceeds `CLOCK_SKEW_THRESHOLD_MS` (default 5000ms); returns 503 `CLOCK_SKEW`.
 - R-12 LibSQL replica integrity: periodic `PRAGMA integrity_check`, per-tenant SHA-256 content checksums stored in `replica_watermark`, and automatic reconcile from Postgres when corruption/mismatch is detected; surfaced in `/readyz` and `/healthz`.
