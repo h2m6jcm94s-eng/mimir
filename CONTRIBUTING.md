@@ -25,6 +25,7 @@ Thanks for helping build Mimir. This project is pre-alpha; we are deliberately h
 - Tenancy/tier impact addressed
 - OpenAPI updated if API changed
 - UI screenshot if web changed
+- Manual QA walkthrough from `docs/guides/testing-mimir.md` for user-facing changes
 
 ## Code of Conduct
 

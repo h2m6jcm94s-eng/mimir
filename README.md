@@ -450,7 +450,7 @@ mimir/                 # org: mimir-mesh · package scope: @mimir/*
 ├── services/          # Python workers (uv)    → services/AGENTS.md
 ├── infra/             # Docker, Temporal, deploy → infra/AGENTS.md
 ├── tests/             # cross-service integration/e2e
-├── docs/              # ARCHITECTURE, API, DEVELOPMENT, TESTING, DEPLOYMENT, adr/, rfcs/, threat-model
+├── docs/              # ARCHITECTURE, API, DEVELOPMENT, TESTING (`docs/guides/testing-mimir.md`), DEPLOYMENT, adr/, rfcs/, threat-model
 ├── .github/           # workflows + ISSUE_TEMPLATE (bug, feature, decision) + PR template + CODEOWNERS + labeler
 ├── .husky/  .lintstagedrc  .coderabbit.yaml  Makefile
 ├── AGENTS.md  CLAUDE.md(@AGENTS.md)  CONTRIBUTING.md  SECURITY.md  CODE_OF_CONDUCT.md  CHANGELOG.md
@@ -615,7 +615,8 @@ See `CHANGELOG.md` for details and `ROADMAP.md` §23 for the full feature status
 Every change starts with a **descriptive issue** (Problem → Proposed solution → Acceptance criteria
 → Test plan → Out of scope), then a **small PR** (≤ ~400 LoC) linked `Closes #NN`, green CI, one
 review, squash‑merge. Big features = a `decision` (ADR) issue + a *stack* of small PRs — never one
-mega‑PR. Read **`AGENTS.md`** first; full flow in **`CONTRIBUTING.md`** (both land in M0).
+mega‑PR. Read **`AGENTS.md`** first; full flow in **`CONTRIBUTING.md`**. For release QA, follow the
+manual checklist in **`docs/guides/testing-mimir.md`**.
 
 We model our process on the best in open source: Google's eng‑practices (small CLs), Stripe/Google
 AIP (API design), FastAPI/Pydantic (typed + tested), Supabase/Astro (contributor docs), and

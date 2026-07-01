@@ -36,6 +36,8 @@ make typecheck
 make test
 ```
 
+For manual QA steps across every user-facing surface (web PWA, CLI, browser extension, API, and E2E), see [`docs/guides/testing-mimir.md`](docs/guides/testing-mimir.md).
+
 ## Hermes upstream watch
 
 Hermes (Nous `~/.hermes/hermes-agent`) is a **local design reference only** — not a dependency.

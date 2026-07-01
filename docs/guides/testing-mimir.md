@@ -1,4 +1,4 @@
-# Manual QA Checklist
+# Testing Mimir
 
 This guide is the single place to verify that every user-facing surface of Mimir works as intended. Run it before any release, big refactor, or infrastructure change.
 
@@ -454,3 +454,9 @@ All must pass before merging to `main`.
 - **New feature?** Add a row to the relevant section above and an E2E test under `tests/e2e/specs/`.
 - **New surface?** Add a new top-level section (e.g., "Mobile app", "Electron app") with its own prerequisite and checklist.
 - Keep this document in sync with the code: if a page URL, CLI command, or API payload changes, update this checklist in the same PR.
+
+## See also
+
+- [`manual_check.md`](../../manual_check.md) — focused, feature-level verification steps for the most recent batch of shipped capabilities.
+- [`AGENTS.md`](../../AGENTS.md) — contributor conventions, build commands, and test expectations.
+- [`ROADMAP.md`](../../ROADMAP.md) §19 — automated testing strategy and required CI gates.
