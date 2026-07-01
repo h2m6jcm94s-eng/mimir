@@ -487,7 +487,7 @@ Logically, Mimir has four layers:
 │  (Next.js, Fastify REST/SSE)            │
 ├─────────────────────────────────────────┤
 │  Brain / governance layer               │  ← Classification, routing, audit, cost, RBAC,
-│  (Fastify + Temporal + Clerk)           │    policy, multi-tenancy, sessions
+│  (Fastify + Temporal + Supertokens)     │    policy, multi-tenancy, sessions
 ├─────────────────────────────────────────┤
 │  Execution engine                       │  ← Model adapters, tool registry, skill runtime,
 │  (TypeScript + Python workers)          │    connectors, sandboxing, cron, subagents
@@ -550,7 +550,7 @@ sequenceDiagram
     participant User
     participant Surface as Web/CLI/etc
     participant API as Fastify API
-    participant Auth as Clerk + RBAC
+    participant Auth as Supertokens session + RBAC
     participant Classify as Classification
     participant Policy as Policy Engine
     participant Audit as Audit Log
@@ -559,7 +559,7 @@ sequenceDiagram
     participant Provider as Model/Tool/Connector
 
     User->>Surface: prompt / action
-    Surface->>API: POST /v1/messages
+    Surface->>API: POST /v1/sessions/:id/messages
     API->>Auth: authenticate + authorize
     Auth-->>API: ok
     API->>Classify: classify(request)
@@ -1842,20 +1842,21 @@ The CLI is for power users and CI. It provides scriptable access to the same bra
 Examples:
 
 ```bash
-# Ask a question
-mimir ask "Summarize /docs and cite sources"
-
-# Run a task on the desktop
-mimir task run --target desktop --prompt "Render this video"
-
-# Check status
+# Check overall status
 mimir status
 
-# Approve a pending action
-mimir approve 7-A4F
+# List tasks
+mimir tasks list
 
-# Check spend
-mimir cost --period day
+# Create a task
+mimir tasks create --prompt "Render this video"
+
+# List nodes and send a heartbeat
+mimir nodes list
+mimir nodes heartbeat --node-id <node-id>
+
+# Authenticate the CLI
+mimir login --api-url http://localhost:3001 --api-key mimir_...
 ```
 
 The CLI uses the same API as the web app and respects the same governance.
@@ -1898,15 +1899,15 @@ third-party integrations.
 
 Key resources:
 - `/v1/sessions`
-- `/v1/messages`
+- `/v1/sessions/:id/messages`
 - `/v1/tasks`
 - `/v1/connectors`
 - `/v1/knowledge`
 - `/v1/memory`
 - `/v1/audit`
-- `/v1/cost`
+- `/v1/budget`
 
-All endpoints require authentication via Clerk and enforce tenant context.
+All endpoints require authentication via a Supertokens session cookie (or the `Authorization: Bearer test` bypass in local test mode) and enforce tenant context.
 
 ---
 
@@ -2416,10 +2417,10 @@ it once.
 | ADR | Topic | Status |
 |---|---|---|
 | 0001 | Monorepo + pnpm + uv | accepted |
-| 0002 | Next.js 15 + shadcn/ui + Clerk | accepted |
+| 0002 | Next.js 15 + shadcn/ui + Supertokens | accepted |
 | 0003 | Fastify + Temporal | accepted |
 | 0004 | Postgres + RLS authoritative; LibSQL replicas | accepted |
-| 0005 | Clerk auth + RBAC | accepted |
+| 0005 | Supertokens session auth + RBAC | accepted |
 | 0006 | gVisor for sandboxing | proposed |
 | 0007 | Tailscale tag ACLs; air-gapped cloud worker | proposed |
 | 0008 | Ephemeral SSH CA | proposed |
@@ -2502,7 +2503,7 @@ Let us trace a request from start to finish.
 **Request:** "Send a summary of /docs/adr to alice@example.com."
 
 1. **Surface receives input.** The web PWA or CLI sends the request to the API.
-2. **Auth.** Clerk validates the JWT. RBAC checks if the user can send email.
+2. **Auth.** Supertokens validates the session cookie. RBAC checks if the user can send email.
 3. **Tenant context.** The request is tagged with `tenant_id`.
 4. **Classification.** The gateway classifies the request. `/docs/adr` may be T0 or T1 depending on
 content. Sending email is T1 by default.
@@ -3279,7 +3280,7 @@ If the brain process needs to restart:
 If the laptop brain is down and you need to promote the desktop:
 
 1. SSH into the desktop via Tailscale.
-2. Run `mimir-cli replica promote`.
+2. Call `POST /v1/fencing/promote` from the new brain (or use the CLI once fencing commands land).
 3. Confirm the fencing epoch incremented.
 4. Verify the desktop accepts writes.
 5. Update DNS or Tailscale MagicDNS if needed.
@@ -3288,9 +3289,9 @@ If the laptop brain is down and you need to promote the desktop:
 ### 23.3 Adding a new node
 
 1. Install Mimir on the new machine.
-2. Authenticate with Clerk.
+2. Sign in through Supertokens.
 3. Join the Tailscale tailnet with the correct tag.
-4. From the brain, run `mimir-cli node add --tag worker`.
+4. From the brain, call `POST /v1/nodes/enroll` (or run `scripts/enroll-node.sh`).
 5. Verify health checks.
 6. Assign roles and tiers.
 
@@ -3352,16 +3353,16 @@ Fastify has:
 
 These align with Mimir's need for typed APIs and generated clients.
 
-### 24.3 Why Clerk and not a custom auth system?
+### 24.3 Why self-hosted Supertokens and not a custom auth system?
 
-Building auth correctly is hard. Clerk provides:
-- JWT-based sessions.
-- Multi-factor authentication.
+Building auth correctly is hard. Self-hosted Supertokens provides:
+- Session-based authentication without a third-party dependency in the critical path.
+- Email/password and SSO recipes.
 - Organization/tenant support.
-- Enterprise SSO roadmap.
+- Self-hosted data residency.
 - Audit-friendly login events.
 
-Custom auth is a liability. Clerk lets Mimir focus on its own domain.
+Custom auth is a liability. Supertokens lets Mimir keep user identity on hardware we control while still focusing on Mimir's own domain. See `docs/adr/0020-clerk-to-supertokens-self-hosted-auth.md` for the migration rationale.
 
 ### 24.4 Why Python workers and not all TypeScript?
 
@@ -4014,19 +4015,18 @@ Fix:
 
 ## Part XXXIII — API Reference by Example
 
-This part documents the Mimir API through example requests and responses. All endpoints require a
-Clerk JWT in the `Authorization: Bearer <token>` header and a `X-Tenant-Id` header for tenant-scoped
-routes.
+This part documents the Mimir API through example requests and responses. In production, all
+endpoints require a valid Supertokens session cookie; the tenant is resolved from the session. In
+local test mode, use `Authorization: Bearer test`.
 
 ### 33.1 Authentication
 
-Mimir uses Clerk for authentication. After signing in, the web app receives a JWT. That JWT is sent
-with every API request.
+Mimir uses self-hosted Supertokens for authentication. After signing in, the web app stores a session
+cookie. That cookie is sent with every API request.
 
 ```http
 GET /v1/sessions
-Authorization: Bearer <clerk-jwt>
-X-Tenant-Id: tenant-123
+Cookie: sAccessToken=...
 ```
 
 ### 33.2 Sessions
@@ -4360,14 +4360,13 @@ Response:
 }
 ```
 
-### 33.8 Cost
+### 33.8 Budget
 
-#### Get cost summary
+#### Get budget summary
 
 ```http
-GET /v1/cost?period=day
-Authorization: Bearer <token>
-X-Tenant-Id: tenant-123
+GET /v1/budget?period=day
+Cookie: sAccessToken=...
 ```
 
 Response:
@@ -4463,15 +4462,37 @@ CREATE TABLE tenants (
 );
 ```
 
-#### users
+#### user_account
 
 ```sql
-CREATE TABLE users (
+CREATE TABLE user_account (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT NOT NULL UNIQUE,
+  pin_hash TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+#### external_identity
+
+```sql
+CREATE TABLE external_identity (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_account_id UUID NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL,
+  provider_user_id TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+#### app_user
+
+```sql
+CREATE TABLE app_user (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL REFERENCES tenants(id),
-  clerk_id TEXT UNIQUE NOT NULL,
-  email TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('admin', 'member', 'viewer')),
+  user_account_id UUID NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'manager', 'member', 'viewer')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ```
@@ -4896,9 +4917,9 @@ Retrieval fixes that. Citation makes it trustworthy.
 One model can be fast or careful; it is hard to be both. Separating the roles lets the workhorse be
 fast and the reviewer be careful.
 
-### Why Clerk?
+### Why Supertokens?
 
-Building auth correctly is a full-time job. Clerk is a specialist. We focus on Mimir's domain.
+Building auth correctly is a full-time job. Self-hosted Supertokens gives us session-based auth without routing sign-in traffic through a third-party service, which matters for a privacy-tiered mesh. We focus on Mimir's domain.
 
 ### Why no Dependabot?
 
@@ -5097,24 +5118,40 @@ CREATE TABLE tenants (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE users (
+CREATE TABLE user_account (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  clerk_id TEXT UNIQUE NOT NULL,
-  email TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  pin_hash TEXT,
   name TEXT,
-  role TEXT NOT NULL CHECK (role IN ('admin', 'member', 'viewer')),
   preferences JSONB NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_users_tenant ON users(tenant_id);
-CREATE INDEX idx_users_clerk ON users(clerk_id);
+CREATE TABLE external_identity (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_account_id UUID NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL,
+  provider_user_id TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+CREATE TABLE app_user (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_account_id UUID NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'manager', 'member', 'viewer')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
-CREATE POLICY users_tenant_isolation ON users
+CREATE INDEX idx_app_user_tenant ON app_user(tenant_id);
+CREATE INDEX idx_app_user_account ON app_user(user_account_id);
+
+ALTER TABLE app_user ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY app_user_tenant_isolation ON app_user
   FOR ALL
   USING (tenant_id = current_setting('app.current_tenant')::UUID);
 ```
@@ -5479,25 +5516,33 @@ playbooks.
 
 ## Part XLIX — Environment Variables
 
-### Required
+### Required (local dev)
 
 - `DATABASE_URL`: Postgres connection string.
 - `REDIS_URL`: Redis connection string.
 - `TEMPORAL_HOST`: Temporal server host.
-- `CLERK_SECRET_KEY`: Clerk API key.
-- `CLERK_PUBLISHABLE_KEY`: Clerk publishable key.
+- `LIBSQL_URL`: Local embedded-replica path.
+- `SUPERTOKENS_CONNECTION_URI`: Self-hosted Supertokens core URL.
+- `SUPERTOKENS_API_KEY`: Supertokens core API key.
+- `AUTH_DOMAIN`: API base URL.
+- `WEB_APP_DOMAIN`: Web app base URL.
 
-### Optional
+### Optional / provider-specific
 
-- `MIMIR_ENV`: `development`, `staging`, `production`.
-- `MIMIR_LOG_LEVEL`: `debug`, `info`, `warn`, `error`.
-- `VAULT_URL`: URL of the secrets vault.
-- `TAILSCALE_AUTH_KEY`: For joining the tailnet.
-- `OLLAMA_HOST`: Local Ollama endpoint.
-- `KIMI_API_KEY`: Kimi API key.
-- `ANTHROPIC_API_KEY`: Anthropic API key.
+- `SANDBOX_MODE`: `gvisor` (production), `passthrough` (dev only), or unset for auto-detect.
+- `LIBSQL_SYNC_URL` / `LIBSQL_AUTH_TOKEN` / `LIBSQL_ENCRYPTION_KEY`: embedded-replica streaming and encryption.
+- `CLOCK_SKEW_THRESHOLD_MS`: fencing clock-skew guard (default 5000ms).
+- `MAX_TASK_COST_USD`: per-action cost ceiling.
+- `TELEMETRY_REDACT_T0`: force T0 payload redaction in logs.
+- `MODEL_PROVIDER_T0` / `T1` / `T2`: tier-specific model routing.
+- `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `KIMI_API_KEY`, `GROQ_API_KEY`: model-provider keys.
+- `TAILSCALE_AUTH_KEY`: for joining the tailnet.
+- `CLOUD_WORKER_*`: AWS air-gapped worker config.
+- `VAULT_ADDR` / `VAULT_TOKEN` / `VAULT_FILE_PATH`: secrets vault backend.
+- `AGE_RECIPIENT` / `AGE_IDENTITY`: backup encryption.
+- `MIMIR_CLI_PASSPHRASE`: encrypt the CLI config file.
 
-Never commit `.env` files. Use the vault for real secrets.
+Never commit `.env` files. In production, load provider keys and CA secrets from the vault.
 
 ---
 
@@ -5511,7 +5556,7 @@ Never commit `.env` files. Use the vault for real secrets.
 | Brain | 4.3 |
 | Circuit breaker | 9.4 |
 | Classification | 5.4, 21.1 |
-| Clerk | 24.3 |
+| Supertokens | 24.3 |
 | Connector | 7.1, Part VI, Part XXVII |
 | Cost governance | 12.2 |
 | Fencing epoch | 10.5 |

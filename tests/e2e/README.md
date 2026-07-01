@@ -34,4 +34,4 @@ so tests can behave like an already-authenticated user. The API still validates
 the test bearer token, which resolves to a deterministic test tenant.
 
 > Note: the e2e auth helpers will need to be updated to exercise real Supertokens
-> sign-up/sign-in flows once the Clerk bypass is fully removed.
+> sign-up/sign-in flows once the Supertokens bypass is fully removed.
