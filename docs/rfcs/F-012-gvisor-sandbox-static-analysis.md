@@ -28,7 +28,9 @@ We need a default-deny execution environment that:
 │    1. Parse request { code, run }                           │
 │    2. Static analysis (ESLint + TS parser)                  │
 │    3. If analysis fails → 400 STATIC_ANALYSIS_FAILED        │
-│    4. Else run command in SandboxRunner                     │
+│    4. Create a pending job + approval (R-01 approval gate)  │
+│    5. Return 202 { approvalId, jobId }                      │
+│    6. On approval, run command in SandboxRunner             │
 │       • gVisor (runsc) when available / SANDBOX_MODE=gvisor │
 │       • passthrough fallback otherwise                      │
 └─────────────────────────────────────────────────────────────┘
@@ -72,8 +74,8 @@ We need a default-deny execution environment that:
 | Method | Path | Scope | Description |
 |--------|------|-------|-------------|
 | GET | `/v1/sandbox/config` | `sandbox:read` | Active runner mode (`gvisor` or `passthrough`). |
-| POST | `/v1/sandbox/run` | `sandbox:run` | Run a command in the sandbox. |
 | POST | `/v1/sandbox/analyze` | `sandbox:analyze` | Analyze code without executing it. |
+| POST | `/v1/sandbox/execute` | `sandbox:run` | Analyze code; create a job + approval; execute only after approval. |
 | POST | `/v1/sandbox/gate` | `sandbox:run` | Analyze code; run it only if analysis passes. |
 
 RBAC roles:
@@ -86,7 +88,7 @@ RBAC roles:
 
 - **Default deny:** gVisor runs with `--network=none` and `--overlay`; only explicitly allowed command/args reach the sandbox.
 - **Fail closed:** If `SANDBOX_MODE=gvisor` is requested but `runsc` is missing, boot fails loudly rather than silently falling back.
-- **Static analysis first:** The `/gate` endpoint refuses to run code that fails analysis.
+- **Approval gate first:** `sandbox.execute`, `sandbox.gate`, and `custom_code` require explicit approval before any execution, so tenant policies cannot bypass the gate.
 - **No secrets in code:** `process.env` access is flagged, nudging generated skills toward explicit input schemas.
 - **CI safety:** Without gVisor, passthrough mode is used; tests still exercise the same API surface.
 
@@ -96,7 +98,7 @@ RBAC roles:
 - Python sandbox support via `bandit` + a Python gVisor image for generated Python skills.
 - `semgrep` or `eslint-plugin-security` integration for richer rule coverage.
 - Tier enforcement: prevent sandboxed code from accessing data above the request's privacy tier.
-- Approval workflow integration: wire `/gate` failures into the existing approvals/review loop so Mimir can propose fixes.
+- Approval workflow integration: `/gate` and `/execute` create linked approvals/jobs; execution proceeds only after the user approves (see `docs/guides/testing-mimir.md` for manual sandbox QA).
 
 ## 6. Test plan
 

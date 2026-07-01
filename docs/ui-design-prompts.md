@@ -58,7 +58,7 @@ Use these prompts with Kimi, Midjourney, Figma AI, or any design assistant. Each
 ## 8. CLI / terminal UI
 
 **Prompt:**
-> Design a terminal-first CLI experience for Mimir. Rich tables for tasks, nodes, and costs. Spinner states for running jobs. JSON output option for scripts. Command palette style: `mimir chat`, `mimir task run`, `mimir node status`, `mimir halt`. Use color sparingly: green/blue/amber for tiers, red for HALT. Support autocomplete and command history. The CLI should feel fast and deterministic.
+> Design a terminal-first CLI experience for Mimir. Rich tables for tasks, nodes, and costs. Spinner states for running jobs. JSON output option for scripts. Command palette style: `mimir status`, `mimir tasks list`, `mimir tasks create`, `mimir nodes list`, `mimir nodes heartbeat`. Use color sparingly: green/blue/amber for tiers, red for HALT. Support autocomplete and command history. The CLI should feel fast and deterministic.
 
 ---
 

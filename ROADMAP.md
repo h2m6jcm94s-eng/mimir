@@ -387,7 +387,9 @@ Three‑rung isolation ladder (industry standard [wide02]):
 
 ```
 tenant (id, name, plan, created_at)
-user (id, tenant_id→tenant, clerk_id, role, created_at)             # role ∈ {owner,admin,member,viewer}
+user_account (id, email, pin_hash, created_at)
+external_identity (id, user_account_id→user_account, provider, provider_user_id)
+app_user (id, tenant_id→tenant, user_account_id→user_account, role, created_at)  # role ∈ {owner,admin,manager,member,viewer}
 node (id, tenant_id, kind, name, tier, tailnet_addr, status, last_seen)   # kind ∈ {brain,desktop,cloud,phone}
 session (id, tenant_id, parent_id?, source, model, created_at)      # source ∈ {web,telegram,discord,slack,cli,api}
 message (id, session_id→session, role, content, model, tier, tokens_in, tokens_out, cost_usd, created_at)
@@ -437,8 +439,8 @@ CREATE TABLE tenant (
 CREATE TABLE app_user (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  clerk_id    text NOT NULL UNIQUE,
-  role        text NOT NULL DEFAULT 'member' CHECK (role IN ('owner','admin','member','viewer')),
+  user_account_id uuid NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
+  role        text NOT NULL DEFAULT 'member' CHECK (role IN ('owner','admin','manager','member','viewer')),
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_user_tenant ON app_user(tenant_id);
@@ -683,7 +685,7 @@ truth** → generates `@mimir/contracts` (typed client). The web app and SDK nev
 ### 7.1 Conventions
 
 - **Versioned** base path `/v1`; additive changes only within a version.
-- **Resource‑oriented**, plural nouns: `/v1/jobs`, `/v1/reports`, `/v1/connectors`.
+- **Resource‑oriented**, plural nouns: `/v1/tasks`, `/v1/sessions`, `/v1/reports`, `/v1/connectors`.
 - **Thin routers → services → repositories.** No business logic in routers. No DB in routers.
 - **Validation at the edge** with Zod (`@mimir/shared-types`); request *and* response validated.
 - **One error envelope** everywhere:
@@ -706,15 +708,15 @@ truth** → generates `@mimir/contracts` (typed client). The web app and SDK nev
 
 | Method | Path | Scope | Tier | Notes |
 |---|---|---|---|---|
-| `POST` | `/v1/chat` (SSE/WS) | `chat:write` | by classification | streamed; returns model+tier+sources |
-| `GET` | `/v1/jobs?status=&cursor=` | `jobs:read` | T0 | cursor‑paginated |
-| `POST` | `/v1/jobs` | `jobs:write` | by job | idempotency‑key required |
-| `POST` | `/v1/jobs/{id}/retry` | `jobs:write` | — | idempotent, skips completed phases |
-| `GET` | `/v1/reports/search?q=` | `reports:read` | T0/T1 | FTS + semantic |
-| `POST` | `/v1/approvals/{id}/decide` | `approvals:write` | — | PIN for destructive |
+| `POST` | `/v1/sessions/:id/messages` (SSE) | `chat:write` | by classification | streamed; returns model+tier+sources |
+| `GET` | `/v1/tasks?status=&cursor=` | `jobs:read` | T0 | cursor‑paginated |
+| `POST` | `/v1/tasks` | `jobs:write` | by job | idempotency‑key required |
+| `POST` | `/v1/tasks/{id}/retry` | `jobs:write` | — | idempotent, skips completed phases |
+| `GET` | `/v1/reports?q=` | `reports:read` | T0/T1 | FTS + semantic |
+| `POST` | `/v1/approvals/{id}/approve` / `.../deny` | `approvals:write` | — | PIN for destructive |
 | `GET` | `/v1/audit?cursor=` | `audit:read` | T0 | hash‑chain verifiable |
-| `POST` | `/v1/connectors/{kind}/connect` | `connectors:admin` | by connector | OAuth start |
-| `GET` | `/v1/cost?period=` | `cost:read` | T0 | live spend + forecast |
+| `POST` | `/v1/connectors/:kind/oauth/url` / `.../callback` | `connectors:admin` | by connector | OAuth start / completion |
+| `GET` | `/v1/budget?period=` | `budget:read` | T0 | live spend + forecast |
 | `GET` | `/healthz` / `/livez` / `/readyz` | public | — | **deep** health (DB+model+tailnet) |
 
 ### 7.3 Contract tests & SDK
@@ -729,10 +731,10 @@ truth** → generates `@mimir/contracts` (typed client). The web app and SDK nev
 
 ### 7.4 Worked examples (request → response)
 
-**Chat (streamed, grounded).** `POST /v1/chat` (SSE).
+**Chat (streamed, grounded).** `POST /v1/sessions/:id/messages` (SSE).
 ```jsonc
 // request
-{ "session_id": "s_123", "message": "What did we decide about cache keys?", "mode": "grounded" }
+{ "content": "What did we decide about cache keys?", "tier": 0 }
 // SSE events
 event: token        data: {"text":"Tenant-prefixed keys "}
 event: token        data: {"text":"— `tenant:{id}:{resource}`."}
@@ -742,27 +744,27 @@ event: done         data: {"message_id": 88241}
 ```
 > If max retrieval score < threshold → `event: abstain data:{"reason":"not in your sources"}`. **No fabrication.**
 
-**Create job (idempotent).** `POST /v1/jobs`
+**Create task (idempotent).** `POST /v1/tasks`
 ```jsonc
 // request  (header: Idempotency-Key: 3f8c…)
-{ "type": "render_deck", "tier": 1, "target_node": "n_desktop", "input": { "deck_id": "d_9" } }
+{ "type": "render_deck", "tier": 1, "targetNodeId": "n_desktop", "payload": { "deck_id": "d_9" } }
 // 201
-{ "id": "j_55", "status": "queued", "tier": 1, "idempotency_key": "3f8c…", "created_at": "2026-07-02T10:00:00Z" }
-// same Idempotency-Key replayed → 200 with the SAME job (no duplicate)
+{ "id": "j_55", "status": "queued", "tier": 1, "idempotencyKey": "3f8c…", "createdAt": "2026-07-02T10:00:00Z" }
+// same Idempotency-Key replayed → 200 with the SAME task (no duplicate)
 ```
 
-**List jobs (cursor pagination).** `GET /v1/jobs?status=running&limit=2&cursor=eyJpZCI6...`
+**List tasks (cursor pagination).** `GET /v1/tasks?status=running&limit=2&cursor=eyJpZCI6...`
 ```jsonc
-{ "data": [ {"id":"j_55","status":"running","tier":1,"cost_usd":0.12}, {"id":"j_56","status":"running","tier":0} ],
-  "next_cursor": "eyJpZCI6Imo1NiJ9" }
+{ "data": [ {"id":"j_55","status":"running","tier":1,"costUsd":0.12}, {"id":"j_56","status":"running","tier":0} ],
+  "nextCursor": "eyJpZCI6Imo1NiJ9" }
 ```
 
-**Decide approval (destructive → PIN).** `POST /v1/approvals/ap_7/decide`
+**Approve (destructive → PIN).** `POST /v1/approvals/ap_7/approve`
 ```jsonc
 // request
-{ "decision": "approve", "pin": "••••", "note": "ok to send" }
+{ "pin": "1234", "reason": "ok to send" }
 // 200
-{ "id": "ap_7", "state": "approved", "decided_by": "u_1", "decided_at": "2026-07-02T10:05:00Z" }
+{ "id": "ap_7", "state": "approved", "decidedBy": "u_1", "decidedAt": "2026-07-02T10:05:00Z" }
 // on timeout the server sets state:"queued" (NEVER silent deny) and emits a P1 notification
 ```
 
@@ -784,7 +786,7 @@ event: done         data: {"message_id": 88241}
               "tailnet": "ok", "queue_progressing": "ok", "backup_fresh": "ok", "tier0_egress": 0 } }
 ```
 
-**Cost.** `GET /v1/cost?period=day`
+**Budget.** `GET /v1/budget?period=day`
 ```jsonc
 { "period": "day", "spent_usd": 8.40, "by_model": {"kimi": 5.1, "claude": 2.3, "local": 0.0},
   "by_tier": {"0": 2.1, "1": 3.4, "2": 2.9}, "budget_usd": 20.0, "forecast_month_usd": 252.0,
@@ -1182,7 +1184,7 @@ reliability/governance claim** and to SOC 2 (§27).
 
 ## 14. Web app spec (screen‑by‑screen)
 
-**Stack:** Next.js 15 (App Router) · TS · Tailwind · shadcn/ui · Clerk · PWA · TanStack Query ·
+**Stack:** Next.js 15 (App Router) · TS · Tailwind · shadcn/ui · Supertokens · PWA · TanStack Query ·
 typed WS. **Law** (`apps/web/AGENTS.md`): Zod single‑source‑of‑truth; `react-hook-form +
 zodResolver`; `sonner` toasts from `ApiError.userMessage`; one state machine per surface;
 Tailwind‑only; centralized Cmd+K + shortcuts; no silent catch; all calls via the generated client;
@@ -1734,7 +1736,7 @@ IDs map to the features table (§23).
 |---|---|---|---|
 | M1‑1 | Fastify app skeleton + `/v1` + error envelope + `/livez|readyz|healthz` + distributed rate limits | server boots; deep health returns component status; rate limits are Redis‑backed and survive API worker restarts | integration: health checks; load test across 2+ API workers |
 | M1‑2 | `@mimir/shared-types` (Zod) + `@mimir/contracts` (OpenAPI→client + Pydantic server models) gen | shared schemas single‑source; TS client and Python Pydantic models generated from the same OpenAPI spec; CI fails on either drift | contract test: drift fails build; Python import drift fails build |
-| M1‑3 | Clerk auth + JWT middleware | unauth → 401; auth resolves user+tenant | unit + integration |
+| M1‑3 | Supertokens session auth + RBAC middleware | unauth → 401; auth resolves user+tenant | unit + integration |
 | M1‑4 | **Tenant model + Postgres RLS** (F‑003) | RLS filters by JWT tenant before first query; worker/cron DB calls go through a tenant‑context wrapper enforced by the repository/DB‑client layer | **property test: tenant‑A cannot read tenant‑B** (required gate); compile‑time check: no worker DB call without tenant context |
 | M1‑5 | RBAC scopes + middleware (F‑004 scaffold) | scope‑gated routes; role within tenant | unit: each scope allow/deny |
 | M1‑6 | Drizzle schema + migrations + schema‑hash validation | core tables (§6.2); boot refuses on hash mismatch | migration up/down test |
@@ -1742,7 +1744,7 @@ IDs map to the features table (§23).
 | M1‑8 | Config + **secrets via vault** (no plaintext) | secrets fetched by `secret_ref`; `.env` has no secrets | unit + secret‑scan CI |
 | M1‑9 | Sessions + messages CRUD (cursor‑paginated) + idempotency table | create/list/continue session; pagination stable; idempotency keys stored with body‑hash + TTL + response ref | integration + contract; idempotency replay test |
 | M1‑10 | Structured logging (tier‑redacted) + request IDs | T0 content not in clear logs | unit: redactor; log inspection |
-| M1‑11 | Web: Clerk login + app shell + global HALT + cost chip + offline banner | login works; shell renders; HALT present | Playwright smoke |
+| M1‑11 | Web: Supertokens login + app shell + global HALT + cost chip + offline banner | login works; shell renders; HALT present | Playwright smoke |
 
 ### M2 — Orchestration (2026‑08–09) · *exit: a task runs build→review→apply, idempotent, recorded; Temporal live*
 
@@ -2288,7 +2290,7 @@ we do not state it as fact. This is the product's contract applied to its own pl
 |---|---|---|
 | 0.1 | 2026‑06‑10 | First detailed ROADMAP (features, milestones, risks, go/no‑go, sources) |
 | 0.2 | 2026‑06‑10 | Expanded to full master plan: §0–§31 (architecture, data, API, RAG, memory, orchestration, resilience, security/threat model, governance, web/connector specs, delivery, cost, observability, testing, CI/CD, process, issue‑level milestones, analytics, compliance, glossary, ADRs) |
-| 0.3 | 2026‑06‑15 | Design/code review validation + M0/M1 implementation: monorepo, Fastify API, Next.js PWA, Python uv workspace, CI workflows, docs, ADR-0015/0016; sessions/messages CRUD, RBAC, LibSQL replica client, Clerk login + app shell; resolved cloud-worker return-path contradiction; added R-15–R-21 + R-B7/R-B8; tightened M0/M1/M2 acceptance; added classifier + TS/Python contract-drift CI gates; clarified embeddings, gVisor egress, Postgres/LibSQL authority split |
+| 0.3 | 2026‑06‑15 | Design/code review validation + M0/M1 implementation: monorepo, Fastify API, Next.js PWA, Python uv workspace, CI workflows, docs, ADR-0015/0016; sessions/messages CRUD, RBAC, LibSQL replica client, Supertokens login + app shell; resolved cloud-worker return-path contradiction; added R-15–R-21 + R-B7/R-B8; tightened M0/M1/M2 acceptance; added classifier + TS/Python contract-drift CI gates; clarified embeddings, gVisor egress, Postgres/LibSQL authority split |
 | 0.4 | 2026‑06‑16 | Hermes build‑vs‑wrap decision (HYBRID): new §5.1 "Built on the Hermes runtime" + decision matrix; README built‑on‑Hermes note; §10 substrate note; annotated M2‑5/M2‑7 (EXTEND/HYBRID) + M6 (EXTEND over Hermes gateway); added integration‑seam issues M2‑11–M2‑14 (ACP/state/tier‑enforcement/audit); added R‑22 (reinventing‑Hermes duplication); ADR‑0017/0018/0019 (+stub files); §31.1 HYBRID open decision |
 | 0.5 | 2026‑06‑16 | Corrected Hermes relationship: Mimir owns its own engine; Hermes is a design reference only. Rewrote §5.1, README architecture/FAQ, M2‑5/M2‑7/M2‑11–M2‑14, M6 intro, R‑22; rejected ADR‑0017/0018/0019; updated §31.1. Added §5.2 upstream ingestion process, `scripts/hermes-release-check.sh`, `.github/workflows/upstream-hermes-check.yml`, `docs/references/hermes-baseline.md`, and AGENTS.md guidance; updated `.gitignore` to exclude local Hermes clones.
 

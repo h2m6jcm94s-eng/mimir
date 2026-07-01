@@ -63,7 +63,7 @@ design lives in the plan file (§4 below).
 
 ## 5. Locked decisions
 
-- **Stack:** Next.js 15 + Tailwind + shadcn + Clerk (web) · Fastify + **Temporal** + Drizzle +
+- **Stack:** Next.js 15 + Tailwind + shadcn + Supertokens (web) · Fastify + **Temporal** + Drizzle +
   Postgres + Redis (api) · Python workers (uv) · `@mimir/shared-types` (Zod) + `@mimir/contracts`
   (OpenAPI→client). pnpm + uv monorepo.
 - **Architecture:** single‑writer brain + **LibSQL embedded replicas** (zero‑loss failover via
@@ -109,7 +109,7 @@ dogfood 30 days (0 critical) → prove → sell.** Gates **G1–G9** are binary.
 
 **Status:** PR #2 merged to `main`. The long-running `feat/review-loop` branch is closed. Implemented:
 provider registry (Kimi/Groq/OpenAI/Qwen/Anthropic/Ollama), runtime Postgres RLS tenant isolation,
-Clerk JWT auth + auto-provisioning, real LLM reviewer + apply registry, model circuit
+Supertokens session auth + auto-provisioning, real LLM reviewer + apply registry, model circuit
 breakers/failover/cost ceiling, foundational RAG ingest/search (pgvector), global emergency halt with
 UI button and activity guards, auto circuit-breaker on runaway daily cost, global rate limiting
 (Fastify + CodeQL-friendly alias), Status/Tasks pages wired to real API data, console→API→Temporal→Kimi

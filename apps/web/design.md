@@ -45,7 +45,7 @@ Fill in the answers below. The more specific you are (colors, layout, interactio
 ### 5. Settings / Profile
 
 - `/settings`: appearance (theme switcher), account, API keys, notification preferences, workspace members?
-- Any Clerk-managed sections we should expose vs. hide?
+- Any Supertokens-managed sections we should expose vs. hide?
 
 ### 6. Animations & micro-interactions
 
@@ -66,7 +66,7 @@ Fill in the answers below. The more specific you are (colors, layout, interactio
 ## Technical constraints to keep in mind
 
 - Next.js 15 RC, React 19 RC, TypeScript, Tailwind 3.4.
-- `PLAYWRIGHT_TEST=true` disables Clerk auth for e2e tests — every route under `(app)` must render in that mode.
+- `PLAYWRIGHT_TEST=true` disables Supertokens session checks for e2e tests — every route under `(app)` must render in that mode.
 - Keep client components minimal; prefer server components where there is no interactivity.
 - Reuse existing tokens and components before adding new ones.
 
