@@ -2,6 +2,10 @@
 
 Run these steps after `make up` and `pnpm dev` are healthy and before merging the batch.
 
+> For a comprehensive, user-facing QA walkthrough covering the web PWA, CLI, browser extension, API,
+> and E2E suite, see [`docs/guides/testing-mimir.md`](docs/guides/testing-mimir.md). This file is a
+> focused feature-level checklist; that guide is the canonical pre-release manual test plan.
+
 ## Prerequisites
 
 - Postgres, Redis, and Temporal are running (`make up`).

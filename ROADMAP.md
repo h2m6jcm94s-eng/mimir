@@ -18,7 +18,7 @@
 | Audience | Core team + incoming contributors (incl. partner engineers from large vendors) + AI coding agents. |
 | How to read | Skim §0–§5 for orientation; engineers go deep in §6–§19; PMs/leads live in §22–§27; everyone respects §21 (process). |
 | Update cadence | Every PR that changes scope updates the relevant section + the features table (§23) + CHANGELOG. |
-| Companion docs | `README.md` (overview), `AGENTS.md` (contributor/agent law), `docs/adr/*` (decisions), `hermesh_validation.agent.final.md` (brutal go/no‑go dossier). |
+| Companion docs | `README.md` (overview), `AGENTS.md` (contributor/agent law), `docs/adr/*` (decisions), `docs/guides/testing-mimir.md` (manual QA for every user-facing surface), `hermesh_validation.agent.final.md` (brutal go/no‑go dossier). |
 
 > **RAG‑first authoring rule (mirrors the product):** every market figure, failure rate, and risk
 > is **drawn from the research/validation corpus, not invented.** Citations like `[wide03]`,
@@ -1599,6 +1599,11 @@ reviews flagged its total absence as a top failure cause [SRE/missing‑caps].
 | **Security** | bandit/semgrep + pen‑test | prompt‑injection resistance, secret‑exfil, ACL bypass |
 | **Load** | k6/locust | queue at 10/50/100 jobs; breaking‑point |
 | **a11y/perf** | axe + Lighthouse CI | WCAG AA, bundle/LCP/CLS, PWA |
+
+**Manual release QA.** Before every release or large infrastructure change, the team walks through
+[`docs/guides/testing-mimir.md`](docs/guides/testing-mimir.md) to verify the web PWA, CLI, browser
+extension, API, and Playwright E2E suite. The automated E2E suite currently exercises 120+ web
+flows across approvals, connectors, tools, session handoff, and more.
 
 **Required CI gates that can break `main`:** tier‑0 containment (packet‑verified), cross‑tenant
 isolation, contract drift (TS + Python), classifier low‑confidence T0 fallback, coverage on new code, e2e happy‑path, CodeQL, dependency‑review.
