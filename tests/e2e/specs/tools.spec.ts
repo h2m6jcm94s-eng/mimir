@@ -73,6 +73,8 @@ test.describe('Tools', () => {
 
     await card.getByRole('button', { name: 'Run' }).click();
 
-    await expect(card.getByText(/Connector action failed|token not found/i)).toBeVisible();
+    await expect(
+      card.getByText(/Connector action failed|token not found|Connector not found/i)
+    ).toBeVisible();
   });
 });

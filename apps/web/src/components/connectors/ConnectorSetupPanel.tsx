@@ -216,6 +216,7 @@ export function ConnectorSetupPanel({
         )}
         <button
           type="button"
+          data-testid="connector-toggle"
           onClick={onConnect}
           disabled={loading || oauthLoading || !allSecretsFilled}
           className={cn(

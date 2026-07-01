@@ -48,7 +48,7 @@ export async function approvalRoutes(app: FastifyInstance) {
       const body = DecideApprovalRequest.parse(request.body ?? {});
 
       const userAccount = await db.query.userAccount.findFirst({
-        where: eq(schema.userAccount.id, user.userId),
+        where: eq(schema.userAccount.id, user.userAccountId),
       });
       if (!userAccount) {
         return reply.status(500).send({
@@ -127,7 +127,7 @@ export async function approvalRoutes(app: FastifyInstance) {
       const body = DecideApprovalRequest.parse(request.body ?? {});
 
       const userAccount = await db.query.userAccount.findFirst({
-        where: eq(schema.userAccount.id, user.userId),
+        where: eq(schema.userAccount.id, user.userAccountId),
       });
       if (!userAccount) {
         return reply.status(500).send({

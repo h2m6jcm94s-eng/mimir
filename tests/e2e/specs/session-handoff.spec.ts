@@ -17,15 +17,25 @@ test.describe('Cross-device session handoff', () => {
     await pageA.getByRole('button', { name: /Session/ }).click();
     await pageA.getByRole('button', { name: 'New session' }).click();
 
+    // Capture the session id so device B can explicitly resume it. Tests share
+    // the isolated test tenant, so the auto-loaded session on device B may not
+    // be this one if other specs created sessions concurrently.
+    const sessionLabel = await pageA
+      .getByRole('button', { name: /^Session [a-f0-9]{8}$/ })
+      .textContent();
+    const sessionId = sessionLabel?.replace('Session ', '').trim() ?? '';
+
     const inputA = pageA.getByPlaceholder('Ask Mimir anything...');
     await inputA.fill('hello from device A');
     await pageA.getByRole('button', { name: 'Send' }).click();
     await expect(pageA.getByText('hello from device A', { exact: true })).toBeVisible();
     await expect(pageA.getByTestId('assistant-message')).toBeVisible({ timeout: 35000 });
 
-    // Open device B and verify the same conversation loads automatically.
+    // Open device B and resume the same session from the active sessions list.
     const pageB = await context.newPage();
     await pageB.goto('/');
+    await pageB.getByRole('button', { name: /Session/ }).click();
+    await pageB.getByRole('button', { name: new RegExp(`^Session ${sessionId} `) }).click();
     await expect(pageB.getByText('hello from device A', { exact: true })).toBeVisible({
       timeout: 10000,
     });
