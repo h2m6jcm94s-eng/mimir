@@ -3,11 +3,11 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { withTenantTransaction } from '../db/tenant-context';
 import { findConnectorByKind } from '../repositories/connector';
-import { createJob } from '../repositories/job';
 import { getSessionMessages } from '../repositories/session';
-import { ClassificationGateway } from '../services/classification/gateway';
+import { getClassificationGateway } from '../services/classification/gateway';
 import {
   buildChatPrompt,
+  createChatJobWithPolicyGate,
   dedupeUpdate,
   findOrCreateChatSession,
   startReplyWorkflow,
@@ -89,48 +89,63 @@ export async function telegramWebhookRoutes(app: FastifyInstance) {
     const externalId = `telegram:${payload.chatId}`;
     const actor = `telegram:${payload.fromId}`;
 
-    const { session, messages, job, tier } = await withTenantTransaction(tenantId, async (ctx) => {
-      const connector = await findConnectorByKind(ctx, 'telegram');
-      if (!connector || !connector.secretRef) {
-        throw new Error(`Telegram connector not configured for tenant ${tenantId}`);
-      }
+    const { session, messages, job, tier, approvalId } = await withTenantTransaction(
+      tenantId,
+      async (ctx) => {
+        const connector = await findConnectorByKind(ctx, 'telegram');
+        if (!connector || !connector.secretRef) {
+          throw new Error(`Telegram connector not configured for tenant ${tenantId}`);
+        }
 
-      const classifier = new ClassificationGateway();
-      const classification = classifier.classify({
-        prompt: payload.text,
-        attachments: [],
-        retrievedContext: [],
-      });
+        const classifier = getClassificationGateway();
+        const classification = classifier.classify({
+          prompt: payload.text,
+          attachments: [],
+          retrievedContext: [],
+        });
 
-      const session = await findOrCreateChatSession(ctx, 'telegram', externalId);
-      await storeUserMessage(ctx, session.id, payload.text, {
-        platformMessageId: String(payload.messageId),
-        tier: classification.tier,
-      });
+        const session = await findOrCreateChatSession(ctx, 'telegram', externalId);
+        await storeUserMessage(ctx, session.id, payload.text, {
+          platformMessageId: String(payload.messageId),
+          tier: classification.tier,
+        });
 
-      const history = await getSessionMessages(ctx, session.id);
-      const prompt = buildChatPrompt(
-        'Telegram',
-        history.map((m) => ({ role: m.role, content: m.content })),
-        payload.text
-      );
+        const history = await getSessionMessages(ctx, session.id);
+        const prompt = buildChatPrompt(
+          'Telegram',
+          history.map((m) => ({ role: m.role, content: m.content })),
+          payload.text
+        );
 
-      const idempotencyKey = `telegram:${tenantId}:${payload.updateId}`;
-      const job = await createJob(ctx, {
-        idempotencyKey,
-        type: 'telegram.chat',
-        tier: classification.tier,
-        input: {
-          prompt,
-          chatId: payload.chatId,
-          sessionId: session.id,
-          incomingText: payload.text,
+        const idempotencyKey = `telegram:${tenantId}:${payload.updateId}`;
+        const { job, approvalId } = await createChatJobWithPolicyGate(ctx, {
+          tenantId,
           actor,
-        },
-      });
+          type: 'telegram.chat',
+          tier: classification.tier,
+          idempotencyKey,
+          prompt,
+          input: {
+            prompt,
+            chatId: payload.chatId,
+            sessionId: session.id,
+            incomingText: payload.text,
+            actor,
+          },
+        });
 
-      return { session, messages: history, job, tier: classification.tier };
-    });
+        return { session, messages: history, job, tier: classification.tier, approvalId };
+      }
+    );
+
+    if (approvalId) {
+      return reply.status(202).send({
+        ok: true,
+        sessionId: session.id,
+        jobId: job.id,
+        approvalId,
+      });
+    }
 
     await startReplyWorkflow({
       tenantId,
@@ -139,6 +154,7 @@ export async function telegramWebhookRoutes(app: FastifyInstance) {
       idempotencyKey: `telegram:${tenantId}:${payload.updateId}`,
       type: 'telegram.chat',
       tier,
+      source: 'chat',
       prompt: buildChatPrompt(
         'Telegram',
         messages.map((m) => ({ role: m.role, content: m.content })),

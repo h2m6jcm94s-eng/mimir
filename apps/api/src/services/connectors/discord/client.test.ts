@@ -4,6 +4,7 @@ import { DiscordClient } from './client';
 const resolver = {
   get: vi.fn(),
   getForTenant: vi.fn().mockResolvedValue('bot-token'),
+  setForTenant: vi.fn().mockResolvedValue(undefined),
   getRequired: vi.fn().mockResolvedValue('bot-token'),
   getRequiredForTenant: vi.fn().mockResolvedValue('bot-token'),
 };

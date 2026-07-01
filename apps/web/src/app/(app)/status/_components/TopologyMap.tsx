@@ -56,7 +56,7 @@ function statusGlow(status: MeshNode['status']) {
 }
 
 export function TopologyMap({ nodes }: { nodes: MeshNode[] }) {
-  const nodeMap = new Map(nodes.map((n) => [n.kind, n]));
+  void nodes;
 
   return (
     <div className="relative h-64 w-full overflow-hidden rounded-2xl bg-[var(--bg-surface)] shadow-card">

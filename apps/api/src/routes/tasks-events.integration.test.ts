@@ -55,7 +55,7 @@ describe('tasks events routes', () => {
       const externalIdA = `tasks_events_a_${Date.now()}`;
       const userA = await resolveAuthUser(externalIdA, `${externalIdA}@test.local`);
       const externalIdB = `tasks_events_b_${Date.now()}`;
-      const userB = await resolveAuthUser(externalIdB, `${externalIdB}@test.local`);
+      await resolveAuthUser(externalIdB, `${externalIdB}@test.local`);
 
       const { job } = await withTenantTransaction(userA.tenantId, async (ctx) => {
         const created = await createJob(ctx, {

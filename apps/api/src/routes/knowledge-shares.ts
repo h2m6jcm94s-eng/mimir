@@ -155,7 +155,7 @@ export async function knowledgeShareRoutes(app: FastifyInstance) {
         return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
       }
 
-      const body = KnowledgeShareActionRequest.parse(request.body ?? {});
+      KnowledgeShareActionRequest.parse(request.body ?? {});
 
       try {
         const { share, item, embeddings } = await withTenantTransaction(

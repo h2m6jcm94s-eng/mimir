@@ -4,6 +4,7 @@ import { resolveAuthUser } from '../middleware/auth';
 import { listAuditEvents } from '../repositories/audit';
 import { buildTestApp } from '../test-helpers/build-app';
 import { connectorRoutes } from './connectors';
+import { secretsRoutes } from './secrets';
 
 describe('connectors routes', () => {
   afterEach(() => {
@@ -274,4 +275,76 @@ describe('connectors routes', () => {
       }
     }
   );
+
+  it.skipIf(!process.env.RUN_DB_TESTS)('writes a secret and creates a connector', async () => {
+    const token = `connector_secret_${Date.now()}`;
+    const app = await buildTestApp(async (app) => {
+      await app.register(connectorRoutes, { prefix: '/v1/connectors' });
+      await app.register(secretsRoutes, { prefix: '/v1/secrets' });
+    });
+
+    const user = await resolveAuthUser(token, `${token}@test.local`);
+
+    const secretResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/secrets/airtable',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { value: 'pat-test-token' },
+    });
+    expect(secretResponse.statusCode).toBe(204);
+
+    expect(process.env[`MIMIR_SECRET_AIRTABLE_${user.tenantId}`]).toBe('pat-test-token');
+
+    const connectResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/connectors',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        kind: 'airtable',
+        secretRef: 'airtable',
+        scopes: [],
+        tier: 1,
+      },
+    });
+    expect(connectResponse.statusCode).toBe(201);
+  });
+
+  it.skipIf(!process.env.RUN_DB_TESTS)('tests a connector connection', async () => {
+    const token = `connector_test_${Date.now()}`;
+    const app = await buildTestApp(async (app) => {
+      await app.register(connectorRoutes, { prefix: '/v1/connectors' });
+      await app.register(secretsRoutes, { prefix: '/v1/secrets' });
+    });
+
+    const user = await resolveAuthUser(token, `${token}@test.local`);
+    process.env[`MIMIR_SECRET_AIRTABLE_${user.tenantId}`] = 'pat-test-token';
+
+    await app.inject({
+      method: 'POST',
+      url: '/v1/connectors',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        kind: 'airtable',
+        secretRef: 'airtable',
+        scopes: [],
+        tier: 1,
+      },
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ bases: [] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const testResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/connectors/airtable/test',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(testResponse.statusCode).toBe(200);
+    const body = JSON.parse(testResponse.body);
+    expect(body.ok).toBe(true);
+  });
 });

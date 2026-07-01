@@ -26,10 +26,6 @@ export interface ReviewerAdapter {
   review(input: ReviewerInput): Promise<ReviewResult>;
 }
 
-function finding(claim: string, issue: string, suggestion: string): ReviewFinding {
-  return { claim, issue, suggestion };
-}
-
 function approve(reason: string): ReviewResult {
   return { verdict: 'approve', approved: true, reason, findings: [] };
 }

@@ -4,17 +4,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { cn } from '@/lib/utils';
 import type { Node, Routine } from '@mimir/shared-types';
 import { AnimatePresence, motion } from 'framer-motion';
-import {
-  Calendar,
-  Clock,
-  Loader2,
-  MoreHorizontal,
-  Play,
-  Plus,
-  Search,
-  Server,
-  Zap,
-} from 'lucide-react';
+import { Calendar, Clock, Loader2, MoreHorizontal, Play, Plus, Search, Server } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 type TriggerType = 'scheduled' | 'manual';

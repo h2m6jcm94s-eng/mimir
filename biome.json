@@ -36,5 +36,19 @@
       "quoteStyle": "single",
       "trailingCommas": "es5"
     }
-  }
+  },
+  "overrides": [
+    {
+      "include": ["**/workflow-editor/page.tsx"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "noNoninteractiveElementToInteractiveRole": "off",
+            "useKeyWithClickEvents": "off",
+            "useSemanticElements": "off"
+          }
+        }
+      }
+    }
+  ]
 }

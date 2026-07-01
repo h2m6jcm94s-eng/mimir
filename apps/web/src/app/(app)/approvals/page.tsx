@@ -52,12 +52,6 @@ function isExpired(expiresAt?: string): boolean {
   return new Date() > new Date(expiresAt);
 }
 
-function formatDuration(ms: number): string {
-  const minutes = Math.ceil(ms / 60000);
-  if (minutes >= 60) return `${Math.ceil(minutes / 60)}h`;
-  return `${minutes}m`;
-}
-
 export default function ApprovalsPage() {
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [activeTab, setActiveTab] = useState<ApprovalStatus | 'all'>('pending');

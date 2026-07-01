@@ -63,7 +63,7 @@ function digestWindowStart(frequency: 'daily' | 'weekly', now: Date): Date {
 
 export async function generateDigestContent(
   ctx: TenantContext,
-  appUserId: string,
+  _appUserId: string,
   preference: {
     frequency: 'daily' | 'weekly';
     includeNotifications: boolean;

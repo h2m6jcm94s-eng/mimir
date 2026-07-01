@@ -27,11 +27,13 @@ import {
   updateJobStatus,
 } from '../repositories/job';
 import { approvalExpiresAt, buildBlastRadius, riskFromTier } from '../services/approvals/metadata';
-import { ClassificationGateway } from '../services/classification/gateway';
+import { getClassificationGateway } from '../services/classification/gateway';
+import { checkPolicyConformance } from '../services/classification/policy-conformance';
 import { BudgetExceededError, BudgetService, BudgetThrottledError } from '../services/cost/budget';
 import { publishJobEvent } from '../services/events/publisher';
 import { ReadOnlyError, StaleEpochError } from '../services/fencing/fencing';
 import { evaluateTenantPolicy } from '../services/governance/engine';
+import { HaltError } from '../services/halt/state';
 import { jobsCreatedCounter } from '../services/metrics/registry';
 import { startTaskWorkflow, terminateWorkflow } from '../temporal/client';
 
@@ -52,6 +54,7 @@ const createTaskSchema = z.object({
   role: AgentRoleKind.optional(),
   maxTokens: z.number().int().min(1).optional(),
   maxCostUsd: z.number().int().min(0).optional(),
+  source: z.enum(['api', 'ui']).default('api'),
 });
 
 const listTasksSchema = TaskListQuery;
@@ -75,7 +78,7 @@ function isValidManualTransition(from: string, to: string): boolean {
   return manualTransitions[from]?.has(to) ?? false;
 }
 
-const classifier = new ClassificationGateway();
+const classifier = getClassificationGateway();
 const budgetService = new BudgetService();
 
 const cancellableStatuses = new Set<string>(['queued', 'running']);
@@ -121,6 +124,9 @@ export async function taskRoutes(app: FastifyInstance) {
               fallback: classification.fallback,
               reason: classification.reason,
               policyVersion: classification.policyVersion,
+              assignedTier: classification.assignedTier,
+              matchedRule: classification.matchedRule,
+              signals: classification.signals,
             } as unknown as Record<string, unknown>,
           });
 
@@ -131,7 +137,11 @@ export async function taskRoutes(app: FastifyInstance) {
               actor: user.userId,
             });
           } catch (error) {
-            if (error instanceof BudgetExceededError || error instanceof BudgetThrottledError) {
+            if (
+              error instanceof BudgetExceededError ||
+              error instanceof BudgetThrottledError ||
+              error instanceof HaltError
+            ) {
               return {
                 job: null,
                 classification,
@@ -147,7 +157,11 @@ export async function taskRoutes(app: FastifyInstance) {
           const decision = await evaluateTenantPolicy(ctx, {
             action: body.type,
             tier: classification.tier,
+            source: body.source,
           });
+
+          const conformance = checkPolicyConformance(classification, decision);
+          classification.conformanceFlags = conformance.flags;
 
           await createAuditEvent(ctx, {
             actor: user.userId,
@@ -156,8 +170,23 @@ export async function taskRoutes(app: FastifyInstance) {
             payload: {
               decision,
               action: body.type,
+              conformanceFlags: conformance.flags,
             } as unknown as Record<string, unknown>,
           });
+
+          if (!conformance.conformant && decision.effect === 'deny') {
+            await createAuditEvent(ctx, {
+              actor: user.userId,
+              action: 'classifier_policy_mismatch',
+              tier: classification.tier,
+              payload: {
+                classification,
+                decision,
+                action: body.type,
+                conformanceFlags: conformance.flags,
+              } as unknown as Record<string, unknown>,
+            });
+          }
 
           if (decision.effect === 'deny') {
             return { job: null, classification, decision, approvalId: null, idempotent: false };
@@ -167,6 +196,7 @@ export async function taskRoutes(app: FastifyInstance) {
             idempotencyKey: body.idempotencyKey,
             type: body.type,
             tier: classification.tier,
+            source: body.source,
             input: { prompt: body.prompt, payload: body.payload, attachments: body.attachments },
           });
 
@@ -233,8 +263,12 @@ export async function taskRoutes(app: FastifyInstance) {
         });
 
       if (budgetError) {
-        const code =
-          budgetError instanceof BudgetExceededError ? 'BUDGET_EXCEEDED' : 'BUDGET_THROTTLED';
+        let code = 'BUDGET_THROTTLED';
+        if (budgetError instanceof BudgetExceededError) {
+          code = 'BUDGET_EXCEEDED';
+        } else if (budgetError instanceof HaltError) {
+          code = 'EMERGENCY_HALT';
+        }
         return reply.status(403).send({
           error: {
             code,
@@ -282,6 +316,7 @@ export async function taskRoutes(app: FastifyInstance) {
         idempotencyKey: body.idempotencyKey,
         type: body.type,
         tier: classification.tier,
+        source: body.source,
         payload: {
           prompt: body.prompt,
           ...(body.provider && { provider: body.provider }),
@@ -616,6 +651,7 @@ export async function taskRoutes(app: FastifyInstance) {
         idempotencyKey: result.updated.idempotencyKey,
         type: result.updated.type,
         tier: result.updated.tier,
+        source: result.updated.source,
         payload: (input ?? {}) as Record<string, unknown>,
       });
 

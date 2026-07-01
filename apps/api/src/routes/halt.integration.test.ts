@@ -87,6 +87,6 @@ describe('halt routes', () => {
 
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body)).toEqual({ halted: false });
-    expect(redis.del).toHaveBeenCalledWith('mimir:halt');
+    expect(redis.del).toHaveBeenCalledWith('mimir:halt:tenant-1');
   });
 });

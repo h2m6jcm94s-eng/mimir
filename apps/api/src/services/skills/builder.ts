@@ -1,7 +1,7 @@
 import { GeneratedSkillPayload } from '@mimir/shared-types';
 import type { TenantContext } from '../../db/tenant-context';
 import { createSkillDraft } from '../../repositories/skills';
-import { ModelRouter } from '../models/router';
+import { getModelRouter } from '../models/router';
 
 function buildSkillGenerationPrompt(userPrompt: string): string {
   return `You are Mimir's self-building skill agent. Design a small, composable Mimir skill based on the user request.
@@ -28,7 +28,7 @@ export async function generateSkillDraft(
   ctx: TenantContext,
   prompt: string
 ): Promise<typeof import('../../db/schema').skillDraft.$inferSelect> {
-  const router = new ModelRouter();
+  const router = getModelRouter();
   const output = await router.invoke(
     1,
     { prompt: buildSkillGenerationPrompt(prompt), payload: {} },

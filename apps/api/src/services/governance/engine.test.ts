@@ -73,4 +73,73 @@ rules:
     expect(decision.effect).toBe('deny');
     expect(decision.reason).toContain('Invalid policy');
   });
+
+  it('requires approval for chat-initiated actions by default', () => {
+    const engine = new PolicyEngine('rules: []');
+    const decision = engine.evaluate({
+      action: 'telegram.chat',
+      tier: 1,
+      source: 'chat',
+      dailySpendUsd: 0,
+    });
+    expect(decision.effect).toBe('require_approval');
+    expect(decision.reason).toContain('Chat-initiated');
+  });
+
+  it('allows non-chat actions by default', () => {
+    const engine = new PolicyEngine('rules: []');
+    const decision = engine.evaluate({
+      action: 'telegram.chat',
+      tier: 1,
+      source: 'api',
+      dailySpendUsd: 0,
+    });
+    expect(decision.effect).toBe('allow');
+  });
+
+  it('allows explicit policy rules to override the chat default', () => {
+    const policy = `
+rules:
+  - source: chat
+    effect: allow
+    reason: chat is trusted
+`;
+    const engine = new PolicyEngine(policy);
+    const decision = engine.evaluate({
+      action: 'telegram.chat',
+      tier: 1,
+      source: 'chat',
+      dailySpendUsd: 0,
+    });
+    expect(decision.effect).toBe('allow');
+    expect(decision.reason).toContain('chat is trusted');
+  });
+
+  it('requires approval for sandbox actions by default (R-01)', () => {
+    const engine = new PolicyEngine('rules: []');
+    for (const action of ['sandbox.execute', 'sandbox.run', 'sandbox.gate']) {
+      const decision = engine.evaluate({ action, tier: 0, dailySpendUsd: 0 });
+      expect(decision.effect).toBe('require_approval');
+      expect(decision.reason).toContain('Built-in approval required');
+    }
+  });
+
+  it('requires approval for custom_code actions by default (R-01)', () => {
+    const engine = new PolicyEngine('rules: []');
+    const decision = engine.evaluate({ action: 'custom_code', tier: 0, dailySpendUsd: 0 });
+    expect(decision.effect).toBe('require_approval');
+    expect(decision.reason).toContain('custom_code');
+  });
+
+  it('does not allow tenant policy to bypass sandbox approval default', () => {
+    const policy = `
+rules:
+  - action: sandbox.execute
+    effect: allow
+    reason: shortcut
+`;
+    const engine = new PolicyEngine(policy);
+    const decision = engine.evaluate({ action: 'sandbox.execute', tier: 0, dailySpendUsd: 0 });
+    expect(decision.effect).toBe('require_approval');
+  });
 });

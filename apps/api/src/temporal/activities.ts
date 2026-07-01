@@ -9,7 +9,7 @@ import { createAuditEvent } from '../repositories/audit';
 import { addJobCost, getJob, updateJobStatus } from '../repositories/job';
 import { BudgetService } from '../services/cost/budget';
 import { hashObject } from '../services/diff/ast-diff';
-import { ModelRouter } from '../services/models/router';
+import { getModelRouter } from '../services/models/router';
 import { applyPatch as applyJsonPatch } from '../services/patch/json-patch';
 import { agentRoleRegistry } from '../services/agents/registry';
 import { ApplyRegistry } from '../services/apply/registry';
@@ -84,7 +84,7 @@ async function syncT0Completion(tier: number, tenantId: string): Promise<void> {
 }
 
 export async function build(input: TaskRunInput): Promise<BuildResult> {
-  await throwIfHalted();
+  await throwIfHalted(input.tenantId);
   return withTenantTransaction(input.tenantId, async (ctx) => {
     const job = await getJob(ctx, input.jobId);
     const existing = (job?.checkpoint as JobCheckpoint | undefined) ?? {};
@@ -119,7 +119,7 @@ export async function build(input: TaskRunInput): Promise<BuildResult> {
       model = model ?? resolved.model;
     }
 
-    const router = new ModelRouter();
+    const router = getModelRouter();
     const { maxTokens, maxCostUsd, ...restPayload } = input.payload;
     const modelInput = {
       prompt: (restPayload.prompt as string) ?? '',
@@ -185,7 +185,7 @@ export async function review(
   buildResult: BuildResult,
   iteration: number
 ): Promise<ReviewResult> {
-  await throwIfHalted();
+  await throwIfHalted(input.tenantId);
   return withTenantTransaction(input.tenantId, async (ctx) => {
     const job = await getJob(ctx, input.jobId);
     const existing = (job?.checkpoint as JobCheckpoint | undefined) ?? {};
@@ -240,7 +240,7 @@ export async function applyPatch(
   review: ReviewResult,
   iteration: number
 ): Promise<BuildResult> {
-  await throwIfHalted();
+  await throwIfHalted(input.tenantId);
   return withTenantTransaction(input.tenantId, async (ctx) => {
     const job = await getJob(ctx, input.jobId);
     const existing = (job?.checkpoint as JobCheckpoint | undefined) ?? {};
@@ -310,7 +310,7 @@ export async function apply(
   finalDraft: BuildResult,
   reviewResult: ReviewResult
 ): Promise<ApplyResult> {
-  await throwIfHalted();
+  await throwIfHalted(input.tenantId);
   const result = await withTenantTransaction(input.tenantId, async (ctx) => {
     const job = await getJob(ctx, input.jobId);
     const existing = (job?.checkpoint as JobCheckpoint | undefined) ?? {};
@@ -326,6 +326,7 @@ export async function apply(
     const preApplyDecision = await evaluateTenantPolicy(ctx, {
       action: input.type,
       tier: input.tier,
+      source: input.source,
     });
 
     if (preApplyDecision.effect === 'deny') {

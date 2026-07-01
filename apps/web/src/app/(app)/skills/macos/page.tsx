@@ -2,7 +2,6 @@
 
 import { PageHeader } from '@/components/ui/PageHeader';
 import { TierBadge } from '@/components/ui/TierBadge';
-import { cn } from '@/lib/utils';
 import { ClipboardList, Command, Eye, Search, Share2 } from 'lucide-react';
 
 const capabilities = [

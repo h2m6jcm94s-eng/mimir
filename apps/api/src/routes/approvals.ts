@@ -1,5 +1,4 @@
 import { DecideApprovalRequest } from '@mimir/shared-types';
-import { Client, Connection } from '@temporalio/client';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -10,16 +9,17 @@ import { Scopes, requireScope } from '../middleware/rbac';
 import { protectedRouteConfig } from '../middleware/route-config';
 import { decideApproval, getApprovalById, listApprovals } from '../repositories/approval';
 import { createAuditEvent } from '../repositories/audit';
-import { getJob, updateJobStatus } from '../repositories/job';
+import { updateJobStatus } from '../repositories/job';
 import { verifyPin } from '../services/approvals/metadata';
+import { type SandboxRunInput, analyzeCode, createSandboxRunner } from '../services/sandbox';
+import { startTaskWorkflow } from '../temporal/client';
 import type { TaskRunInput } from '../temporal/workflows';
 
 const paramsSchema = z.object({
   id: z.string().uuid(),
 });
 
-const temporalHost = process.env.TEMPORAL_HOST || 'localhost:7233';
-const taskQueue = process.env.TEMPORAL_TASK_QUEUE || 'mimir-task-queue';
+const SANDBOX_JOB_TYPES = new Set(['sandbox.execute', 'sandbox.gate', 'custom_code']);
 
 export async function approvalRoutes(app: FastifyInstance) {
   app.addHook('preHandler', requireScope(Scopes.APPROVALS_READ));
@@ -48,7 +48,7 @@ export async function approvalRoutes(app: FastifyInstance) {
       const body = DecideApprovalRequest.parse(request.body ?? {});
 
       const userAccount = await db.query.userAccount.findFirst({
-        where: eq(schema.userAccount.id, user.userAccountId),
+        where: eq(schema.userAccount.id, user.userId),
       });
       if (!userAccount) {
         return reply.status(500).send({
@@ -101,6 +101,11 @@ export async function approvalRoutes(app: FastifyInstance) {
           .send({ error: { code: 'INTERNAL_ERROR', message: 'Job not found' } });
       }
 
+      if (SANDBOX_JOB_TYPES.has(job.type)) {
+        const run = await executeSandboxJob(user.tenantId, user.userId, job);
+        return reply.send({ data: approval, run });
+      }
+
       const workflowInfo = await startWorkflow(user.tenantId, approval.requestedBy, job);
 
       return reply.send({
@@ -122,7 +127,7 @@ export async function approvalRoutes(app: FastifyInstance) {
       const body = DecideApprovalRequest.parse(request.body ?? {});
 
       const userAccount = await db.query.userAccount.findFirst({
-        where: eq(schema.userAccount.id, user.userAccountId),
+        where: eq(schema.userAccount.id, user.userId),
       });
       if (!userAccount) {
         return reply.status(500).send({
@@ -174,10 +179,82 @@ export async function approvalRoutes(app: FastifyInstance) {
   );
 }
 
+async function executeSandboxJob(
+  tenantId: string,
+  actor: string,
+  job: {
+    id: string;
+    type: string;
+    tier: number;
+    input: unknown;
+  }
+): Promise<{
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+  timedOut: boolean;
+}> {
+  const input = (job.input ?? {}) as Record<string, unknown>;
+  const code = (input.code as string) ?? '';
+  const run = (input.run ?? {}) as SandboxRunInput;
+
+  const analysis = analyzeCode(code);
+  if (!analysis.ok) {
+    await withTenantTransaction(tenantId, async (ctx) => {
+      await updateJobStatus(ctx, job.id, 'failed', {
+        result: { errorCode: 'STATIC_ANALYSIS_FAILED', analysis },
+      });
+      await createAuditEvent(ctx, {
+        actor,
+        action: 'sandbox_execution_failed',
+        tier: job.tier,
+        payload: {
+          jobId: job.id,
+          command: run.command,
+          staticAnalysis: analysis,
+          errorCode: 'STATIC_ANALYSIS_FAILED',
+        },
+      });
+    });
+    throw new Error('Code failed the static-analysis security gate');
+  }
+
+  const runner = await createSandboxRunner();
+  const result = await runner.run(run);
+
+  await withTenantTransaction(tenantId, async (ctx) => {
+    await updateJobStatus(ctx, job.id, result.exitCode === 0 ? 'done' : 'failed', {
+      result: result as unknown as Record<string, unknown>,
+    });
+    await createAuditEvent(ctx, {
+      actor,
+      action: job.type === 'custom_code' ? 'custom_code_executed' : 'sandbox_executed',
+      tier: job.tier,
+      payload: {
+        jobId: job.id,
+        command: run.command,
+        args: run.args,
+        mode: runner.kind,
+        staticAnalysis: analysis,
+        exitCode: result.exitCode,
+      } as unknown as Record<string, unknown>,
+    });
+  });
+
+  return result;
+}
+
 async function startWorkflow(
   tenantId: string,
   userId: string,
-  job: { id: string; idempotencyKey: string; type: string; tier: number; input: unknown }
+  job: {
+    id: string;
+    idempotencyKey: string;
+    type: string;
+    tier: number;
+    source: 'chat' | 'api' | 'ui' | 'routine';
+    input: unknown;
+  }
 ) {
   const input = (job.input ?? {}) as Record<string, unknown>;
   const payload = (input.payload ?? {}) as Record<string, unknown>;
@@ -189,24 +266,12 @@ async function startWorkflow(
     idempotencyKey: job.idempotencyKey,
     type: job.type,
     tier: job.tier,
+    source: job.source,
     payload: {
       prompt: (input.prompt as string) ?? '',
       ...payload,
     },
   };
 
-  const connection = await Connection.connect({ address: temporalHost });
-  const client = new Client({ connection });
-  const workflowId = `task-${job.id}`;
-
-  const handle = await client.workflow.start('taskRunWorkflow', {
-    taskQueue,
-    workflowId,
-    args: [taskRunInput],
-  });
-
-  return {
-    workflowId: handle.workflowId,
-    runId: handle.firstExecutionRunId,
-  };
+  return startTaskWorkflow(taskRunInput);
 }

@@ -15,7 +15,7 @@ import {
   listSessions,
   searchMessages,
 } from '../repositories/session';
-import { ClassificationGateway } from '../services/classification/gateway';
+import { getClassificationGateway } from '../services/classification/gateway';
 
 const createSessionSchema = z.object({
   source: z.enum(['web', 'telegram', 'discord', 'slack', 'cli', 'api']).default('web'),
@@ -84,7 +84,7 @@ export async function sessionRoutes(app: FastifyInstance) {
         return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
 
       const body = createMessageSchema.parse(request.body);
-      const classifier = new ClassificationGateway();
+      const classifier = getClassificationGateway();
 
       const message = await withTenantTransaction(user.tenantId, async (ctx) => {
         const classification =

@@ -4,7 +4,7 @@ import {
   createRemediationRun,
   updateRemediationRun,
 } from '../../repositories/remediation';
-import { ModelRouter } from '../models/router';
+import { getModelRouter } from '../models/router';
 
 function buildRemediationPrompt(input: CreateRemediationInput): string {
   return `You are Mimir's self-healing remediation agent. A system issue was detected.
@@ -33,7 +33,7 @@ export async function runRemediation(
 ): Promise<typeof import('../../db/schema').remediationRun.$inferSelect> {
   const run = await createRemediationRun(ctx, { ...input, status: 'running' });
 
-  const router = new ModelRouter();
+  const router = getModelRouter();
   let action: string;
   let output: Record<string, unknown>;
 

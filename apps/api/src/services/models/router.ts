@@ -3,6 +3,7 @@ import type { ModelInput, ModelOutput } from '@mimir/shared-types';
 import type { AppConfig } from '../../config';
 import { loadConfig } from '../../config';
 import type { TenantContext } from '../../db/tenant-context';
+import { rootLogger } from '../../logging';
 import { createAuditEvent } from '../../repositories/audit';
 import { recordModelInvocation } from '../model-leaderboard/service';
 import { scrubForTier } from '../scrubber/scrubber';
@@ -42,6 +43,15 @@ function sha256(input: string): string {
 
 function hashInput(input: ModelInput): string {
   return sha256(JSON.stringify({ prompt: input.prompt, payload: input.payload }));
+}
+
+let sharedModelRouter: ModelRouter | undefined;
+
+export function getModelRouter(): ModelRouter {
+  if (!sharedModelRouter) {
+    sharedModelRouter = new ModelRouter();
+  }
+  return sharedModelRouter;
 }
 
 export class ModelRouter {
@@ -123,7 +133,13 @@ export class ModelRouter {
   ): Promise<void> {
     const providerIds = providers.map((p) => p.id);
     const promptHash = hashInput(input);
-    const payloadKeys = Object.keys(input.payload ?? {});
+    const redactT0 =
+      tier === 0 ||
+      process.env.TELEMETRY_REDACT_T0 === '1' ||
+      process.env.TELEMETRY_REDACT_T0 === 'true';
+    const payloadKeys = redactT0
+      ? Object.keys(input.payload ?? {}).map((k) => sha256(k))
+      : Object.keys(input.payload ?? {});
     const logEntry = {
       ts: new Date().toISOString(),
       event: 'model_routing_decision',
@@ -136,8 +152,7 @@ export class ModelRouter {
       payloadKeys,
     };
     // LiteLLM-style proxy logging: every routing decision is emitted.
-    // eslint-disable-next-line no-console
-    console.log(JSON.stringify(logEntry));
+    rootLogger.info(JSON.stringify(logEntry));
 
     if (options?.ctx && options?.actor) {
       try {
@@ -155,8 +170,9 @@ export class ModelRouter {
         });
       } catch (err) {
         // Non-fatal: logging must not break routing.
-        // eslint-disable-next-line no-console
-        console.warn('Failed to persist model routing audit event', err);
+        rootLogger.warn('Failed to persist model routing audit event', {
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
   }
@@ -297,8 +313,9 @@ export class ModelRouter {
       await recordModelInvocation(ctx, input);
     } catch (err) {
       // Non-fatal: leaderboard telemetry should not break model routing.
-      // eslint-disable-next-line no-console
-      console.warn('Failed to record model invocation', err);
+      rootLogger.warn('Failed to record model invocation', {
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 }

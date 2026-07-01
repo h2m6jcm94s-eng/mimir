@@ -2,7 +2,7 @@ import { execSync } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 const scriptsDir = resolve(__dirname, '..', '..', '..', '..', 'scripts');
 

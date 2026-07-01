@@ -77,6 +77,7 @@ export const SearchKnowledgeWithSharesQuery = z.object({
   includeShared: z.coerce.boolean().default(false),
   tier: z.coerce.number().int().min(0).max(2).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(10),
+  searchMode: z.enum(['fts', 'vector', 'hybrid']).default('fts'),
 });
 export type SearchKnowledgeWithSharesQuery = z.infer<typeof SearchKnowledgeWithSharesQuery>;
 

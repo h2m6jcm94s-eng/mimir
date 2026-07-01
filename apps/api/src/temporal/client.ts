@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Client, Connection, WorkflowNotFoundError } from '@temporalio/client';
 import type { RoutineWorkflowInput, TaskRunInput } from './workflows';
 
@@ -124,7 +125,7 @@ export async function triggerRoutineSchedule(scheduleId: string, input: RoutineW
   const conn = await getTemporalConnection();
   const client = new Client({ connection: conn });
   await client.workflow.execute('routineWorkflow', {
-    workflowId: `${scheduleId}-manual-${Date.now()}`,
+    workflowId: `${scheduleId}-manual-${randomUUID()}`,
     taskQueue,
     args: [input],
   });

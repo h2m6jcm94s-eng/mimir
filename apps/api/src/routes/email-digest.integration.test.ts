@@ -22,7 +22,7 @@ describe('email digest routes', () => {
     'creates, updates, and returns digest preferences',
     async () => {
       const externalId = `email_digest_user_${Date.now()}`;
-      const user = await resolveAuthUser(externalId, `${externalId}@test.local`);
+      await resolveAuthUser(externalId, `${externalId}@test.local`);
 
       const app = await buildTestApp(async (app) => {
         await app.register(emailDigestRoutes, { prefix: '/v1/email-digest' });

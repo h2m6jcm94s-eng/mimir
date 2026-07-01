@@ -79,3 +79,24 @@ export const notificationsDeliveredCounter = metrics.counter(
   'mimir_notifications_delivered_total',
   'Total notification delivery attempts'
 );
+
+const UUID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const NUMERIC_SEGMENT = /^\d+$/;
+const EMAIL_SEGMENT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function sanitizeMetricPath(path: string): string {
+  return path
+    .split('/')
+    .map((segment) => {
+      if (!segment) return segment;
+      if (
+        UUID_SEGMENT.test(segment) ||
+        NUMERIC_SEGMENT.test(segment) ||
+        EMAIL_SEGMENT.test(segment)
+      ) {
+        return ':id';
+      }
+      return segment;
+    })
+    .join('/');
+}

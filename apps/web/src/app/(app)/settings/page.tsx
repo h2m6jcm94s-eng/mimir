@@ -12,7 +12,6 @@ import {
   Cpu,
   Key,
   Mail,
-  Moon,
   Plus,
   RefreshCw,
   Server,
@@ -223,12 +222,6 @@ export default function SettingsPage() {
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
 
-  const [budgetStatus, setBudgetStatus] = useState<{
-    dailyBudgetUsd: number;
-    monthlyBudgetUsd: number;
-    throttleThreshold: number;
-    enabled: boolean;
-  } | null>(null);
   const [budgetLoading, setBudgetLoading] = useState(false);
   const [budgetError, setBudgetError] = useState<string | null>(null);
   const [budgetSaving, setBudgetSaving] = useState(false);
@@ -393,7 +386,7 @@ export default function SettingsPage() {
           enabled: boolean;
         };
       }>('/api/v1/budget');
-      setBudgetStatus(body.data);
+
       setBudgetDraft({
         dailyBudgetUsd: body.data.dailyBudgetUsd / MICROS_PER_DOLLAR,
         monthlyBudgetUsd: body.data.monthlyBudgetUsd / MICROS_PER_DOLLAR,

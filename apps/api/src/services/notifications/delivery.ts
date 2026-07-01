@@ -42,7 +42,7 @@ export async function notify(ctx: TenantContext, input: CreateNotificationInput)
 
 async function deliverChannel(
   _ctx: TenantContext,
-  notification: { title: string; body: string },
+  _notification: { title: string; body: string },
   delivery: { channel: string }
 ) {
   switch (delivery.channel) {

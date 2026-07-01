@@ -25,6 +25,7 @@ export async function userRoutes(app: FastifyInstance) {
     return reply.send({
       data: {
         id: userAccount.id,
+        tenantId: user.tenantId,
         email: userAccount.email,
         pinSet: Boolean(userAccount.pinHash),
       },

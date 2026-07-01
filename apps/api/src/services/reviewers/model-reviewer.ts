@@ -1,6 +1,6 @@
 import { ReviewResult as ReviewResultSchema } from '@mimir/shared-types';
 import type { ClassificationTier, ReviewResult } from '@mimir/shared-types';
-import { ModelRouter } from '../models/router';
+import { getModelRouter } from '../models/router';
 import type { ReviewerAdapter, ReviewerInput } from './router';
 
 function buildReviewerPrompt(input: ReviewerInput): string {
@@ -46,7 +46,7 @@ export class ModelReviewer implements ReviewerAdapter {
   }
 
   async review(input: ReviewerInput): Promise<ReviewResult> {
-    const router = new ModelRouter();
+    const router = getModelRouter();
     const prompt = buildReviewerPrompt(input);
 
     try {

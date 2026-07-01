@@ -11,6 +11,13 @@ import { getActivePolicy } from '../../repositories/policy';
 
 const MICROS_PER_DOLLAR = 1_000_000;
 
+const BUILT_IN_APPROVAL_ACTIONS = new Set([
+  'sandbox.execute',
+  'sandbox.run',
+  'sandbox.gate',
+  'custom_code',
+]);
+
 export class PolicyEngine {
   constructor(private readonly source: string) {}
 
@@ -32,6 +39,16 @@ export class PolicyEngine {
       };
     }
 
+    // Built-in safety defaults: generated code / sandbox execution always requires
+    // human approval, regardless of tenant policy (R-01). These are evaluated
+    // before tenant rules so a tenant cannot accidentally bypass them.
+    if (BUILT_IN_APPROVAL_ACTIONS.has(request.action)) {
+      return {
+        effect: 'require_approval',
+        reason: `Built-in approval required for ${request.action}`,
+      };
+    }
+
     for (const rule of document.rules) {
       if (this.matches(rule, request)) {
         return {
@@ -40,6 +57,14 @@ export class PolicyEngine {
           rule,
         };
       }
+    }
+
+    // Built-in chat-safety default: chat-initiated jobs require human approval.
+    if (request.source === 'chat') {
+      return {
+        effect: 'require_approval',
+        reason: 'Chat-initiated actions require approval',
+      };
     }
 
     return {
@@ -57,6 +82,10 @@ export class PolicyEngine {
       return false;
     }
 
+    if (rule.source !== undefined && rule.source !== request.source) {
+      return false;
+    }
+
     if (rule.tier !== undefined && rule.tier !== request.tier) {
       return false;
     }
@@ -71,6 +100,10 @@ export class PolicyEngine {
     }
 
     if (condition.kind !== undefined && condition.kind !== request.kind) {
+      return false;
+    }
+
+    if (condition.source !== undefined && condition.source !== request.source) {
       return false;
     }
 

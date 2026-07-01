@@ -1,6 +1,7 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import type { TenantContext } from '../db/tenant-context';
+import { generateEmbedding } from '../services/knowledge/embeddings';
 
 export interface CreateKnowledgeItemInput {
   kind: (typeof schema.knowledgeKindEnum.enumValues)[number];
@@ -22,6 +23,7 @@ export interface CreateEmbeddingInput {
 export interface SearchKnowledgeInput {
   query: string;
   limit?: number;
+  searchMode?: 'fts' | 'vector' | 'hybrid';
 }
 
 export interface SearchKnowledgeResult {
@@ -101,6 +103,56 @@ export async function getEmbeddingsByKnowledgeItemId(
     );
 }
 
+export async function findKnowledgeItemByUri(
+  ctx: TenantContext,
+  uri: string
+): Promise<typeof schema.knowledgeItem.$inferSelect | undefined> {
+  const [row] = await ctx.tenantScopedDb
+    .select()
+    .from(schema.knowledgeItem)
+    .where(and(eq(schema.knowledgeItem.uri, uri), eq(schema.knowledgeItem.tenantId, ctx.tenantId)));
+  return row;
+}
+
+export interface UpdateKnowledgeItemInput {
+  content?: string | null;
+  hash?: string;
+  tier?: number;
+  meta?: Record<string, unknown>;
+}
+
+export async function updateKnowledgeItem(
+  ctx: TenantContext,
+  id: string,
+  input: UpdateKnowledgeItemInput
+): Promise<typeof schema.knowledgeItem.$inferSelect | undefined> {
+  const [row] = await ctx.tenantScopedDb
+    .update(schema.knowledgeItem)
+    .set({
+      ...(input.content !== undefined && { content: input.content }),
+      ...(input.hash !== undefined && { hash: input.hash }),
+      ...(input.tier !== undefined && { tier: input.tier }),
+      ...(input.meta !== undefined && { meta: input.meta }),
+    })
+    .where(and(eq(schema.knowledgeItem.id, id), eq(schema.knowledgeItem.tenantId, ctx.tenantId)))
+    .returning();
+  return row;
+}
+
+export async function deleteEmbeddingsByKnowledgeItemId(
+  ctx: TenantContext,
+  knowledgeItemId: string
+): Promise<void> {
+  await ctx.tenantScopedDb
+    .delete(schema.embedding)
+    .where(
+      and(
+        eq(schema.embedding.knowledgeItemId, knowledgeItemId),
+        eq(schema.embedding.tenantId, ctx.tenantId)
+      )
+    );
+}
+
 export async function listKnowledgeItems(ctx: TenantContext, input: { limit: number }) {
   return ctx.tenantScopedDb
     .select()
@@ -115,12 +167,27 @@ export async function searchKnowledge(
   input: SearchKnowledgeInput
 ): Promise<{ data: SearchKnowledgeResult[] }> {
   const limit = Math.max(1, Math.min(input.limit ?? 10, 100));
-  const tsQuery = sql`plainto_tsquery('english', ${input.query})`;
+  const mode = input.searchMode ?? 'fts';
+
+  if (mode === 'vector') {
+    return searchKnowledgeVector(ctx, input.query, limit);
+  }
+
+  if (mode === 'hybrid') {
+    return searchKnowledgeHybrid(ctx, input.query, limit);
+  }
+
+  return searchKnowledgeFts(ctx, input.query, limit);
+}
+
+async function searchKnowledgeFts(
+  ctx: TenantContext,
+  query: string,
+  limit: number
+): Promise<{ data: SearchKnowledgeResult[] }> {
+  const tsQuery = sql`plainto_tsquery('english', ${query})`;
   const tsVector = sql`to_tsvector('english', ${schema.embedding.text})`;
   const rank = sql<number>`ts_rank_cd(${tsVector}, ${tsQuery})`.as('score');
-
-  // TODO: add vector similarity search once a real embedding provider is wired in.
-  // For the foundational release, full-text search is sufficient.
 
   const rows = await ctx.tenantScopedDb
     .select({
@@ -145,6 +212,71 @@ export async function searchKnowledge(
     .limit(limit);
 
   return { data: rows };
+}
+
+async function searchKnowledgeVector(
+  ctx: TenantContext,
+  query: string,
+  limit: number
+): Promise<{ data: SearchKnowledgeResult[] }> {
+  const { vector } = await generateEmbedding(query);
+  const distance = sql`${schema.embedding.vector} <=> ${JSON.stringify(vector)}::vector(768)`;
+  const score = sql<number>`1 - (${distance})`.as('score');
+
+  const rows = await ctx.tenantScopedDb
+    .select({
+      knowledgeItemId: schema.embedding.knowledgeItemId,
+      chunkIdx: schema.embedding.chunkIdx,
+      text: schema.embedding.text,
+      score,
+      kind: schema.knowledgeItem.kind,
+      uri: schema.knowledgeItem.uri,
+      citation: schema.knowledgeItem.uri,
+    })
+    .from(schema.embedding)
+    .innerJoin(schema.knowledgeItem, eq(schema.embedding.knowledgeItemId, schema.knowledgeItem.id))
+    .where(
+      and(
+        eq(schema.embedding.tenantId, ctx.tenantId),
+        eq(schema.knowledgeItem.tenantId, ctx.tenantId)
+      )
+    )
+    .orderBy(asc(distance))
+    .limit(limit);
+
+  return { data: rows };
+}
+
+async function searchKnowledgeHybrid(
+  ctx: TenantContext,
+  query: string,
+  limit: number
+): Promise<{ data: SearchKnowledgeResult[] }> {
+  const [ftsResult, vectorResult] = await Promise.all([
+    searchKnowledgeFts(ctx, query, limit * 2),
+    searchKnowledgeVector(ctx, query, limit * 2),
+  ]);
+
+  const merged = new Map<string, SearchKnowledgeResult>();
+  for (const row of ftsResult.data) {
+    const key = `${row.knowledgeItemId}:${row.chunkIdx}`;
+    merged.set(key, { ...row, score: row.score * 0.5 });
+  }
+  for (const row of vectorResult.data) {
+    const key = `${row.knowledgeItemId}:${row.chunkIdx}`;
+    const existing = merged.get(key);
+    if (existing) {
+      existing.score = Math.max(existing.score, row.score * 0.5) + existing.score;
+    } else {
+      merged.set(key, { ...row, score: row.score * 0.5 });
+    }
+  }
+
+  return {
+    data: Array.from(merged.values())
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit),
+  };
 }
 
 export async function findNoteByTitle(

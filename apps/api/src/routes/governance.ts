@@ -8,7 +8,7 @@ import { getActivePolicy, upsertPolicy } from '../repositories/policy';
 import { connectorRegistry } from '../services/connectors/registry';
 import { PolicyEngine } from '../services/governance/engine';
 import { translatePolicy } from '../services/governance/translator';
-import { ModelRouter } from '../services/models/router';
+import { getModelRouter } from '../services/models/router';
 
 export async function governanceRoutes(app: FastifyInstance) {
   app.addHook('preHandler', requireScope(Scopes.GOVERNANCE_READ));
@@ -86,7 +86,7 @@ export async function governanceRoutes(app: FastifyInstance) {
       const body = TranslatePolicyRequest.parse(request.body);
 
       try {
-        const router = new ModelRouter();
+        const router = getModelRouter();
         const { source, explanations } = await translatePolicy(body.description, {
           invokeModel: (input) => router.invoke(1, input, { maxTokens: 1024 }),
           knownActions: connectorRegistry.knownActions(),

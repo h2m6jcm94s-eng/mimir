@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSecretResolver } from './secrets';
+import { FileVaultBackend } from '../services/secrets/vault';
+import { EnvSecretResolver, VaultSecretResolver, createSecretResolver } from './secrets';
 
 describe('createSecretResolver', () => {
   beforeEach(() => {
@@ -26,5 +27,33 @@ describe('createSecretResolver', () => {
 
     const resolver = createSecretResolver();
     await expect(resolver.get('SOME_TEST_SECRET')).resolves.toBe('from-env');
+  });
+});
+
+describe('EnvSecretResolver', () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('sets and reads tenant-scoped secrets via environment variables', async () => {
+    const resolver = new EnvSecretResolver();
+    const tenantId = '00000000-0000-0000-0000-000000000000';
+
+    await resolver.setForTenant(tenantId, 'slack', 'xoxb-secret');
+
+    await expect(resolver.getForTenant(tenantId, 'slack')).resolves.toBe('xoxb-secret');
+    expect(process.env[`MIMIR_SECRET_SLACK_${tenantId}`]).toBe('xoxb-secret');
+  });
+});
+
+describe('VaultSecretResolver', () => {
+  it('sets and reads tenant-scoped secrets via the vault backend', async () => {
+    const backend = new FileVaultBackend('/tmp/mimir-test-vault.json', 'test-passphrase');
+    const resolver = new VaultSecretResolver(backend);
+    const tenantId = '00000000-0000-0000-0000-000000000000';
+
+    await resolver.setForTenant(tenantId, 'notion', 'secret_token');
+
+    await expect(resolver.getForTenant(tenantId, 'notion')).resolves.toBe('secret_token');
   });
 });

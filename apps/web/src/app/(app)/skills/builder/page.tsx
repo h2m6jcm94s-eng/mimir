@@ -3,7 +3,7 @@
 import { PageHeader } from '@/components/ui/PageHeader';
 import { cn } from '@/lib/utils';
 import type { SkillDraft } from '@mimir/shared-types';
-import { Loader2, Play, Rocket, Save, Sparkles, Wand2 } from 'lucide-react';
+import { Loader2, Rocket, Sparkles, Wand2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {

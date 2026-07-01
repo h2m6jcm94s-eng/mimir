@@ -407,6 +407,13 @@
       "when": 1782762020668,
       "tag": "0058_lush_night_thrasher",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1782819337554,
+      "tag": "0059_late_excalibur",
+      "breakpoints": true
     }
   ]
 }

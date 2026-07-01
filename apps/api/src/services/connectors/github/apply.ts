@@ -1,10 +1,6 @@
 import { GitHubOpenPrInput } from '@mimir/shared-types';
 import { secrets } from '../../../config/secrets';
-import type {
-  ConnectorApplyConfig,
-  ConnectorApplyFn,
-  ConnectorWriteDescriptor,
-} from '../write-registry';
+import type { ConnectorApplyFn, ConnectorWriteDescriptor } from '../write-registry';
 import { connectorWriteRegistry } from '../write-registry';
 import { GitHubClient } from './client';
 

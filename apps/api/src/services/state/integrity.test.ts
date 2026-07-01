@@ -62,7 +62,6 @@ describe('LibSQL integrity', () => {
   it('detects checksum mismatch after tampering', async () => {
     const { validateReplicaIntegrity, initializeLibSqlSchema, executeLibSqlWrite } =
       await importIntegrity(`file:${dbPath}`);
-    const { updateExpectedChecksum } = await import('./checksum.js');
     await initializeLibSqlSchema();
 
     const tenantId = randomUUID();

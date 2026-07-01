@@ -5,11 +5,11 @@ import { z } from 'zod';
 import { secrets } from '../config/secrets';
 import { withTenantTransaction } from '../db/tenant-context';
 import { findConnectorByKind } from '../repositories/connector';
-import { createJob } from '../repositories/job';
 import { getSessionMessages } from '../repositories/session';
-import { ClassificationGateway } from '../services/classification/gateway';
+import { getClassificationGateway } from '../services/classification/gateway';
 import {
   buildChatPrompt,
+  createChatJobWithPolicyGate,
   dedupeUpdate,
   findOrCreateChatSession,
   startReplyWorkflow,
@@ -169,49 +169,64 @@ export async function slackWebhookRoutes(app: FastifyInstance) {
       : `slack:${message.channelId}`;
     const actor = `slack:${message.userId}`;
 
-    const { session, messages, job, tier } = await withTenantTransaction(tenantId, async (ctx) => {
-      const connector = await findConnectorByKind(ctx, 'slack');
-      if (!connector || !connector.secretRef) {
-        throw new Error(`Slack connector not configured for tenant ${tenantId}`);
-      }
+    const { session, messages, job, tier, approvalId } = await withTenantTransaction(
+      tenantId,
+      async (ctx) => {
+        const connector = await findConnectorByKind(ctx, 'slack');
+        if (!connector || !connector.secretRef) {
+          throw new Error(`Slack connector not configured for tenant ${tenantId}`);
+        }
 
-      const classifier = new ClassificationGateway();
-      const classification = classifier.classify({
-        prompt: message.text,
-        attachments: [],
-        retrievedContext: [],
-      });
+        const classifier = getClassificationGateway();
+        const classification = classifier.classify({
+          prompt: message.text,
+          attachments: [],
+          retrievedContext: [],
+        });
 
-      const session = await findOrCreateChatSession(ctx, 'slack', externalId);
-      await storeUserMessage(ctx, session.id, message.text, {
-        platformMessageId: message.ts,
-        tier: classification.tier,
-      });
+        const session = await findOrCreateChatSession(ctx, 'slack', externalId);
+        await storeUserMessage(ctx, session.id, message.text, {
+          platformMessageId: message.ts,
+          tier: classification.tier,
+        });
 
-      const history = await getSessionMessages(ctx, session.id);
-      const prompt = buildChatPrompt(
-        'Slack',
-        history.map((m) => ({ role: m.role, content: m.content })),
-        message.text
-      );
+        const history = await getSessionMessages(ctx, session.id);
+        const prompt = buildChatPrompt(
+          'Slack',
+          history.map((m) => ({ role: m.role, content: m.content })),
+          message.text
+        );
 
-      const idempotencyKey = `slack:${tenantId}:${eventId}`;
-      const job = await createJob(ctx, {
-        idempotencyKey,
-        type: 'slack.chat',
-        tier: classification.tier,
-        input: {
-          prompt,
-          channelId: message.channelId,
-          threadTs: message.threadTs,
-          sessionId: session.id,
-          incomingText: message.text,
+        const idempotencyKey = `slack:${tenantId}:${eventId}`;
+        const { job, approvalId } = await createChatJobWithPolicyGate(ctx, {
+          tenantId,
           actor,
-        },
-      });
+          type: 'slack.chat',
+          tier: classification.tier,
+          idempotencyKey,
+          prompt,
+          input: {
+            prompt,
+            channelId: message.channelId,
+            threadTs: message.threadTs,
+            sessionId: session.id,
+            incomingText: message.text,
+            actor,
+          },
+        });
 
-      return { session, messages: history, job, tier: classification.tier };
-    });
+        return { session, messages: history, job, tier: classification.tier, approvalId };
+      }
+    );
+
+    if (approvalId) {
+      return reply.status(202).send({
+        ok: true,
+        sessionId: session.id,
+        jobId: job.id,
+        approvalId,
+      });
+    }
 
     await startReplyWorkflow({
       tenantId,
@@ -220,6 +235,7 @@ export async function slackWebhookRoutes(app: FastifyInstance) {
       idempotencyKey: `slack:${tenantId}:${eventId}`,
       type: 'slack.chat',
       tier,
+      source: 'chat',
       prompt: buildChatPrompt(
         'Slack',
         messages.map((m) => ({ role: m.role, content: m.content })),

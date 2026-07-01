@@ -20,6 +20,7 @@ export class MissingSecretError extends Error {
 export interface SecretResolver {
   get(key: string): Promise<string | undefined>;
   getForTenant(tenantId: string, alias: string): Promise<string | undefined>;
+  setForTenant(tenantId: string, alias: string, value: string): Promise<void>;
   getRequired(key: string): Promise<string>;
   getRequiredForTenant(tenantId: string, alias: string): Promise<string>;
 }
@@ -56,6 +57,10 @@ export class VaultSecretResolver implements SecretResolver {
     return this.backend.get(`tenant:${tenantId}:${alias}`);
   }
 
+  async setForTenant(tenantId: string, alias: string, value: string): Promise<void> {
+    return this.backend.set(`tenant:${tenantId}:${alias}`, value);
+  }
+
   async getRequired(key: string): Promise<string> {
     const value = await this.get(key);
     if (value === undefined) throw new MissingSecretError(key);
@@ -76,6 +81,10 @@ export class EnvSecretResolver implements SecretResolver {
 
   async getForTenant(tenantId: string, alias: string): Promise<string | undefined> {
     return process.env[`MIMIR_SECRET_${alias.toUpperCase()}_${tenantId}`];
+  }
+
+  async setForTenant(tenantId: string, alias: string, value: string): Promise<void> {
+    process.env[`MIMIR_SECRET_${alias.toUpperCase()}_${tenantId}`] = value;
   }
 
   async getRequired(key: string): Promise<string> {
@@ -117,6 +126,20 @@ export class ChainedSecretResolver implements SecretResolver {
       }
     }
     return undefined;
+  }
+
+  async setForTenant(tenantId: string, alias: string, value: string): Promise<void> {
+    let lastError: Error | undefined;
+    for (const resolver of this.resolvers) {
+      try {
+        await resolver.setForTenant(tenantId, alias, value);
+        return;
+      } catch (error) {
+        if (error instanceof VaultError) throw error;
+        lastError = error instanceof Error ? error : new Error(String(error));
+      }
+    }
+    throw lastError ?? new MissingSecretError(`tenant:${tenantId}:${alias}`);
   }
 
   async getRequired(key: string): Promise<string> {
@@ -176,6 +199,7 @@ function getResolver(): SecretResolver {
 export const secrets: SecretResolver = {
   get: (key) => getResolver().get(key),
   getForTenant: (tenantId, alias) => getResolver().getForTenant(tenantId, alias),
+  setForTenant: (tenantId, alias, value) => getResolver().setForTenant(tenantId, alias, value),
   getRequired: (key) => getResolver().getRequired(key),
   getRequiredForTenant: (tenantId, alias) => getResolver().getRequiredForTenant(tenantId, alias),
 };

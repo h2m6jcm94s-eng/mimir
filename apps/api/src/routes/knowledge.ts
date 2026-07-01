@@ -118,9 +118,14 @@ export async function knowledgeRoutes(app: FastifyInstance) {
             query: query.q,
             limit: query.limit,
             tier: query.tier,
+            searchMode: query.searchMode,
           });
         }
-        return searchKnowledge(ctx, { query: query.q, limit: query.limit });
+        return searchKnowledge(ctx, {
+          query: query.q,
+          limit: query.limit,
+          searchMode: query.searchMode,
+        });
       });
 
       return reply.send(result);

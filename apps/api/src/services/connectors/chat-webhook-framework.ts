@@ -2,7 +2,16 @@ import { timingSafeEqual } from 'node:crypto';
 import { secrets } from '../../config/secrets';
 import { redis } from '../../db/redis';
 import type { TenantContext } from '../../db/tenant-context';
+import { createApproval } from '../../repositories/approval';
+import { createAuditEvent } from '../../repositories/audit';
+import { createJob, updateJobStatus } from '../../repositories/job';
 import { createMessage, createSession, findSessionByExternalId } from '../../repositories/session';
+import {
+  approvalExpiresAt,
+  buildBlastRadius,
+  riskFromTier,
+} from '../../services/approvals/metadata';
+import { evaluateTenantPolicy } from '../../services/governance/engine';
 import { startTaskWorkflow } from '../../temporal/client';
 
 export async function verifySecretToken(
@@ -72,8 +81,74 @@ export interface ReplyWorkflowInput {
   idempotencyKey: string;
   type: string;
   tier: number;
+  source: 'chat' | 'api' | 'ui' | 'routine';
   prompt: string;
   payload: Record<string, unknown>;
+}
+
+export interface ChatJobGateInput {
+  tenantId: string;
+  actor: string;
+  type: string;
+  tier: number;
+  idempotencyKey: string;
+  input: Record<string, unknown>;
+  prompt?: string;
+}
+
+export async function createChatJobWithPolicyGate(
+  ctx: TenantContext,
+  input: ChatJobGateInput
+): Promise<{ job: { id: string; status: string }; approvalId?: string }> {
+  const decision = await evaluateTenantPolicy(ctx, {
+    action: input.type,
+    tier: input.tier,
+    source: 'chat',
+  });
+
+  await createAuditEvent(ctx, {
+    actor: input.actor,
+    action: 'policy_decision',
+    tier: input.tier,
+    payload: { decision, action: input.type, source: 'chat' } as Record<string, unknown>,
+  });
+
+  if (decision.effect === 'deny') {
+    throw new Error(`POLICY_VIOLATION: ${decision.reason || 'Chat action denied by policy'}`);
+  }
+
+  const job = await createJob(ctx, {
+    idempotencyKey: input.idempotencyKey,
+    type: input.type,
+    tier: input.tier,
+    source: 'chat',
+    input: input.input,
+  });
+
+  if (decision.effect === 'require_approval') {
+    const blockedJob = await updateJobStatus(ctx, job.id, 'blocked');
+    const approval = await createApproval(ctx, {
+      jobId: blockedJob.id,
+      requestedBy: input.actor,
+      reason: decision.reason,
+      risk: riskFromTier(input.tier),
+      blastRadius: buildBlastRadius({
+        tier: input.tier,
+        action: input.type,
+        summary: input.prompt,
+      }),
+      expiresAt: approvalExpiresAt(input.tier),
+    });
+    await createAuditEvent(ctx, {
+      actor: input.actor,
+      action: 'approval_requested',
+      tier: input.tier,
+      payload: { approvalId: approval.id, jobId: blockedJob.id },
+    });
+    return { job: blockedJob, approvalId: approval.id };
+  }
+
+  return { job };
 }
 
 export async function startReplyWorkflow(input: ReplyWorkflowInput): Promise<void> {
@@ -84,6 +159,7 @@ export async function startReplyWorkflow(input: ReplyWorkflowInput): Promise<voi
     idempotencyKey: input.idempotencyKey,
     type: input.type,
     tier: input.tier,
+    source: input.source,
     payload: {
       prompt: input.prompt,
       ...input.payload,

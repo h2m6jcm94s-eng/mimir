@@ -5,7 +5,6 @@ import {
   Activity,
   BarChart3,
   Briefcase,
-  CheckSquare,
   Command,
   KanbanSquare,
   LayoutDashboard,

@@ -21,3 +21,6 @@ export type JobStatus = z.infer<typeof JobStatus>;
 
 export const UserRole = z.enum(['owner', 'admin', 'manager', 'member', 'viewer']);
 export type UserRole = z.infer<typeof UserRole>;
+
+export const JobSource = z.enum(['chat', 'api', 'ui', 'routine']);
+export type JobSource = z.infer<typeof JobSource>;

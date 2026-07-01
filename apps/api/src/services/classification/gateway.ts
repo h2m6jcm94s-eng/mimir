@@ -64,6 +64,15 @@ const DEFAULT_POLICY: ClassificationPolicy = {
   ],
 };
 
+let sharedClassificationGateway: ClassificationGateway | undefined;
+
+export function getClassificationGateway(): ClassificationGateway {
+  if (!sharedClassificationGateway) {
+    sharedClassificationGateway = new ClassificationGateway();
+  }
+  return sharedClassificationGateway;
+}
+
 export class ClassificationGateway {
   constructor(private readonly policy: ClassificationPolicy = DEFAULT_POLICY) {}
 
@@ -77,6 +86,7 @@ export class ClassificationGateway {
     let score = 0;
     let matchedRule: string | undefined;
     let assignedTier: 0 | 1 | 2 = 1; // default to local compute
+    const signals: string[] = [];
 
     for (const rule of this.policy.rules) {
       const matches = rule.patterns.reduce((count, pattern) => {
@@ -84,6 +94,7 @@ export class ClassificationGateway {
       }, 0);
 
       if (matches > 0) {
+        signals.push(`${rule.name}=${matches}`);
         const ruleScore = Math.min(matches * rule.weight, 1);
         if (ruleScore > score) {
           score = ruleScore;
@@ -107,6 +118,9 @@ export class ClassificationGateway {
         : `Matched rule: ${matchedRule || 'default'}; tier ${assignedTier}`,
       fallback,
       policyVersion: this.policy.version,
+      assignedTier,
+      matchedRule: matchedRule ?? (signals.length === 0 ? 'default' : undefined),
+      signals,
     };
   }
 }

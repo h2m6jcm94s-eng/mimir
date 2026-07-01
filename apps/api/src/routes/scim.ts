@@ -51,10 +51,14 @@ function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-async function resolveScimToken(request: FastifyRequest, reply: FastifyReply) {
+async function resolveScimToken(
+  request: FastifyRequest,
+  reply: FastifyReply
+): Promise<typeof schema.scimToken.$inferSelect | undefined> {
   const header = request.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
-    return scimError(reply, 401, 'Missing or invalid authorization');
+    scimError(reply, 401, 'Missing or invalid authorization');
+    return undefined;
   }
 
   const token = header.slice(7);
@@ -63,7 +67,8 @@ async function resolveScimToken(request: FastifyRequest, reply: FastifyReply) {
   });
 
   if (!tokenRow) {
-    return scimError(reply, 401, 'Invalid token');
+    scimError(reply, 401, 'Invalid token');
+    return undefined;
   }
 
   return tokenRow;
@@ -84,9 +89,10 @@ export async function scimRoutes(app: FastifyInstance) {
 
   app.addHook('preHandler', async (request, reply) => {
     const tokenRow = await resolveScimToken(request, reply);
-    if (tokenRow && 'tenantId' in tokenRow) {
-      (request as unknown as Record<string, unknown>).scimToken = tokenRow;
+    if (!tokenRow) {
+      return reply;
     }
+    (request as unknown as Record<string, unknown>).scimToken = tokenRow;
   });
 
   app.get(

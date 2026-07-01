@@ -1998,21 +1998,21 @@ reliability/governance claim** [validation C1].
 
 | ID | Risk / defect | Sev | Status | Mitigation | Owner | Gate |
 |---|---|---|---|---|---|---|
-| R‑01 | Prompt‑injection → RCE via auto‑executed generated code | 🔴 | open | gVisor + static analysis + human approval gate; no auto‑exec from chat | infra | G1 |
+| R‑01 | Prompt‑injection → RCE via auto‑executed generated code | 🔴 | closed | gVisor + static analysis + human approval gate; no auto‑exec from chat; sandbox approval routes enforced | infra | G1 |
 | R‑02 | Kimi (PRC) data exposure — workhorse touches all data | 🔴 | mitigating | classification gateway: sensitive → Claude/local; scrub IDs for cloud; LiteLLM proxy logs routing | api | G1 |
 | R‑03 | Split‑brain (phone‑witness sole tiebreaker) | 🟠 | open | external lock (etcd/conditional‑write) + API‑side fencing + read‑only‑during‑transition | api | G1 |
 | R‑04 | Single‑writer SPOF during failover | 🟠 | mitigating | LibSQL embedded replicas + fencing‑epoch auto‑promote (zero‑loss) | api | G1 |
 | R‑05 | Plaintext state.db/secrets → theft = total loss | 🟠 | mitigating | LUKS FDE + SQLCipher + vault + ephemeral SSH CA + encrypted backups + age-encrypted SSH CA rotation | infra | G1 |
-| R‑06 | Flat tailnet → lateral movement | 🟠 | open | Tailscale tag ACLs + air‑gap cloud | infra | G1 |
+| R‑06 | Flat tailnet → lateral movement | 🟠 | mitigating | Tailscale tag ACLs + air‑gap cloud (`tag:cloud` self‑only) + CI ACL policy tests (`pnpm test:acl`) | infra | G1 |
 | R‑07 | Unbounded state.db growth → disk‑full zombie | 🟡 | mitigating | retention + VACUUM + write‑failure‑is‑fatal | api | M3 |
 | R‑08 | Review‑loop deadlock / infinite cost | 🟡 | mitigating | max‑3 + cycle detect + token budget | api | M2 |
 | R‑09 | Ship‑and‑wipe leakage (EBS/swap residue) | 🟡 | open | instance‑store/tmpfs + crypto‑wipe + power‑off | infra | M3/M10 |
 | R‑10 | No DR for total loss (single house) | 🟡 | open | 3‑2‑1 encrypted offsite + weekly restore test | infra | M3 |
 | R‑11 | Clock skew → premature failover | 🟡 | mitigating | monotonic clocks + skew detection; fencing operations reject when wall clock jumps beyond threshold | api | M3 |
 | R‑12 | WAL corruption replicated as "correct" | 🟡 | mitigating | content‑hash + app‑validation + `PRAGMA integrity_check` + automatic reconcile from Postgres | api | M3 |
-| R‑13 | Cost runaway (loop) | 🟠 | mitigating | per‑task/agent/tenant ceilings + anomaly auto‑halt | api | M9 |
-| R‑14 | Tier‑0 leakage via telemetry/logs | 🟠 | open | tier‑aware redaction; tier‑0 telemetry‑leak CI test | infra | M9 |
-| R‑15 | Classifier misclassification / low‑confidence → T0 leakage | 🔴 | open | confidence threshold + conservative T0 fallback + per‑decision audit event + classifier‑vs‑policy conformance test | api | G1 |
+| R‑13 | Cost runaway (loop) | 🟠 | closed | unconditional `CostGovernor` with `MAX_TASK_COST_USD` ceiling + tenant‑scoped halt keys + `auto_halt_triggered` audit events | api | G1 |
+| R‑14 | Tier‑0 leakage via telemetry/logs | 🟠 | closed | tier‑aware `Logger` with `TELEMETRY_REDACT_T0`; model routing via logger; T0 payload‑key hashing; sanitized Prometheus path labels | infra | G1 |
+| R‑15 | Classifier misclassification / low‑confidence → T0 leakage | 🔴 | closed | confidence threshold + conservative T0 fallback + per‑decision audit event + `classifier_policy_mismatch` conformance event | api | G1 |
 | R‑16 | Worker/cron RLS bypass → cross‑tenant access | 🔴 | mitigating | `TenantContext.tenantScopedDb` now throws outside a transaction; `withTenantTransaction` required for all tenant-scoped DB work; explicit `getGlobalDb()` escape hatch for global queries | api | M1 |
 | R‑17 | GDPR crypto‑delete incomplete for embeddings | 🟠 | open | per‑subject embedding linkage + derived‑vector deletion; disclose residual nearest‑neighbor semantic risk | api | M5 |
 | R‑19 | No brain DR playbook (RTO ≤ 4h replacement, RPO ≤ 1h T0) | 🟡 | open | documented replace‑stolen‑laptop ceremony + key‑recovery/sharding flow; see also R‑10 / I.11 | infra | M3 |

@@ -258,6 +258,47 @@ describe('ModelRouter', () => {
     expect(requestUrl).toContain('anthropic');
   });
 
+  it('hashes payload keys in T0 routing logs', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const router = new ModelRouter(makeConfig());
+    await router.invoke(0, { prompt: 'hello', payload: { secretNote: 'do not log' } });
+
+    const logCalls = logSpy.mock.calls.filter((call) =>
+      String(call[0]).includes('model_routing_decision')
+    );
+    expect(logCalls.length).toBeGreaterThan(0);
+    const logEntry = JSON.parse(String(logCalls[0][0]));
+    expect(logEntry.tier).toBe(0);
+    expect(logEntry.payloadKeys).toHaveLength(1);
+    expect(logEntry.payloadKeys[0]).not.toBe('secretNote');
+    expect(logEntry.payloadKeys[0]).toHaveLength(64);
+
+    logSpy.mockRestore();
+  });
+
+  it('hashes payload keys for all tiers when TELEMETRY_REDACT_T0 is enabled', async () => {
+    process.env.TELEMETRY_REDACT_T0 = 'true';
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const router = new ModelRouter(makeConfig());
+    await router.invoke(1, { prompt: 'hello', payload: { secretNote: 'do not log' } });
+
+    const logCalls = logSpy.mock.calls.filter((call) =>
+      String(call[0]).includes('model_routing_decision')
+    );
+    expect(logCalls.length).toBeGreaterThan(0);
+    const logEntry = JSON.parse(String(logCalls[0][0]));
+    expect(logEntry.tier).toBe(1);
+    expect(logEntry.payloadKeys[0]).not.toBe('secretNote');
+
+    logSpy.mockRestore();
+  });
+
   it('throws an aggregate error when all providers fail', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,

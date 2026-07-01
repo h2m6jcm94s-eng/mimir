@@ -6,7 +6,7 @@ const haltError = Object.assign(new Error('Halt active'), { name: 'HaltError' })
 vi.mock('../services/halt/state', () => ({
   throwIfHalted: vi.fn(),
   HaltError: class HaltError extends Error {
-    constructor(state: unknown) {
+    constructor(_state: unknown) {
       super('Halt active');
       this.name = 'HaltError';
     }
@@ -30,10 +30,11 @@ describe('Temporal activities halt guard', () => {
         idempotencyKey: 'key-1',
         type: 'echo',
         tier: 0,
+        source: 'api',
         payload: {},
       })
     ).rejects.toThrow('Halt active');
 
-    expect(throwIfHalted).toHaveBeenCalled();
+    expect(throwIfHalted).toHaveBeenCalledWith('tenant-1');
   });
 });

@@ -24,7 +24,7 @@ describe('notifications routes', () => {
     'creates, deduplicates, lists, and marks notifications read',
     async () => {
       const externalId = `notifications_user_${Date.now()}`;
-      const user = await resolveAuthUser(externalId, `${externalId}@test.local`);
+      await resolveAuthUser(externalId, `${externalId}@test.local`);
 
       const app = await buildTestApp(async (app) => {
         await app.register(notificationRoutes, { prefix: '/v1/notifications' });

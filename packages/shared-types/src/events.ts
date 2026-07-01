@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { JobStatus } from './enums';
 
 export const JobEventType = z.enum([
   'job.created',

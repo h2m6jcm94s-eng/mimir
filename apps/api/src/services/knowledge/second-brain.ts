@@ -11,7 +11,7 @@ import {
   listKnowledgeLinks,
   listNotes,
 } from '../../repositories/knowledge';
-import { ClassificationGateway } from '../classification/gateway';
+import { getClassificationGateway } from '../classification/gateway';
 
 export interface CreateNoteInput {
   title: string;
@@ -69,7 +69,7 @@ function generateFakeEmbedding(text: string): number[] {
 }
 
 function classifyNote(input: CreateNoteInput) {
-  const classifier = new ClassificationGateway();
+  const classifier = getClassificationGateway();
   return classifier.classify({
     prompt: `[kind:note] [title:${input.title}] ${input.content}`,
     attachments: [],

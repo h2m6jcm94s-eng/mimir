@@ -20,6 +20,7 @@ describe('halt state service', () => {
 
     const result = await isHalted();
     expect(result).toBe(false);
+    expect(redis.get).toHaveBeenCalledWith('mimir:halt:global');
   });
 
   it('returns halted=true when halt key is set', async () => {
@@ -27,17 +28,18 @@ describe('halt state service', () => {
       JSON.stringify({ reason: 'test', triggeredAt: '2024-01-01T00:00:00Z', triggeredBy: 'user-1' })
     );
 
-    const result = await isHalted();
+    const result = await isHalted('tenant-1');
     expect(result).toBe(true);
+    expect(redis.get).toHaveBeenCalledWith('mimir:halt:tenant-1');
   });
 
-  it('sets halt state in Redis', async () => {
+  it('sets halt state in Redis scoped to a tenant', async () => {
     vi.mocked(redis.set).mockResolvedValue('OK');
 
-    await setHalted('reason-a', 'user-2');
+    await setHalted('reason-a', 'user-2', 'tenant-1');
 
     expect(redis.set).toHaveBeenCalledWith(
-      'mimir:halt',
+      'mimir:halt:tenant-1',
       expect.stringContaining('"reason":"reason-a"')
     );
     const payload = JSON.parse(vi.mocked(redis.set).mock.calls[0][1] as string);
@@ -45,12 +47,12 @@ describe('halt state service', () => {
     expect(payload.triggeredAt).toBeDefined();
   });
 
-  it('clears halt state', async () => {
+  it('clears halt state scoped to a tenant', async () => {
     vi.mocked(redis.del).mockResolvedValue(1);
 
-    await clearHalt();
+    await clearHalt('tenant-1');
 
-    expect(redis.del).toHaveBeenCalledWith('mimir:halt');
+    expect(redis.del).toHaveBeenCalledWith('mimir:halt:tenant-1');
   });
 
   it('returns full halt state', async () => {
@@ -62,13 +64,14 @@ describe('halt state service', () => {
       })
     );
 
-    const state = await getHaltState();
+    const state = await getHaltState('tenant-2');
     expect(state).toEqual({
       halted: true,
       reason: 'emergency',
       triggeredAt: '2024-01-01T00:00:00Z',
       triggeredBy: 'user-3',
     });
+    expect(redis.get).toHaveBeenCalledWith('mimir:halt:tenant-2');
   });
 
   it('fails safe when Redis is unavailable', async () => {

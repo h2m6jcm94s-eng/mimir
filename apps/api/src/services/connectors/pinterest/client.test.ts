@@ -4,6 +4,7 @@ import { PinterestClient } from './client';
 const resolver = {
   get: vi.fn(),
   getForTenant: vi.fn().mockResolvedValue('pinterest-token'),
+  setForTenant: vi.fn().mockResolvedValue(undefined),
   getRequired: vi.fn().mockResolvedValue('pinterest-token'),
   getRequiredForTenant: vi.fn().mockResolvedValue('pinterest-token'),
 };

@@ -12,11 +12,9 @@ interface AnalysisMessage {
   ruleId: string;
 }
 
-interface RunResult {
-  stdout: string;
-  stderr: string;
-  exitCode: number | null;
-  timedOut: boolean;
+interface ApprovalInfo {
+  approvalId: string;
+  jobId: string;
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -38,8 +36,8 @@ export default function SandboxPage() {
   const [analysis, setAnalysis] = useState<{ ok: boolean; messages: AnalysisMessage[] } | null>(
     null
   );
-  const [runResult, setRunResult] = useState<RunResult | null>(null);
-  const [gateResult, setGateResult] = useState<unknown | null>(null);
+  const [runApproval, setRunApproval] = useState<ApprovalInfo | null>(null);
+  const [gateApproval, setGateApproval] = useState<ApprovalInfo | null>(null);
 
   async function handleAnalyze() {
     setLoading(true);
@@ -65,18 +63,19 @@ export default function SandboxPage() {
   async function handleRun() {
     setLoading(true);
     setError(null);
-    setRunResult(null);
+    setRunApproval(null);
     try {
-      const res = await fetchJson<RunResult>('/api/v1/sandbox/run', {
+      const res = await fetchJson<ApprovalInfo>('/api/v1/sandbox/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          code,
           command,
           args: args.split(' ').filter(Boolean),
           timeoutMs: 30000,
         }),
       });
-      setRunResult(res);
+      setRunApproval(res);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -87,9 +86,9 @@ export default function SandboxPage() {
   async function handleGate() {
     setLoading(true);
     setError(null);
-    setGateResult(null);
+    setGateApproval(null);
     try {
-      const res = await fetchJson<unknown>('/api/v1/sandbox/gate', {
+      const res = await fetchJson<ApprovalInfo>('/api/v1/sandbox/gate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -97,7 +96,7 @@ export default function SandboxPage() {
           run: { command, args: args.split(' ').filter(Boolean), timeoutMs: 30000 },
         }),
       });
-      setGateResult(res);
+      setGateApproval(res);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -174,12 +173,12 @@ export default function SandboxPage() {
         >
           <Terminal className="h-3.5 w-3.5" />
           {loading
-            ? 'Running…'
+            ? 'Submitting…'
             : activeTab === 'analyze'
               ? 'Run analysis'
               : activeTab === 'run'
-                ? 'Run'
-                : 'Gate'}
+                ? 'Request approval'
+                : 'Request gate approval'}
         </button>
       </div>
 
@@ -219,32 +218,43 @@ export default function SandboxPage() {
         </div>
       )}
 
-      {runResult && (
-        <div className="space-y-3 rounded-xl border border-[var(--border-subtle-solid)] bg-[var(--bg-surface)] p-4 shadow-card">
-          <h3 className="text-sm font-medium text-[var(--text-primary)]">Run result</h3>
-          <p className="text-xs text-[var(--text-muted)]">
-            Exit code: {runResult.exitCode ?? 'null'}
+      {runApproval && (
+        <div className="rounded-xl border border-[var(--border-subtle-solid)] bg-[var(--bg-surface)] p-4 shadow-card">
+          <h3 className="text-sm font-medium text-[var(--text-primary)]">Approval requested</h3>
+          <p className="mt-1 text-xs text-[var(--text-secondary)]">
+            Approval ID:{' '}
+            <code className="rounded bg-[var(--bg-surface-raised)] px-1">
+              {runApproval.approvalId}
+            </code>
           </p>
-          {runResult.timedOut && <p className="text-xs text-[var(--text-danger)]">Timed out</p>}
-          {runResult.stdout && (
-            <pre className="max-h-48 overflow-auto rounded-lg bg-[var(--bg-surface-raised)] p-3 text-xs text-[var(--text-secondary)]">
-              {runResult.stdout}
-            </pre>
-          )}
-          {runResult.stderr && (
-            <pre className="max-h-48 overflow-auto rounded-lg bg-[var(--text-danger)]/10 p-3 text-xs text-[var(--text-danger)]">
-              {runResult.stderr}
-            </pre>
-          )}
+          <p className="text-xs text-[var(--text-secondary)]">
+            Job ID:{' '}
+            <code className="rounded bg-[var(--bg-surface-raised)] px-1">{runApproval.jobId}</code>
+          </p>
+          <p className="mt-2 text-xs text-[var(--text-muted)]">
+            An approver must approve this request before the code runs.
+          </p>
         </div>
       )}
 
-      {Boolean(gateResult) && (
+      {gateApproval && (
         <div className="rounded-xl border border-[var(--border-subtle-solid)] bg-[var(--bg-surface)] p-4 shadow-card">
-          <h3 className="text-sm font-medium text-[var(--text-primary)]">Gate result</h3>
-          <pre className="mt-2 max-h-48 overflow-auto rounded-lg bg-[var(--bg-surface-raised)] p-3 text-xs text-[var(--text-secondary)]">
-            {JSON.stringify(gateResult, null, 2)}
-          </pre>
+          <h3 className="text-sm font-medium text-[var(--text-primary)]">
+            Gate approval requested
+          </h3>
+          <p className="mt-1 text-xs text-[var(--text-secondary)]">
+            Approval ID:{' '}
+            <code className="rounded bg-[var(--bg-surface-raised)] px-1">
+              {gateApproval.approvalId}
+            </code>
+          </p>
+          <p className="text-xs text-[var(--text-secondary)]">
+            Job ID:{' '}
+            <code className="rounded bg-[var(--bg-surface-raised)] px-1">{gateApproval.jobId}</code>
+          </p>
+          <p className="mt-2 text-xs text-[var(--text-muted)]">
+            An approver must approve this gate before the code runs.
+          </p>
         </div>
       )}
     </div>

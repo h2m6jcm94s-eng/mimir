@@ -26,7 +26,6 @@ function applyTheme(theme: Theme) {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('light');
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const stored = (
@@ -35,7 +34,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const initial = stored ?? 'light';
     setThemeState(initial);
     applyTheme(initial);
-    setMounted(true);
   }, []);
 
   function setTheme(next: Theme) {

@@ -4,6 +4,7 @@ import { NotionClient } from './client';
 const resolver = {
   get: vi.fn(),
   getForTenant: vi.fn().mockResolvedValue('notion-token'),
+  setForTenant: vi.fn().mockResolvedValue(undefined),
   getRequired: vi.fn().mockResolvedValue('notion-token'),
   getRequiredForTenant: vi.fn().mockResolvedValue('notion-token'),
 };

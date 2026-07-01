@@ -5,6 +5,10 @@ import { CostGovernor, checkRunawayCost } from './governor';
 
 const MICROS_PER_DOLLAR = 1_000_000;
 
+vi.mock('../../repositories/audit', () => ({
+  createAuditEvent: vi.fn(),
+}));
+
 vi.mock('../../repositories/job', () => ({
   getTenantDailyCostUsd: vi.fn(),
   addJobCost: vi.fn(),
@@ -67,7 +71,7 @@ describe('CostGovernor', () => {
       governor.recordAndCheck('tenant-1', 'job-1', 3 * MICROS_PER_DOLLAR, 'user-1')
     ).rejects.toThrow(HaltError);
 
-    expect(setHalted).toHaveBeenCalledWith('Daily cost threshold exceeded', 'user-1');
+    expect(setHalted).toHaveBeenCalledWith('Daily cost threshold exceeded', 'user-1', 'tenant-1');
   });
 
   it('uses the default threshold when AUTO_HALT_DAILY_USD is unset', async () => {
@@ -79,7 +83,7 @@ describe('CostGovernor', () => {
       governor.recordAndCheck('tenant-1', 'job-1', 2 * MICROS_PER_DOLLAR, 'system')
     ).rejects.toThrow(HaltError);
 
-    expect(setHalted).toHaveBeenCalledWith('Daily cost threshold exceeded', 'system');
+    expect(setHalted).toHaveBeenCalledWith('Daily cost threshold exceeded', 'system', 'tenant-1');
   });
 
   it('exposes a standalone helper that instantiates the governor', async () => {
@@ -90,6 +94,23 @@ describe('CostGovernor', () => {
       checkRunawayCost('tenant-1', 'job-1', 1 * MICROS_PER_DOLLAR, 'user-1')
     ).rejects.toThrow(HaltError);
 
-    expect(setHalted).toHaveBeenCalledWith('Daily cost threshold exceeded', 'user-1');
+    expect(setHalted).toHaveBeenCalledWith('Daily cost threshold exceeded', 'user-1', 'tenant-1');
+  });
+
+  it('halts when a single action exceeds the per-task cost ceiling', async () => {
+    process.env.AUTO_HALT_DAILY_USD = '10';
+    process.env.MAX_TASK_COST_USD = '2';
+    vi.mocked(getTenantDailyCostUsd).mockResolvedValue(0);
+
+    const governor = new CostGovernor();
+    await expect(
+      governor.recordAndCheck('tenant-1', 'job-1', 3 * MICROS_PER_DOLLAR, 'user-1')
+    ).rejects.toThrow(HaltError);
+
+    expect(setHalted).toHaveBeenCalledWith(
+      'Per-action cost ceiling exceeded',
+      'user-1',
+      'tenant-1'
+    );
   });
 });

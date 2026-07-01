@@ -1,5 +1,5 @@
 import { getLibSqlClient } from '../../db/libsql';
-import { computeHash, computePostgresChecksum, updateExpectedChecksum } from './checksum';
+import { computeHash } from './checksum';
 import { executeLibSqlWrite } from './lifecycle';
 import { syncStateToLibSql } from './sync';
 

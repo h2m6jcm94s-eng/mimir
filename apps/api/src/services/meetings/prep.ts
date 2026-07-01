@@ -5,7 +5,7 @@ import {
   listPersonalModules,
   updatePersonalModule,
 } from '../../repositories/personal-modules';
-import { ModelRouter } from '../models/router';
+import { getModelRouter } from '../models/router';
 
 export interface MeetingItem {
   id: string;
@@ -135,7 +135,7 @@ export async function generateMeetingPrep(
     throw error;
   }
 
-  const router = new ModelRouter();
+  const router = getModelRouter();
   const output = await router.invoke(
     1,
     { prompt: buildPrepPrompt(meeting), payload: {} },
@@ -159,7 +159,7 @@ export async function generateMeetingFollowUp(
     throw error;
   }
 
-  const router = new ModelRouter();
+  const router = getModelRouter();
   const output = await router.invoke(
     1,
     { prompt: buildFollowUpPrompt(meeting), payload: {} },

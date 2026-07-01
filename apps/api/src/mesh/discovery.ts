@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { type RemoteInfo, createSocket } from 'node:dgram';
+import { createSocket } from 'node:dgram';
 
 export interface MeshBeacon {
   nodeId: string;

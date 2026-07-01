@@ -116,12 +116,18 @@ export default function WorkflowsPage() {
   async function handleImport(e: React.FormEvent) {
     e.preventDefault();
     if (!importJson.trim()) return;
-    const n8nWorkflowJson = JSON.parse(importJson);
+    let n8nWorkflowJson: Record<string, unknown>;
+    try {
+      n8nWorkflowJson = JSON.parse(importJson) as Record<string, unknown>;
+    } catch {
+      setError('Invalid JSON');
+      return;
+    }
     await fetchJson<{ data: WorkflowItem }>('/api/v1/workflows/import/n8n', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: n8nWorkflowJson.name ?? 'Imported workflow',
+        name: (n8nWorkflowJson.name as string | undefined) ?? 'Imported workflow',
         description: '',
         n8nWorkflowJson,
       }),

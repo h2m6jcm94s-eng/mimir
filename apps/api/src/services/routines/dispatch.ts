@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { TenantContext } from '../../db/tenant-context';
 import { createJob } from '../../repositories/job';
 import {
@@ -58,13 +59,14 @@ export async function dispatchRoutineJob(
 
   await updateRoutineRunStatus(ctx, input.runId, 'running');
 
-  const idempotencyKey = `routine:${input.routineId}:${input.runId}:${Date.now()}`;
+  const idempotencyKey = `routine:${input.routineId}:${input.runId}:${randomUUID()}`;
 
   try {
     const job = await createJob(ctx, {
       idempotencyKey,
       type: input.jobType,
       tier: input.tier,
+      source: 'routine',
       input: input.payload,
     });
 
@@ -75,6 +77,7 @@ export async function dispatchRoutineJob(
       idempotencyKey,
       type: input.jobType,
       tier: input.tier,
+      source: 'routine',
       payload: input.payload,
     });
 

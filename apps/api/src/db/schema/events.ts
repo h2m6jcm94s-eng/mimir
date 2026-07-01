@@ -1,4 +1,4 @@
-import { jsonb, pgEnum, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { jsonb, pgEnum, pgTable, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { job } from './jobs';
 import { tenant } from './tenancy';
 

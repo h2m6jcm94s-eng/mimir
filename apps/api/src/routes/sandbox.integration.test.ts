@@ -2,6 +2,7 @@ import { execSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { createSandboxRunner } from '../services/sandbox';
 import { buildTestApp } from '../test-helpers/build-app';
+import { approvalRoutes } from './approvals';
 import { sandboxRoutes } from './sandbox';
 
 function hasRunsc(): boolean {
@@ -13,11 +14,16 @@ function hasRunsc(): boolean {
   }
 }
 
+async function buildSandboxApp() {
+  return buildTestApp(async (app) => {
+    await app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
+    await app.register(approvalRoutes, { prefix: '/v1/approvals' });
+  });
+}
+
 describe('sandbox routes', () => {
   it('returns 401 without an authorization header', async () => {
-    const app = await buildTestApp(async (app) => {
-      await app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
-    });
+    const app = await buildSandboxApp();
 
     const response = await app.inject({
       method: 'GET',
@@ -29,9 +35,7 @@ describe('sandbox routes', () => {
 
   it.skipIf(!process.env.RUN_DB_TESTS)('reports the active sandbox mode', async () => {
     const token = `sandbox_config_${Date.now()}`;
-    const app = await buildTestApp(async (app) => {
-      await app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
-    });
+    const app = await buildSandboxApp();
 
     const response = await app.inject({
       method: 'GET',
@@ -45,38 +49,27 @@ describe('sandbox routes', () => {
     expect(typeof body.gvisor).toBe('boolean');
   });
 
-  it.skipIf(!process.env.RUN_DB_TESTS)(
-    'runs a sandboxed echo command in passthrough mode',
-    async () => {
-      const token = `sandbox_run_${Date.now()}`;
-      const app = await buildTestApp(async (app) => {
-        await app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
-      });
+  it.skipIf(!process.env.RUN_DB_TESTS)('no longer exposes an immediate /run endpoint', async () => {
+    const token = `sandbox_run_removed_${Date.now()}`;
+    const app = await buildSandboxApp();
 
-      const response = await app.inject({
-        method: 'POST',
-        url: '/v1/sandbox/run',
-        headers: { authorization: `Bearer ${token}` },
-        payload: {
-          command: 'echo',
-          args: ['hello from sandbox'],
-          timeoutMs: 5_000,
-        },
-      });
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/sandbox/run',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        command: 'echo',
+        args: ['should not run'],
+        timeoutMs: 5_000,
+      },
+    });
 
-      expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.body);
-      expect(body.exitCode).toBe(0);
-      expect(body.stdout).toContain('hello from sandbox');
-      expect(body.timedOut).toBe(false);
-    }
-  );
+    expect(response.statusCode).toBe(404);
+  });
 
   it.skipIf(!process.env.RUN_DB_TESTS)('rejects dangerous code in static analysis', async () => {
     const token = `sandbox_analyze_${Date.now()}`;
-    const app = await buildTestApp(async (app) => {
-      await app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
-    });
+    const app = await buildSandboxApp();
 
     const response = await app.inject({
       method: 'POST',
@@ -97,12 +90,10 @@ describe('sandbox routes', () => {
   });
 
   it.skipIf(!process.env.RUN_DB_TESTS)(
-    'gate rejects dangerous code before running it',
+    'gate rejects dangerous code before creating an approval',
     async () => {
       const token = `sandbox_gate_danger_${Date.now()}`;
-      const app = await buildTestApp(async (app) => {
-        await app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
-      });
+      const app = await buildSandboxApp();
 
       const response = await app.inject({
         method: 'POST',
@@ -121,46 +112,56 @@ describe('sandbox routes', () => {
     }
   );
 
-  it.skipIf(!process.env.RUN_DB_TESTS)('gate runs code when static analysis passes', async () => {
-    const token = `sandbox_gate_safe_${Date.now()}`;
-    const app = await buildTestApp(async (app) => {
-      await app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
-    });
+  it.skipIf(!process.env.RUN_DB_TESTS)(
+    'gate returns an approvalId and runs the code after approval',
+    async () => {
+      const token = `sandbox_gate_safe_${Date.now()}`;
+      const app = await buildSandboxApp();
 
-    const response = await app.inject({
-      method: 'POST',
-      url: '/v1/sandbox/gate',
-      headers: { authorization: `Bearer ${token}` },
-      payload: {
-        code: 'export function add(a: number, b: number): number { return a + b; }',
-        run: { command: 'echo', args: ['gate ok'], timeoutMs: 5_000 },
-      },
-    });
+      const gateResponse = await app.inject({
+        method: 'POST',
+        url: '/v1/sandbox/gate',
+        headers: { authorization: `Bearer ${token}` },
+        payload: {
+          code: 'export function add(a: number, b: number): number { return a + b; }',
+          run: { command: 'echo', args: ['gate ok'], timeoutMs: 5_000 },
+        },
+      });
 
-    expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.body);
-    expect(body.allowed).toBe(true);
-    expect(body.analysis.ok).toBe(true);
-    expect(body.run.exitCode).toBe(0);
-    expect(body.run.stdout).toContain('gate ok');
-  });
+      expect(gateResponse.statusCode).toBe(202);
+      const gateBody = JSON.parse(gateResponse.body);
+      expect(gateBody.approvalId).toBeDefined();
+      expect(gateBody.analysis.ok).toBe(true);
+
+      const approveResponse = await app.inject({
+        method: 'POST',
+        url: `/v1/approvals/${gateBody.approvalId}/approve`,
+        headers: { authorization: `Bearer ${token}` },
+        payload: {},
+      });
+
+      expect(approveResponse.statusCode).toBe(200);
+      const approveBody = JSON.parse(approveResponse.body);
+      expect(approveBody.run.exitCode).toBe(0);
+      expect(approveBody.run.stdout).toContain('gate ok');
+    }
+  );
 
   it.skipIf(!process.env.RUN_DB_TESTS || !hasRunsc())(
-    'runs a real gVisor sandbox when runsc is available',
+    'runs a real gVisor sandbox through the approval flow',
     async () => {
       const token = `sandbox_gvisor_${Date.now()}`;
       const originalMode = process.env.SANDBOX_MODE;
       process.env.SANDBOX_MODE = 'gvisor';
 
-      const app = await buildTestApp(async (app) => {
-        await app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
-      });
+      const app = await buildSandboxApp();
 
-      const response = await app.inject({
+      const executeResponse = await app.inject({
         method: 'POST',
-        url: '/v1/sandbox/run',
+        url: '/v1/sandbox/execute',
         headers: { authorization: `Bearer ${token}` },
         payload: {
+          code: 'export const msg = "gvisor ok";',
           command: 'echo',
           args: ['gvisor ok'],
           timeoutMs: 10_000,
@@ -169,22 +170,31 @@ describe('sandbox routes', () => {
 
       process.env.SANDBOX_MODE = originalMode;
 
-      expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.body);
-      expect(body.exitCode).toBe(0);
-      expect(body.stdout).toContain('gvisor ok');
+      expect(executeResponse.statusCode).toBe(202);
+      const executeBody = JSON.parse(executeResponse.body);
+      expect(executeBody.approvalId).toBeDefined();
+
+      const approveResponse = await app.inject({
+        method: 'POST',
+        url: `/v1/approvals/${executeBody.approvalId}/approve`,
+        headers: { authorization: `Bearer ${token}` },
+        payload: {},
+      });
+
+      expect(approveResponse.statusCode).toBe(200);
+      const approveBody = JSON.parse(approveResponse.body);
+      expect(approveBody.run.exitCode).toBe(0);
+      expect(approveBody.run.stdout).toContain('gvisor ok');
     }
   );
 
   it.skipIf(!process.env.RUN_DB_TESTS)(
-    'execute requires a verified PIN and runs safe code through static analysis',
+    'execute returns an approvalId and runs safe code after approval',
     async () => {
       const token = `sandbox_execute_safe_${Date.now()}`;
-      const app = await buildTestApp(async (app) => {
-        await app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
-      });
+      const app = await buildSandboxApp();
 
-      const response = await app.inject({
+      const executeResponse = await app.inject({
         method: 'POST',
         url: '/v1/sandbox/execute',
         headers: { authorization: `Bearer ${token}` },
@@ -193,26 +203,33 @@ describe('sandbox routes', () => {
           command: 'echo',
           args: ['execute ok'],
           timeoutMs: 5_000,
-          pin: '1234',
         },
       });
 
-      expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.body);
-      expect(body.allowed).toBe(true);
-      expect(body.analysis.ok).toBe(true);
-      expect(body.run.exitCode).toBe(0);
-      expect(body.run.stdout).toContain('execute ok');
+      expect(executeResponse.statusCode).toBe(202);
+      const executeBody = JSON.parse(executeResponse.body);
+      expect(executeBody.approvalId).toBeDefined();
+      expect(executeBody.analysis.ok).toBe(true);
+
+      const approveResponse = await app.inject({
+        method: 'POST',
+        url: `/v1/approvals/${executeBody.approvalId}/approve`,
+        headers: { authorization: `Bearer ${token}` },
+        payload: {},
+      });
+
+      expect(approveResponse.statusCode).toBe(200);
+      const approveBody = JSON.parse(approveResponse.body);
+      expect(approveBody.run.exitCode).toBe(0);
+      expect(approveBody.run.stdout).toContain('execute ok');
     }
   );
 
   it.skipIf(!process.env.RUN_DB_TESTS)(
-    'execute rejects dangerous code before running it',
+    'execute rejects dangerous code before creating an approval',
     async () => {
       const token = `sandbox_execute_danger_${Date.now()}`;
-      const app = await buildTestApp(async (app) => {
-        await app.register(sandboxRoutes, { prefix: '/v1/sandbox' });
-      });
+      const app = await buildSandboxApp();
 
       const response = await app.inject({
         method: 'POST',
@@ -223,7 +240,6 @@ describe('sandbox routes', () => {
           command: 'echo',
           args: ['should not run'],
           timeoutMs: 5_000,
-          pin: '1234',
         },
       });
 

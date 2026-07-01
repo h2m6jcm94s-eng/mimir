@@ -7,11 +7,13 @@ import { evaluateTenantPolicy } from '../governance/engine';
 import { ingestDocument } from '../knowledge/ingest';
 import { connectorActionsCounter } from '../metrics/registry';
 import { airtableHandlers } from './airtable/handlers';
+import './csv/handlers';
 import { discordHandlers } from './discord/handlers';
 import { facebookHandlers } from './facebook/handlers';
 import { connectorWriteRegistry } from './write-registry';
 import './github/apply';
 import { GitHubClient } from './github/client';
+import './googleSheets/handlers';
 import { gmailHandlers } from './gmail/handlers';
 import { googleContactsHandlers } from './googleContacts/handlers';
 import { googleDocsHandlers } from './googleDocs/handlers';
@@ -25,6 +27,7 @@ import { slackHandlers } from './slack/handlers';
 import { stripeHandlers } from './stripe/handlers';
 import { telegramHandlers } from './telegram/handlers';
 import { whatsappHandlers } from './whatsapp/handlers';
+import './xlsx/handlers';
 
 export interface ConnectorActionContext {
   tenantId: string;
@@ -211,6 +214,48 @@ export class ConnectorRegistry {
     }
 
     return { success, result };
+  }
+
+  /**
+   * Run a lightweight read action to verify a connector is configured and its
+   * credentials are valid. Bypasses policy approval so a connection test does
+   * not require an explicit approval.
+   */
+  async testConnection(
+    ctx: TenantContext,
+    tenantId: string,
+    kind: string,
+    action: string,
+    input: Record<string, unknown>
+  ): Promise<{ ok: boolean; error?: string }> {
+    const connector = await findConnectorByKind(
+      ctx,
+      kind as (typeof schema.connector.kind.enumValues)[number]
+    );
+    if (!connector) {
+      return { ok: false, error: `Connector not found: ${kind}` };
+    }
+
+    const handlers = handlersByKind[kind];
+    const handler = handlers?.[action];
+    if (!handler) {
+      return { ok: false, error: `Unknown test action ${kind}.${action}` };
+    }
+
+    const config = {
+      tenantId,
+      kind: connector.kind,
+      account: connector.account ?? null,
+      secretRef: connector.secretRef ?? '',
+    };
+
+    try {
+      await handler(ctx, config, input);
+      return { ok: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { ok: false, error: message };
+    }
   }
 }
 

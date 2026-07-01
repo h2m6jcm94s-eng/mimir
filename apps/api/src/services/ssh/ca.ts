@@ -1,5 +1,4 @@
 import { spawn } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
 import { mkdtemp, readFile, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -41,15 +40,33 @@ function formatValidityTime(date: Date): string {
 
 function runCommand(
   cmd: string,
-  args: string[]
+  args: string[],
+  timeoutMs = 30000
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
+    let settled = false;
     const proc = spawn(cmd, args);
     const stdout: Buffer[] = [];
     const stderr: Buffer[] = [];
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      proc.kill();
+      reject(new SshCaError(`Command timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
     proc.stdout.on('data', (data) => stdout.push(data));
     proc.stderr.on('data', (data) => stderr.push(data));
+    proc.on('error', (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(new SshCaError(`Failed to spawn ${cmd}: ${err.message}`));
+    });
     proc.on('close', (exitCode) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       resolve({
         stdout: Buffer.concat(stdout).toString('utf8'),
         stderr: Buffer.concat(stderr).toString('utf8'),

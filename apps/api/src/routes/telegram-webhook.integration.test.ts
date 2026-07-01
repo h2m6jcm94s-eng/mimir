@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { withTenantTransaction } from '../db/tenant-context';
 import { resolveAuthUser } from '../middleware/auth';
 import { createConnector } from '../repositories/connector';
+import { getJob } from '../repositories/job';
 import { findSessionByExternalId, getSessionMessages } from '../repositories/session';
 import { startTaskWorkflow } from '../temporal/client';
 import { buildTestApp } from '../test-helpers/build-app';
@@ -44,7 +45,7 @@ describe('telegram webhook routes', () => {
   });
 
   it.skipIf(!process.env.RUN_DB_TESTS)(
-    'stores a Telegram message and starts a reply workflow',
+    'stores a Telegram message and requires approval before replying',
     async () => {
       const token = `telegram_webhook_${Date.now()}`;
       const app = await buildTestApp(async (app) => {
@@ -78,10 +79,11 @@ describe('telegram webhook routes', () => {
         },
       });
 
-      expect(response.statusCode).toBe(200);
+      expect(response.statusCode).toBe(202);
       const body = JSON.parse(response.body);
       expect(body.ok).toBe(true);
       expect(body.jobId).toBeDefined();
+      expect(body.approvalId).toBeDefined();
 
       const session = await withTenantTransaction(user.tenantId, async (ctx) => {
         return findSessionByExternalId(ctx, 'telegram', 'telegram:99');
@@ -97,20 +99,13 @@ describe('telegram webhook routes', () => {
       expect(messages[0]?.content).toBe('I need this from my laptop');
       expect(messages[0]?.platformMessageId).toBe('1');
 
-      expect(startTaskWorkflow).toHaveBeenCalledTimes(1);
-      const workflowCall = vi.mocked(startTaskWorkflow).mock.calls[0]?.[0];
-      expect(workflowCall).toMatchObject({
-        tenantId: user.tenantId,
-        userId: 'telegram:42',
-        type: 'telegram.chat',
-        tier: expect.any(Number),
-        payload: expect.objectContaining({
-          chatId: 99,
-          sessionId: session?.id,
-          incomingText: 'I need this from my laptop',
-          actor: 'telegram:42',
-        }),
+      const job = await withTenantTransaction(user.tenantId, async (ctx) => {
+        return getJob(ctx, body.jobId);
       });
+      expect(job?.status).toBe('blocked');
+      expect(job?.source).toBe('chat');
+
+      expect(startTaskWorkflow).not.toHaveBeenCalled();
     }
   );
 });

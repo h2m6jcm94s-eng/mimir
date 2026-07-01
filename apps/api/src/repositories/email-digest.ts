@@ -1,5 +1,4 @@
-import type { EmailDigestFrequency } from '@mimir/shared-types';
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import type { TenantContext } from '../db/tenant-context';
 

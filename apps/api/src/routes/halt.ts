@@ -12,8 +12,13 @@ export async function haltRoutes(app: FastifyInstance) {
   app.get(
     '/',
     { config: strictRouteConfig, preHandler: requireScope(Scopes.HALT_READ) },
-    async () => {
-      return getHaltState();
+    async (request: FastifyRequest, reply) => {
+      const user = request.user;
+      if (!user) {
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+      }
+
+      return getHaltState(user.tenantId);
     }
   );
 
@@ -27,16 +32,21 @@ export async function haltRoutes(app: FastifyInstance) {
       }
 
       const body = setHaltSchema.parse(request.body);
-      await setHalted(body.reason, user.userId);
-      return getHaltState();
+      await setHalted(body.reason, user.userId, user.tenantId);
+      return getHaltState(user.tenantId);
     }
   );
 
   app.delete(
     '/',
     { config: strictRouteConfig, preHandler: requireScope(Scopes.HALT_WRITE) },
-    async () => {
-      await clearHalt();
+    async (request: FastifyRequest, reply) => {
+      const user = request.user;
+      if (!user) {
+        return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+      }
+
+      await clearHalt(user.tenantId);
       return { halted: false };
     }
   );

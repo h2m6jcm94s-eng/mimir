@@ -1,6 +1,7 @@
-import { and, desc, eq, lte, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, lte, or, sql } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import type { TenantContext } from '../db/tenant-context';
+import { generateEmbedding } from '../services/knowledge/embeddings';
 import { createAuditEvent } from './audit';
 
 export interface CreateShareInput {
@@ -338,6 +339,7 @@ export interface SearchWithSharesInput {
   query: string;
   limit?: number;
   tier?: number;
+  searchMode?: 'fts' | 'vector' | 'hybrid';
 }
 
 export interface SearchWithSharesResult {
@@ -356,8 +358,25 @@ export async function searchKnowledgeWithShares(
   input: SearchWithSharesInput
 ): Promise<{ data: SearchWithSharesResult[] }> {
   const limit = Math.max(1, Math.min(input.limit ?? 10, 100));
-  const tsQuery = sql`plainto_tsquery('english', ${input.query})`;
+  const mode = input.searchMode ?? 'fts';
 
+  if (mode === 'vector') {
+    return searchWithSharesVector(ctx, input, limit);
+  }
+
+  if (mode === 'hybrid') {
+    return searchWithSharesHybrid(ctx, input, limit);
+  }
+
+  return searchWithSharesFts(ctx, input, limit);
+}
+
+async function searchWithSharesFts(
+  ctx: TenantContext,
+  input: SearchWithSharesInput,
+  limit: number
+): Promise<{ data: SearchWithSharesResult[] }> {
+  const tsQuery = sql`plainto_tsquery('english', ${input.query})`;
   const localRank =
     sql<number>`ts_rank_cd(to_tsvector('english', ${schema.embedding.text}), ${tsQuery})`.as(
       'score'
@@ -432,7 +451,106 @@ export async function searchKnowledgeWithShares(
     .orderBy(desc(sharedRank))
     .limit(limit);
 
-  const merged = [...localRows, ...sharedRows].sort((a, b) => b.score - a.score).slice(0, limit);
+  return { data: [...localRows, ...sharedRows].sort((a, b) => b.score - a.score).slice(0, limit) };
+}
 
-  return { data: merged };
+async function searchWithSharesVector(
+  ctx: TenantContext,
+  input: SearchWithSharesInput,
+  limit: number
+): Promise<{ data: SearchWithSharesResult[] }> {
+  const { vector } = await generateEmbedding(input.query);
+  const vectorLiteral = JSON.stringify(vector);
+
+  const localDistance = sql`${schema.embedding.vector} <=> ${vectorLiteral}::vector(768)`;
+  const localScore = sql<number>`1 - (${localDistance})`.as('score');
+
+  const localConditions: (ReturnType<typeof eq> | ReturnType<typeof lte>)[] = [
+    eq(schema.embedding.tenantId, ctx.tenantId),
+    eq(schema.knowledgeItem.tenantId, ctx.tenantId),
+  ];
+  if (input.tier !== undefined) {
+    localConditions.push(lte(schema.knowledgeItem.tier, input.tier));
+  }
+
+  const localRows = await ctx.tenantScopedDb
+    .select({
+      knowledgeItemId: schema.embedding.knowledgeItemId,
+      chunkIdx: schema.embedding.chunkIdx,
+      text: schema.embedding.text,
+      score: localScore,
+      kind: schema.knowledgeItem.kind,
+      uri: schema.knowledgeItem.uri,
+      citation: schema.knowledgeItem.uri,
+    })
+    .from(schema.embedding)
+    .innerJoin(schema.knowledgeItem, eq(schema.embedding.knowledgeItemId, schema.knowledgeItem.id))
+    .where(and(...localConditions))
+    .orderBy(asc(localDistance))
+    .limit(limit);
+
+  const sharedDistance = sql`${schema.sharedEmbedding.vector} <=> ${vectorLiteral}::vector(768)`;
+  const sharedScore = sql<number>`1 - (${sharedDistance})`.as('score');
+
+  const sharedConditions: (ReturnType<typeof eq> | ReturnType<typeof lte>)[] = [
+    eq(schema.sharedEmbedding.tenantId, ctx.tenantId),
+    eq(schema.sharedKnowledgeItem.tenantId, ctx.tenantId),
+  ];
+  if (input.tier !== undefined) {
+    sharedConditions.push(lte(schema.sharedKnowledgeItem.tier, input.tier));
+  }
+
+  const sharedRows = await ctx.tenantScopedDb
+    .select({
+      knowledgeItemId: schema.sharedKnowledgeItem.sourceKnowledgeItemId,
+      chunkIdx: schema.sharedEmbedding.chunkIdx,
+      text: schema.sharedEmbedding.text,
+      score: sharedScore,
+      kind: schema.sharedKnowledgeItem.kind,
+      uri: schema.sharedKnowledgeItem.uri,
+      citation: schema.sharedKnowledgeItem.uri,
+      sharedFromTenantId: schema.sharedKnowledgeItem.sourceTenantId,
+    })
+    .from(schema.sharedEmbedding)
+    .innerJoin(
+      schema.sharedKnowledgeItem,
+      eq(schema.sharedEmbedding.sharedKnowledgeItemId, schema.sharedKnowledgeItem.id)
+    )
+    .where(and(...sharedConditions))
+    .orderBy(asc(sharedDistance))
+    .limit(limit);
+
+  return { data: [...localRows, ...sharedRows].sort((a, b) => b.score - a.score).slice(0, limit) };
+}
+
+async function searchWithSharesHybrid(
+  ctx: TenantContext,
+  input: SearchWithSharesInput,
+  limit: number
+): Promise<{ data: SearchWithSharesResult[] }> {
+  const [ftsResult, vectorResult] = await Promise.all([
+    searchWithSharesFts(ctx, input, limit * 2),
+    searchWithSharesVector(ctx, input, limit * 2),
+  ]);
+
+  const merged = new Map<string, SearchWithSharesResult>();
+  for (const row of ftsResult.data) {
+    const key = `${row.knowledgeItemId}:${row.chunkIdx}`;
+    merged.set(key, { ...row, score: row.score * 0.5 });
+  }
+  for (const row of vectorResult.data) {
+    const key = `${row.knowledgeItemId}:${row.chunkIdx}`;
+    const existing = merged.get(key);
+    if (existing) {
+      existing.score = Math.max(existing.score, row.score * 0.5) + existing.score;
+    } else {
+      merged.set(key, { ...row, score: row.score * 0.5 });
+    }
+  }
+
+  return {
+    data: Array.from(merged.values())
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit),
+  };
 }

@@ -4,6 +4,7 @@ import { AirtableClient } from './client';
 const resolver = {
   get: vi.fn(),
   getForTenant: vi.fn().mockResolvedValue('airtable-token'),
+  setForTenant: vi.fn().mockResolvedValue(undefined),
   getRequired: vi.fn().mockResolvedValue('airtable-token'),
   getRequiredForTenant: vi.fn().mockResolvedValue('airtable-token'),
 };
@@ -56,5 +57,38 @@ describe('AirtableClient', () => {
       })
     );
     expect(result).toEqual({ id: 'rec-1', fields: { Name: 'Updated' } });
+  });
+
+  it('listAllRecords follows pagination until exhausted', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          records: [
+            { id: 'rec-1', createdTime: '2024-01-01T00:00:00.000Z', fields: { Name: 'A' } },
+          ],
+          offset: 'offset-1',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          records: [
+            { id: 'rec-2', createdTime: '2024-01-02T00:00:00.000Z', fields: { Name: 'B' } },
+          ],
+        }),
+      });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = new AirtableClient({ tenantId: 't1', secretRef: 'airtable' }, resolver);
+    const records = [];
+    for await (const record of client.listAllRecords({ baseId: 'base-1', tableId: 'table-1' })) {
+      records.push(record);
+    }
+
+    expect(records).toHaveLength(2);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][0]).toContain('offset=offset-1');
   });
 });

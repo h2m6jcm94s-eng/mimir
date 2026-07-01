@@ -57,6 +57,66 @@ describe('knowledge routes', () => {
     expect(searchBody.data[0]?.text).toContain('PostgreSQL');
   });
 
+  it.skipIf(!process.env.RUN_DB_TESTS)(
+    'searches knowledge with vector similarity mode',
+    async () => {
+      const token = `knowledge_vector_${Date.now()}`;
+      const app = await buildTestApp(async (app) => {
+        await app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
+      });
+
+      const content = 'Mimir vector semantic search test content alpha';
+      const ingestResponse = await app.inject({
+        method: 'POST',
+        url: '/v1/knowledge',
+        headers: { authorization: `Bearer ${token}` },
+        payload: { kind: 'doc', uri: 'file:///vector.txt', content, tier: 2 },
+      });
+
+      expect(ingestResponse.statusCode).toBe(201);
+
+      const searchResponse = await app.inject({
+        method: 'GET',
+        url: `/v1/knowledge/search?q=${encodeURIComponent(content)}&limit=5&searchMode=vector`,
+        headers: { authorization: `Bearer ${token}` },
+      });
+
+      expect(searchResponse.statusCode).toBe(200);
+      const searchBody = JSON.parse(searchResponse.body);
+      expect(searchBody.data.length).toBeGreaterThan(0);
+      expect(searchBody.data[0].text).toContain('Mimir vector semantic search');
+      expect(searchBody.data[0].score).toBeGreaterThan(0);
+    }
+  );
+
+  it.skipIf(!process.env.RUN_DB_TESTS)('searches knowledge with hybrid mode', async () => {
+    const token = `knowledge_hybrid_${Date.now()}`;
+    const app = await buildTestApp(async (app) => {
+      await app.register(knowledgeRoutes, { prefix: '/v1/knowledge' });
+    });
+
+    const content = 'Hybrid retrieval combines keyword and vector signals.';
+    const ingestResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/knowledge',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { kind: 'doc', uri: 'file:///hybrid.txt', content, tier: 2 },
+    });
+
+    expect(ingestResponse.statusCode).toBe(201);
+
+    const searchResponse = await app.inject({
+      method: 'GET',
+      url: `/v1/knowledge/search?q=${encodeURIComponent('hybrid retrieval')}&limit=5&searchMode=hybrid`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(searchResponse.statusCode).toBe(200);
+    const searchBody = JSON.parse(searchResponse.body);
+    expect(searchBody.data.length).toBeGreaterThan(0);
+    expect(searchBody.data[0].text).toContain('Hybrid retrieval');
+  });
+
   it.skipIf(!process.env.RUN_DB_TESTS)('rejects a screenshot without a citation uri', async () => {
     const token = `knowledge_screenshot_no_uri_${Date.now()}`;
     const app = await buildTestApp(async (app) => {

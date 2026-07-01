@@ -6,8 +6,9 @@ const MICROS_PER_DOLLAR = 1_000_000;
 const invokeMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../db/tenant-context', () => ({
-  withTenantTransaction: vi.fn(async (_tenantId: string, fn: (ctx: unknown) => Promise<unknown>) =>
-    fn({ tenantScopedDb: {} })
+  withTenantTransaction: vi.fn(
+    async (tenantId: string, fn: (ctx: { tenantId: string; tenantScopedDb: unknown }) => Promise<unknown>) =>
+      fn({ tenantId, tenantScopedDb: {} })
   ),
   TenantContext: class {},
 }));
@@ -18,6 +19,9 @@ vi.mock('../services/models/router', () => ({
       return invokeMock(...args);
     }
   },
+  getModelRouter: () => ({
+    invoke: (...args: unknown[]) => invokeMock(...args),
+  }),
 }));
 
 vi.mock('../repositories/job', () => ({
@@ -103,11 +107,16 @@ describe('Temporal activities cost circuit-breaker', () => {
         idempotencyKey: 'key-1',
         type: 'echo',
         tier: 0,
+        source: 'api',
         payload: {},
       })
     ).rejects.toThrow('Daily cost threshold exceeded');
 
-    expect(setHalted).toHaveBeenCalledWith('Daily cost threshold exceeded', 'user-1');
+    expect(setHalted).toHaveBeenCalledWith(
+      'Daily cost threshold exceeded',
+      'user-1',
+      '00000000-0000-0000-0000-000000000000'
+    );
   });
 
   it('completes the build when the projected daily spend stays under the threshold', async () => {
@@ -122,6 +131,7 @@ describe('Temporal activities cost circuit-breaker', () => {
       idempotencyKey: 'key-1',
       type: 'echo',
       tier: 0,
+      source: 'api',
       payload: {},
     });
 

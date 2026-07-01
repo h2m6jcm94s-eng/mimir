@@ -4,7 +4,6 @@ import {
   Dumbbell,
   type LucideIcon,
   Mail,
-  MapPin,
   MessageCircle,
   MessageSquare,
   Plane,

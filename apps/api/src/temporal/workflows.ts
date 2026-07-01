@@ -14,6 +14,7 @@ export interface TaskRunInput {
   idempotencyKey: string;
   type: string;
   tier: number;
+  source: 'chat' | 'api' | 'ui' | 'routine';
   payload: Record<string, unknown>;
 }
 

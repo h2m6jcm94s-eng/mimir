@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { JobSource } from './enums';
 
 export const PolicyEffect = z.enum(['allow', 'deny', 'require_approval']);
 export type PolicyEffect = z.infer<typeof PolicyEffect>;
@@ -6,6 +7,7 @@ export type PolicyEffect = z.infer<typeof PolicyEffect>;
 export const PolicyCondition = z.object({
   action: z.string().optional(),
   kind: z.string().optional(),
+  source: JobSource.optional(),
   tier: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
   dailySpendUsd: z.string().optional(),
 });
@@ -14,6 +16,7 @@ export type PolicyCondition = z.infer<typeof PolicyCondition>;
 export const PolicyRule = z.object({
   action: z.string().optional(),
   kind: z.string().optional(),
+  source: JobSource.optional(),
   tier: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
   effect: PolicyEffect,
   reason: z.string().optional(),
@@ -55,6 +58,7 @@ export const EvaluatePolicyRequest = z.object({
   action: z.string(),
   tier: z.number().int().min(0).max(2),
   kind: z.string().optional(),
+  source: JobSource.optional(),
   dailySpendUsd: z.number().default(0),
 });
 export type EvaluatePolicyRequest = z.infer<typeof EvaluatePolicyRequest>;

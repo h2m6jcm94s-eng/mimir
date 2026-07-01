@@ -1,3 +1,4 @@
+import { JobSource } from '@mimir/shared-types';
 import {
   integer,
   jsonb,
@@ -19,6 +20,8 @@ export const jobStatusEnum = pgEnum('job_status', [
   'failed',
 ]);
 
+export const jobSourceEnum = pgEnum('job_source', JobSource.options);
+
 export const job = pgTable('job', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id')
@@ -30,6 +33,7 @@ export const job = pgTable('job', {
   type: varchar('type', { length: 255 }).notNull(),
   tier: integer('tier').notNull().default(0),
   status: jobStatusEnum('status').notNull().default('queued'),
+  source: jobSourceEnum('source').notNull().default('api'),
   input: jsonb('input'),
   result: jsonb('result'),
   epoch: integer('epoch').notNull().default(0),

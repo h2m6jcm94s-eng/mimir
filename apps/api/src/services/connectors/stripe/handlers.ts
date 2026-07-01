@@ -1,6 +1,4 @@
 import {
-  LemonSqueezyListOrdersInput,
-  LemonSqueezyListSubscriptionsInput,
   StripeListChargesInput,
   StripeListPayoutsInput,
   StripeListSubscriptionsInput,

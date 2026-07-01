@@ -8,6 +8,7 @@ export interface CreateJobInput {
   idempotencyKey: string;
   type: string;
   tier: number;
+  source?: 'chat' | 'api' | 'ui' | 'routine';
   input: unknown;
 }
 
@@ -31,6 +32,7 @@ export async function createJob(ctx: TenantContext, input: CreateJobInput) {
       idempotencyKey: input.idempotencyKey,
       type: input.type,
       tier: input.tier,
+      source: input.source ?? 'api',
       input: input.input as Record<string, unknown>,
       status: 'queued',
     })

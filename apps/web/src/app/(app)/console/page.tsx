@@ -12,7 +12,6 @@ import {
   Bot,
   ChevronDown,
   ChevronUp,
-  Cpu,
   FileImage,
   FileText,
   List,
@@ -25,12 +24,17 @@ import {
   Settings2,
   Slash,
   User,
-  Wrench,
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-type Role = 'user' | 'assistant' | 'system';
+function apiUrl(path: string): string {
+  const base = process.env.NEXT_PUBLIC_API_URL;
+  if (!base) {
+    throw new Error('NEXT_PUBLIC_API_URL is not configured');
+  }
+  return `${base}${path}`;
+}
 
 interface AssistantMessage {
   id: string | number;
@@ -156,7 +160,7 @@ function extractSources(job: Job): string[] {
 async function pollJob(jobId: string): Promise<PollResult> {
   for (let attempt = 0; attempt < 30; attempt++) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/tasks/${jobId}`, {
+    const res = await fetch(apiUrl(`/v1/tasks/${jobId}`), {
       credentials: 'include',
     });
     if (!res.ok) continue;
@@ -230,7 +234,7 @@ export default function ConsolePage() {
   useEffect(() => {
     async function loadRoles() {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/agents/`, {
+        const res = await fetch(apiUrl('/v1/agents/'), {
           credentials: 'include',
         });
         if (!res.ok) throw new Error('failed to load roles');
@@ -328,16 +332,17 @@ export default function ConsolePage() {
       });
       await loadSessionState(currentSessionId);
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/tasks`, {
+      const res = await fetch(apiUrl('/v1/tasks'), {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          idempotencyKey: `console-${Date.now()}`,
+          idempotencyKey: `console-${crypto.randomUUID()}`,
           type: 'chat',
           prompt: text,
+          source: 'ui',
           payload: {},
           attachments: [],
           ...(selectedRole && { role: selectedRole.kind }),
@@ -366,7 +371,7 @@ export default function ConsolePage() {
         });
         await loadSessionState(currentSessionId);
         const assistant: AssistantMessage = {
-          id: `approval-${Date.now()}`,
+          id: `approval-${crypto.randomUUID()}`,
           role: 'assistant',
           content: 'This request requires approval before proceeding.',
           model: selectedRole?.model ?? selectedRole?.provider ?? 'local',
@@ -400,7 +405,7 @@ export default function ConsolePage() {
       await loadSessionState(currentSessionId);
     } catch (err) {
       const systemMsg: SystemMessage = {
-        id: `error-${Date.now()}`,
+        id: `error-${crypto.randomUUID()}`,
         role: 'system',
         variant: 'error',
         content: err instanceof Error ? err.message : 'Failed to reach Mimir API.',
@@ -429,13 +434,10 @@ export default function ConsolePage() {
     );
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/v1/approvals/${msg.needsApproval.approvalId}/approve`,
-        {
-          method: 'POST',
-          credentials: 'include',
-        }
-      );
+      const res = await fetch(apiUrl(`/v1/approvals/${msg.needsApproval.approvalId}/approve`), {
+        method: 'POST',
+        credentials: 'include',
+      });
       if (!res.ok) throw new Error('Approval failed');
 
       if (msg.jobId) {
@@ -489,13 +491,10 @@ export default function ConsolePage() {
     }
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/v1/approvals/${msg.needsApproval.approvalId}/deny`,
-        {
-          method: 'POST',
-          credentials: 'include',
-        }
-      );
+      const res = await fetch(apiUrl(`/v1/approvals/${msg.needsApproval.approvalId}/deny`), {
+        method: 'POST',
+        credentials: 'include',
+      });
       if (!res.ok) throw new Error('Denial failed');
       setMessages((prev) =>
         prev.map((m) =>

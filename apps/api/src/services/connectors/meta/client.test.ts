@@ -4,6 +4,7 @@ import { MetaClient } from './client';
 const resolver = {
   get: vi.fn(),
   getForTenant: vi.fn().mockResolvedValue('meta-token'),
+  setForTenant: vi.fn().mockResolvedValue(undefined),
   getRequired: vi.fn().mockResolvedValue('meta-token'),
   getRequiredForTenant: vi.fn().mockResolvedValue('meta-token'),
 };

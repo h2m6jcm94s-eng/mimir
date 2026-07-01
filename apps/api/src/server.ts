@@ -6,6 +6,7 @@ import { plugin as supertokensPlugin } from 'supertokens-node/framework/fastify'
 import { initSupertokens } from './auth/supertokens';
 import { loadConfig } from './config';
 import { redis } from './db/redis';
+import { createLogger } from './logging';
 import { authMiddleware, registerAuth } from './middleware/auth';
 import { demoLockoutMiddleware } from './middleware/demo-lockout';
 import { agentReputationRoutes } from './routes/agent-reputation';
@@ -47,6 +48,7 @@ import { sandboxRoutes } from './routes/sandbox';
 import { schedulingRoutes } from './routes/scheduling';
 import { scimRoutes } from './routes/scim';
 import { screenTimeRoutes } from './routes/screen-time';
+import { secretsRoutes } from './routes/secrets';
 import { sessionRoutes } from './routes/sessions';
 import { skillRoutes } from './routes/skills';
 import { slackWebhookRoutes } from './routes/slack-webhook';
@@ -59,7 +61,7 @@ import { userRoutes } from './routes/users';
 import { valuesRoutes } from './routes/values';
 import { workflowRoutes } from './routes/workflows';
 import { ClockSkewError } from './services/fencing/clock-skew';
-import { httpRequestsCounter } from './services/metrics/registry';
+import { httpRequestsCounter, sanitizeMetricPath } from './services/metrics/registry';
 import { resolveDeploymentSecrets } from './services/secrets/bootstrap';
 import { startIntegrityMonitoring } from './services/state/integrity';
 import { initializeLibSqlSchema } from './services/state/libsql-schema';
@@ -76,8 +78,17 @@ const app = Fastify({
   maxParamLength: 500,
 });
 
+const logger = createLogger(app.log);
+
 async function main() {
   await resolveDeploymentSecrets();
+
+  // R-01: fail closed in production unless gVisor is explicitly configured.
+  if (process.env.NODE_ENV === 'production' && process.env.SANDBOX_MODE !== 'gvisor') {
+    throw new Error(
+      'Production requires SANDBOX_MODE=gvisor. Refusing to start without a gVisor-backed sandbox.'
+    );
+  }
 
   await app.register(cors, {
     origin: config.webAppDomain,
@@ -123,6 +134,7 @@ async function main() {
   app.register(nodeRoutes, { prefix: '/v1/nodes' });
   app.register(auditRoutes, { prefix: '/v1/audit' });
   app.register(connectorRoutes, { prefix: '/v1/connectors' });
+  app.register(secretsRoutes, { prefix: '/v1/secrets' });
   app.register(governanceRoutes, { prefix: '/v1/governance' });
   app.register(agentRoutes, { prefix: '/v1/agents' });
   app.register(agentReputationRoutes, { prefix: '/v1/agents/reputation' });
@@ -163,7 +175,8 @@ async function main() {
   app.register(workflowRoutes, { prefix: '/v1/workflows' });
 
   app.addHook('onResponse', async (request, reply) => {
-    const path = request.routeOptions.url ?? request.url.split('?')[0] ?? '/';
+    const rawPath = request.routeOptions.url ?? request.url.split('?')[0] ?? '/';
+    const path = sanitizeMetricPath(rawPath);
     httpRequestsCounter.inc({
       method: request.method,
       status: reply.statusCode,
@@ -172,7 +185,7 @@ async function main() {
   });
 
   app.setErrorHandler((error, _request, reply) => {
-    app.log.error(error);
+    logger.error(error.message, { error: error.message, stack: error.stack });
     if (error instanceof ClockSkewError) {
       return reply.status(503).send({
         error: {
@@ -195,41 +208,41 @@ async function main() {
   // server can still answer /livez and /readyz with accurate status.
   try {
     await redis.connect();
-    app.log.info('Redis connected');
+    logger.info('Redis connected');
   } catch (err) {
-    app.log.warn({ err }, 'Redis connection failed at startup');
+    logger.warn('Redis connection failed at startup', { err });
   }
 
   try {
     await initializeLibSqlSchema();
-    app.log.info('LibSQL schema initialized');
+    logger.info('LibSQL schema initialized');
     startLifecycleMaintenance();
-    app.log.info('LibSQL lifecycle maintenance started');
+    logger.info('LibSQL lifecycle maintenance started');
     startIntegrityMonitoring();
-    app.log.info('LibSQL integrity monitoring started');
+    logger.info('LibSQL integrity monitoring started');
   } catch (err) {
-    app.log.warn({ err }, 'LibSQL schema initialization failed at startup');
+    logger.warn('LibSQL schema initialization failed at startup', { err });
   }
 
   try {
     await getTemporalConnection();
-    app.log.info('Temporal connected');
+    logger.info('Temporal connected');
     try {
       await ensureDigestSchedule({ frequency: 'daily', cron: '0 8 * * *' });
-      app.log.info('Daily email digest schedule ensured');
+      logger.info('Daily email digest schedule ensured');
       await ensureDigestSchedule({ frequency: 'weekly', cron: '0 8 * * 1' });
-      app.log.info('Weekly email digest schedule ensured');
+      logger.info('Weekly email digest schedule ensured');
     } catch (err) {
-      app.log.warn({ err }, 'Failed to ensure email digest schedule');
+      logger.warn('Failed to ensure email digest schedule', { err });
     }
   } catch (err) {
-    app.log.warn({ err }, 'Temporal connection failed at startup');
+    logger.warn('Temporal connection failed at startup', { err });
   }
 
   await app.listen({ port: config.port, host: '0.0.0.0' });
 }
 
 main().catch((err) => {
-  app.log.error(err);
+  logger.error(err.message, { error: err.message, stack: err.stack });
   process.exit(1);
 });

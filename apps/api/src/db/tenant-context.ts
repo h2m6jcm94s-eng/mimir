@@ -66,7 +66,10 @@ export async function withTenantTransaction<T>(
   assertUuid(tenantId);
   return db.transaction(async (tx) => {
     // SET LOCAL does not accept query parameters, so the validated UUID is inlined safely.
-    await tx.execute(sql`SET LOCAL app.tenant_id = ${sql.raw(`'${tenantId}'`)}`);
+    // The UUID regex guarantees no single quotes, but we escape them defensively.
+    await tx.execute(
+      sql`SET LOCAL app.tenant_id = ${sql.raw(`'${tenantId.replace(/'/g, "''")}'`)}`
+    );
     const ctx = new TenantContext(tenantId, tx);
     return fn(ctx);
   });

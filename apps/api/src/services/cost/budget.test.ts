@@ -8,6 +8,10 @@ vi.mock('../../repositories/budget', () => ({
   upsertBudget: vi.fn(),
 }));
 
+vi.mock('../../repositories/audit', () => ({
+  createAuditEvent: vi.fn(),
+}));
+
 vi.mock('../../repositories/job', () => ({
   addJobCost: vi.fn(),
   createJob: vi.fn(),
@@ -165,7 +169,7 @@ describe('BudgetService', () => {
     ).rejects.toThrow(BudgetExceededError);
   });
 
-  it('falls back to the env-based CostGovernor when no budget is set', async () => {
+  it('always runs the env-based CostGovernor even when no budget is set', async () => {
     const { getBudget } = await import('../../repositories/budget.js');
     const { getTenantDailyCostUsd } = await import('../../repositories/job.js');
     const { setHalted } = await import('../../services/halt/state.js');
@@ -181,7 +185,28 @@ describe('BudgetService', () => {
       })
     ).rejects.toThrow('Daily cost threshold exceeded');
 
-    expect(setHalted).toHaveBeenCalledWith('Daily cost threshold exceeded', 'system');
+    expect(setHalted).toHaveBeenCalledWith('Daily cost threshold exceeded', 'system', 'tenant-1');
+  });
+
+  it('runs the CostGovernor after tenant budget checks pass', async () => {
+    const { getTenantDailyCostUsd, getTenantMonthlyCostUsd } = await import(
+      '../../repositories/job.js'
+    );
+    const { setHalted } = await import('../../services/halt/state.js');
+    await mockBudget({ dailyBudgetUsd: 20 * MICROS_PER_DOLLAR });
+    vi.mocked(getTenantDailyCostUsd).mockResolvedValue(9 * MICROS_PER_DOLLAR);
+    vi.mocked(getTenantMonthlyCostUsd).mockResolvedValue(0);
+    process.env.AUTO_HALT_DAILY_USD = '10';
+
+    const service = new BudgetService();
+    await expect(
+      service.checkAction({ tenantId: 'tenant-1' } as never, {
+        tier: 1,
+        projectedCostUsd: 2 * MICROS_PER_DOLLAR,
+      })
+    ).rejects.toThrow('Daily cost threshold exceeded');
+
+    expect(setHalted).toHaveBeenCalledWith('Daily cost threshold exceeded', 'system', 'tenant-1');
   });
 
   it('forecasts end-of-day and end-of-month spend from hourly burn', async () => {

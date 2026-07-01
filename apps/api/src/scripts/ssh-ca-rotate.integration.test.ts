@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 const scriptsDir = resolve(__dirname, '..', '..', '..', '..', 'scripts');
 

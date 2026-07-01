@@ -1,7 +1,7 @@
 import { type NextFetchEvent, NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export default function middleware(req: NextRequest, _event: NextFetchEvent) {
+export default function middleware(_req: NextRequest, _event: NextFetchEvent) {
   if (process.env.PLAYWRIGHT_TEST === 'true') {
     return NextResponse.next();
   }

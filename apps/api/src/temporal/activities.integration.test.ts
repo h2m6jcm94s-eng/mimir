@@ -1,9 +1,9 @@
 import { describe, expect, it, beforeAll } from 'vitest';
-import { db } from '../db/client';
 import * as schema from '../db/schema';
 import { withTenantTransaction } from '../db/tenant-context';
 import { createJob, getJob } from '../repositories/job';
 import { applyPatch, build, review } from './activities';
+import type { TaskRunInput } from './workflows';
 
 const TEST_TENANT_ID = '00000000-0000-0000-0000-000000000000';
 
@@ -33,13 +33,14 @@ describe('Temporal activities (integration)', () => {
     async () => {
       const job = await createTestJob(`replay-test-${Date.now()}`, 'echo', 0);
 
-      const input = {
+      const input: TaskRunInput = {
         tenantId: TEST_TENANT_ID,
         userId: TEST_TENANT_ID,
         jobId: job.id,
         idempotencyKey: job.idempotencyKey,
         type: job.type,
         tier: job.tier,
+        source: 'api',
         payload: {},
       };
 
@@ -67,13 +68,14 @@ describe('Temporal activities (integration)', () => {
     async () => {
       const job = await createTestJob(`review-replay-test-${Date.now()}`, 'revise-once', 0);
 
-      const input = {
+      const input: TaskRunInput = {
         tenantId: TEST_TENANT_ID,
         userId: TEST_TENANT_ID,
         jobId: job.id,
         idempotencyKey: job.idempotencyKey,
         type: job.type,
         tier: job.tier,
+        source: 'api',
         payload: {},
       };
 
@@ -88,13 +90,14 @@ describe('Temporal activities (integration)', () => {
   it.skipIf(!process.env.RUN_DB_TESTS)('applyPatch updates the checkpoint with a new draft', async () => {
     const job = await createTestJob(`patch-test-${Date.now()}`, 'revise-once', 0);
 
-    const input = {
+    const input: TaskRunInput = {
       tenantId: TEST_TENANT_ID,
       userId: TEST_TENANT_ID,
       jobId: job.id,
       idempotencyKey: job.idempotencyKey,
       type: job.type,
       tier: job.tier,
+      source: 'api',
       payload: {},
     };
 

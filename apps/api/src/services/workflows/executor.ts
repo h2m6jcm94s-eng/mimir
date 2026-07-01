@@ -1,10 +1,19 @@
+import { randomUUID } from 'node:crypto';
 import type { WorkflowGraph, WorkflowNode } from '@mimir/shared-types';
 import type { TenantContext } from '../../db/tenant-context';
+import { createApproval } from '../../repositories/approval';
+import { createJob, updateJobStatus } from '../../repositories/job';
 import {
   getRoutineById,
   updateRoutineRun,
   updateRoutineRunStatus,
 } from '../../repositories/routine';
+import {
+  approvalExpiresAt,
+  buildBlastRadius,
+  riskFromTier,
+} from '../../services/approvals/metadata';
+import { analyzeCode } from '../../services/sandbox';
 import { connectorRegistry } from '../connectors/registry';
 import {
   NodeUnavailableError,
@@ -85,7 +94,7 @@ export async function executeWorkflowGraph(
   const graph = (routine.workflowJson ?? { nodes: [], edges: [] }) as WorkflowGraph;
   const sorted = topoSort(graph);
   const nodeOutputs: Record<string, Record<string, unknown>> = {};
-  const nodeStatuses: Record<string, { status: 'ok' | 'failed'; error?: string }> = {};
+  const nodeStatuses: Record<string, { status: 'ok' | 'failed' | 'blocked'; error?: string }> = {};
 
   try {
     for (const node of sorted) {
@@ -125,6 +134,55 @@ export async function executeWorkflowGraph(
 
       if (node.kind === 'condition') {
         nodeStatuses[node.id] = { status: 'ok' };
+        continue;
+      }
+
+      if (node.kind === 'custom_code') {
+        const code = node.config.code as string | undefined;
+        if (!code) {
+          nodeStatuses[node.id] = { status: 'failed', error: 'Missing custom_code source' };
+          continue;
+        }
+
+        const analysis = analyzeCode(code);
+        if (!analysis.ok) {
+          nodeStatuses[node.id] = {
+            status: 'failed',
+            error: `Static analysis failed: ${analysis.messages.map((m) => m.ruleId).join(', ')}`,
+          };
+          continue;
+        }
+
+        const run = (node.config.run as Record<string, unknown> | undefined) ?? {};
+        const job = await createJob(ctx, {
+          idempotencyKey: randomUUID(),
+          type: 'custom_code',
+          tier: Number(node.config.tier ?? routine.tier ?? 0),
+          source: 'routine',
+          input: {
+            code,
+            run,
+            nodeId: node.id,
+            routineId: input.routineId,
+            routineRunId: input.runId,
+            staticAnalysis: analysis,
+          },
+        });
+        await updateJobStatus(ctx, job.id, 'blocked');
+        await createApproval(ctx, {
+          jobId: job.id,
+          requestedBy: input.userId,
+          reason: 'custom_code workflow node requires approval',
+          risk: riskFromTier(job.tier),
+          blastRadius: buildBlastRadius({
+            tier: job.tier,
+            action: 'custom_code',
+            summary: `workflow node ${node.label} (${node.id})`,
+          }),
+          expiresAt: approvalExpiresAt(job.tier),
+        });
+
+        nodeStatuses[node.id] = { status: 'blocked' };
         continue;
       }
 

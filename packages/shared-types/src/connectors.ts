@@ -60,6 +60,222 @@ export const ConnectorActionRequest = z.object({
 });
 export type ConnectorActionRequest = z.infer<typeof ConnectorActionRequest>;
 
+export const ConnectorOAuthUrlResponse = z.object({
+  url: z.string().url(),
+});
+export type ConnectorOAuthUrlResponse = z.infer<typeof ConnectorOAuthUrlResponse>;
+
+export const ConnectorOAuthCallbackRequest = z.object({
+  code: z.string().min(1),
+  state: z.string().min(1),
+});
+export type ConnectorOAuthCallbackRequest = z.infer<typeof ConnectorOAuthCallbackRequest>;
+
+export const ConnectorSetupField = z.object({
+  key: z.string(),
+  label: z.string(),
+  type: z.enum(['token', 'text']),
+  placeholder: z.string(),
+});
+export type ConnectorSetupField = z.infer<typeof ConnectorSetupField>;
+
+export const ConnectorSetupMetadata = z.object({
+  kind: ConnectorKind,
+  instructions: z.string(),
+  fields: z.array(ConnectorSetupField),
+  webhookUrl: z.string().optional(),
+  oauthAvailable: z.boolean().optional(),
+  testAction: z
+    .object({
+      action: z.string(),
+      input: z.record(z.unknown()).default({}),
+    })
+    .optional(),
+  accountLabel: z.string().optional(),
+});
+export type ConnectorSetupMetadata = z.infer<typeof ConnectorSetupMetadata>;
+
+export const CONNECTOR_SETUP_METADATA: Record<ConnectorKind, ConnectorSetupMetadata> = {
+  slack: {
+    kind: 'slack',
+    instructions:
+      'Create a Slack app at api.slack.com/apps, add Bot Token Scopes (`channels:read`, `chat:write`, `channels:history`), install the app to your workspace, then copy the **Bot User OAuth Token** and the **Signing Secret** from the app credentials page. Paste both below.',
+    fields: [
+      {
+        key: 'slack',
+        label: 'Bot User OAuth Token',
+        type: 'token',
+        placeholder: 'xoxb-...',
+      },
+      {
+        key: 'slack_signing_secret',
+        label: 'Signing Secret',
+        type: 'token',
+        placeholder: '...',
+      },
+    ],
+    webhookUrl: '/webhooks/slack/{tenantId}',
+    testAction: { action: 'listChannels', input: { types: 'public_channel', limit: 1 } },
+  },
+  notion: {
+    kind: 'notion',
+    instructions:
+      'Either click **Connect with Notion** to authorize a public integration, or create an internal integration at notion.so/my-integrations, copy the **Internal Integration Token**, and share any pages or databases you want Mimir to access with that integration. Paste the token below.',
+    fields: [
+      {
+        key: 'notion',
+        label: 'Internal Integration Token',
+        type: 'token',
+        placeholder: 'secret_...',
+      },
+    ],
+    oauthAvailable: true,
+    testAction: { action: 'search', input: { pageSize: 1 } },
+  },
+  airtable: {
+    kind: 'airtable',
+    instructions:
+      'Create a personal access token at airtable.com/create/tokens with `data.records:read` and `data.records:write` scopes, grant it access to the bases you want to use, and paste the token below.',
+    fields: [
+      {
+        key: 'airtable',
+        label: 'Personal Access Token',
+        type: 'token',
+        placeholder: 'pat...',
+      },
+    ],
+    testAction: { action: 'listBases', input: {} },
+  },
+  telegram: {
+    kind: 'telegram',
+    instructions:
+      'Create a bot with @BotFather, copy the **Bot Token**, and set the webhook to the URL below. Paste the token below.',
+    fields: [
+      {
+        key: 'telegram',
+        label: 'Bot Token',
+        type: 'token',
+        placeholder: '123456:ABC-DEF...',
+      },
+      {
+        key: 'telegram_webhook_secret',
+        label: 'Webhook Secret Token',
+        type: 'token',
+        placeholder: 'Optional secret token for webhook verification',
+      },
+    ],
+    webhookUrl: '/webhooks/telegram/{tenantId}',
+  },
+  discord: {
+    kind: 'discord',
+    instructions:
+      'Create a Discord application at discord.com/developers/applications, add a bot, copy the **Bot Token**, and set the webhook to the URL below. Paste the token below.',
+    fields: [
+      {
+        key: 'discord',
+        label: 'Bot Token',
+        type: 'token',
+        placeholder: '...',
+      },
+    ],
+    webhookUrl: '/webhooks/discord/{tenantId}',
+  },
+  github: {
+    kind: 'github',
+    instructions: 'Create a GitHub personal access token and paste it below.',
+    fields: [
+      { key: 'github', label: 'Personal Access Token', type: 'token', placeholder: 'ghp_...' },
+    ],
+    accountLabel: 'Account / org (optional)',
+  },
+  whatsapp: {
+    kind: 'whatsapp',
+    instructions: 'Configure the WhatsApp Business API and paste the access token below.',
+    fields: [{ key: 'whatsapp', label: 'Access Token', type: 'token', placeholder: '...' }],
+    accountLabel: 'Phone number ID (optional)',
+  },
+  instagram: {
+    kind: 'instagram',
+    instructions:
+      'Create a Meta app with Instagram Basic Display and paste the access token below.',
+    fields: [{ key: 'instagram', label: 'Access Token', type: 'token', placeholder: '...' }],
+    accountLabel: 'IG user ID (optional)',
+  },
+  facebook: {
+    kind: 'facebook',
+    instructions: 'Create a Meta app and paste the page access token below.',
+    fields: [{ key: 'facebook', label: 'Page Access Token', type: 'token', placeholder: '...' }],
+    accountLabel: 'Page ID (optional)',
+  },
+  pinterest: {
+    kind: 'pinterest',
+    instructions: 'Create a Pinterest app and paste the access token below.',
+    fields: [{ key: 'pinterest', label: 'Access Token', type: 'token', placeholder: '...' }],
+    accountLabel: 'Username (optional)',
+  },
+  gmail: {
+    kind: 'gmail',
+    instructions:
+      'Create a Google Cloud OAuth client, authorize Gmail scopes, and click **Connect with Gmail** to authorize, or paste an access token below.',
+    fields: [{ key: 'gmail', label: 'Access Token', type: 'token', placeholder: 'ya29...' }],
+    oauthAvailable: true,
+  },
+  microsoftGraph: {
+    kind: 'microsoftGraph',
+    instructions:
+      'Create a Microsoft Entra app, authorize Mail scopes, and paste the access token below.',
+    fields: [{ key: 'microsoftGraph', label: 'Access Token', type: 'token', placeholder: '...' }],
+  },
+  googleContacts: {
+    kind: 'googleContacts',
+    instructions:
+      'Create a Google Cloud OAuth client, authorize Contacts scopes, and click **Connect with GoogleContacts** to authorize, or paste an access token below.',
+    fields: [
+      { key: 'googleContacts', label: 'Access Token', type: 'token', placeholder: 'ya29...' },
+    ],
+    oauthAvailable: true,
+  },
+  googleDocs: {
+    kind: 'googleDocs',
+    instructions:
+      'Create a Google Cloud OAuth client, authorize Docs scopes, and click **Connect with GoogleDocs** to authorize, or paste an access token below.',
+    fields: [{ key: 'googleDocs', label: 'Access Token', type: 'token', placeholder: 'ya29...' }],
+    oauthAvailable: true,
+  },
+  stripe: {
+    kind: 'stripe',
+    instructions: 'Paste your Stripe secret key below.',
+    fields: [{ key: 'stripe', label: 'Secret Key', type: 'token', placeholder: 'sk_...' }],
+  },
+  lemonSqueezy: {
+    kind: 'lemonSqueezy',
+    instructions: 'Paste your Lemon Squeezy API key below.',
+    fields: [{ key: 'lemonSqueezy', label: 'API Key', type: 'token', placeholder: '...' }],
+  },
+  paddle: {
+    kind: 'paddle',
+    instructions: 'Paste your Paddle API key below.',
+    fields: [{ key: 'paddle', label: 'API Key', type: 'token', placeholder: '...' }],
+  },
+  csv: {
+    kind: 'csv',
+    instructions: 'No credentials required.',
+    fields: [],
+  },
+  xlsx: {
+    kind: 'xlsx',
+    instructions: 'No credentials required.',
+    fields: [],
+  },
+  googleSheets: {
+    kind: 'googleSheets',
+    instructions:
+      'Create a Google Cloud OAuth client, authorize Sheets scopes, and click **Connect with GoogleSheets** to authorize, or paste an access token below.',
+    fields: [{ key: 'googleSheets', label: 'Access Token', type: 'token', placeholder: 'ya29...' }],
+    oauthAvailable: true,
+  },
+};
+
 export const GitHubListReposInput = z.object({
   type: z.enum(['all', 'owner', 'member', 'public', 'private']).default('all'),
   perPage: z.number().int().min(1).max(100).default(30),
@@ -374,6 +590,34 @@ export const AirtableUpdateRecordInput = z.object({
   fields: z.record(z.unknown()),
 });
 export type AirtableUpdateRecordInput = z.infer<typeof AirtableUpdateRecordInput>;
+
+export const AirtableSyncInput = z.object({
+  baseId: z.string().min(1),
+  tableId: z.string().min(1),
+  maxRecords: z.number().int().min(1).max(100).default(100),
+});
+export type AirtableSyncInput = z.infer<typeof AirtableSyncInput>;
+
+// CSV / XLSX / Google Sheets sync inputs
+export const CsvSyncInput = z.object({
+  content: z.string().min(1),
+  sourceName: z.string().min(1).default('inline'),
+});
+export type CsvSyncInput = z.infer<typeof CsvSyncInput>;
+
+export const XlsxSyncInput = z.object({
+  base64Content: z.string().min(1),
+  fileName: z.string().min(1).default('workbook.xlsx'),
+  sheetName: z.string().optional(),
+});
+export type XlsxSyncInput = z.infer<typeof XlsxSyncInput>;
+
+export const GoogleSheetsSyncInput = z.object({
+  spreadsheetId: z.string().min(1),
+  range: z.string().min(1).default('Sheet1'),
+  maxRows: z.number().int().min(1).max(10000).default(1000),
+});
+export type GoogleSheetsSyncInput = z.infer<typeof GoogleSheetsSyncInput>;
 
 // Google Contacts
 export const GoogleContactsListContactsInput = z.object({

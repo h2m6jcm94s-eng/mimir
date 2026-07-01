@@ -29,6 +29,7 @@ describe('taskRunWorkflow', () => {
       idempotencyKey: 'test-key',
       type: 'echo',
       tier: 0,
+      source: 'api',
       payload: {},
       ...overrides,
     };

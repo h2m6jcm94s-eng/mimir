@@ -17,6 +17,10 @@ class FakeResolver {
   async getRequiredForTenant(): Promise<string> {
     return 'test-token';
   }
+
+  async setForTenant(): Promise<void> {
+    // no-op
+  }
 }
 
 function makeClient(account?: string) {

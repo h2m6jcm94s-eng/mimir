@@ -19,9 +19,19 @@ export async function auditRoutes(app: FastifyInstance) {
       return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
 
     const query = auditQuerySchema.parse(request.query);
-    const cursor = query.cursor
-      ? (JSON.parse(Buffer.from(query.cursor, 'base64').toString()) as { ts: string; id: string })
-      : undefined;
+    let cursor: { ts: string; id: string } | undefined;
+    if (query.cursor) {
+      try {
+        cursor = JSON.parse(Buffer.from(query.cursor, 'base64').toString()) as {
+          ts: string;
+          id: string;
+        };
+      } catch {
+        return reply
+          .status(400)
+          .send({ error: { code: 'INVALID_CURSOR', message: 'Invalid cursor' } });
+      }
+    }
 
     const { data, nextCursor } = await withTenantTransaction(user.tenantId, async (ctx) => {
       return listAuditEvents(ctx, { limit: query.limit, cursor });

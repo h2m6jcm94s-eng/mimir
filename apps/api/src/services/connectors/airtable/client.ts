@@ -5,6 +5,17 @@ export interface AirtableClientConfig {
   secretRef: string;
 }
 
+export interface AirtableRecord {
+  id: string;
+  createdTime: string;
+  fields: Record<string, unknown>;
+}
+
+export interface AirtableRecordsResponse {
+  records: AirtableRecord[];
+  offset?: string;
+}
+
 export class AirtableClient {
   constructor(
     private readonly config: AirtableClientConfig,
@@ -50,15 +61,35 @@ export class AirtableClient {
     tableId: string;
     maxRecords: number;
     offset?: string;
-  }): Promise<unknown> {
+  }): Promise<AirtableRecordsResponse> {
     const params = new URLSearchParams();
     params.set('maxRecords', String(input.maxRecords));
     if (input.offset) params.set('offset', input.offset);
-    return this.request<unknown>(
+    return this.request<AirtableRecordsResponse>(
       `https://api.airtable.com/v0/${encodeURIComponent(input.baseId)}/${encodeURIComponent(
         input.tableId
       )}?${params.toString()}`
     );
+  }
+
+  async *listAllRecords(input: {
+    baseId: string;
+    tableId: string;
+    maxRecords?: number;
+  }): AsyncGenerator<AirtableRecord> {
+    let offset: string | undefined;
+    do {
+      const response = await this.listRecords({
+        baseId: input.baseId,
+        tableId: input.tableId,
+        maxRecords: input.maxRecords ?? 100,
+        offset,
+      });
+      for (const record of response.records) {
+        yield record;
+      }
+      offset = response.offset;
+    } while (offset);
   }
 
   async getRecord(input: { baseId: string; tableId: string; recordId: string }): Promise<unknown> {

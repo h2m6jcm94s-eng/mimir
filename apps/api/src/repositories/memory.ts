@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import type { TenantContext } from '../db/tenant-context';
 

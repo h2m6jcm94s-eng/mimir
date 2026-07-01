@@ -30,6 +30,10 @@ export const ClassificationResult = z.object({
   reason: z.string(),
   fallback: z.boolean().default(false),
   policyVersion: z.string().default('1.0'),
+  assignedTier: ClassificationTier.optional(),
+  matchedRule: z.string().optional(),
+  signals: z.array(z.string()).optional(),
+  conformanceFlags: z.array(z.string()).optional(),
 });
 export type ClassificationResult = z.infer<typeof ClassificationResult>;
 

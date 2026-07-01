@@ -1,7 +1,9 @@
 'use client';
 
+import { ConnectorSetupPanel } from '@/components/connectors/ConnectorSetupPanel';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { cn } from '@/lib/utils';
+import { CONNECTOR_SETUP_METADATA } from '@mimir/shared-types';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Camera,
@@ -208,14 +210,32 @@ const statusDot: Record<ConnectorStatus, string> = {
   error: 'bg-[var(--accent-danger)]',
 };
 
+type TestStatus = 'idle' | 'loading' | 'success' | 'error';
+
 export default function ConnectorsPage() {
   const [connectors, setConnectors] = useState<ConnectorDef[]>(connectorCatalog);
-  const [config, setConfig] = useState<Record<string, { account: string; secretRef: string }>>(() =>
-    Object.fromEntries(connectorCatalog.map((c) => [c.id, { account: '', secretRef: c.id }]))
+  const [config, setConfig] = useState<Record<string, { account: string }>>(() =>
+    Object.fromEntries(connectorCatalog.map((c) => [c.id, { account: '' }]))
   );
+  const [secrets, setSecrets] = useState<Record<string, Record<string, string>>>({});
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [active, setActive] = useState<Category>('All');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState<string | null>(null);
+  const [testStatus, setTestStatus] = useState<Record<string, TestStatus>>({});
+  const [testErrors, setTestErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    fetch('/api/v1/users/me', { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('fetch failed'))))
+      .then((data: { data: { tenantId: string } }) => {
+        setTenantId(data.data.tenantId);
+      })
+      .catch(() => {
+        // Leave tenantId null; webhook URLs won't render.
+      });
+  }, []);
 
   useEffect(() => {
     fetch('/api/v1/connectors', { credentials: 'include' })
@@ -237,6 +257,89 @@ export default function ConnectorsPage() {
       });
   }, []);
 
+  async function saveSecrets(id: string): Promise<boolean> {
+    const metadata = CONNECTOR_SETUP_METADATA[id as keyof typeof CONNECTOR_SETUP_METADATA];
+    if (!metadata) return true;
+
+    const connectorSecrets = secrets[id] ?? {};
+    const entries = metadata.fields
+      .map((field) => ({ alias: field.key, value: connectorSecrets[field.key]?.trim() }))
+      .filter(
+        (entry): entry is { alias: string; value: string } =>
+          entry.value !== undefined && entry.value.length > 0
+      );
+
+    for (const { alias, value } of entries) {
+      const res = await fetch(`/api/v1/secrets/${alias}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: { message: 'Unknown error' } }));
+        setErrors((prev) => ({
+          ...prev,
+          [id]: body.error?.message ?? `Failed to save ${alias}`,
+        }));
+        return false;
+      }
+    }
+    return true;
+  }
+
+  async function testConnector(id: string) {
+    setLoading(id);
+    setTestStatus((prev) => ({ ...prev, [id]: 'loading' }));
+    setTestErrors((prev) => ({ ...prev, [id]: '' }));
+    setErrors((prev) => ({ ...prev, [id]: '' }));
+
+    const saved = await saveSecrets(id);
+    if (!saved) {
+      setTestStatus((prev) => ({ ...prev, [id]: 'error' }));
+      setLoading(null);
+      return;
+    }
+
+    const res = await fetch(`/api/v1/connectors/${id}/test`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    setLoading(null);
+
+    if (res.ok) {
+      setTestStatus((prev) => ({ ...prev, [id]: 'success' }));
+    } else {
+      const body = await res.json().catch(() => ({ error: { message: 'Unknown error' } }));
+      setTestStatus((prev) => ({ ...prev, [id]: 'error' }));
+      setTestErrors((prev) => ({ ...prev, [id]: body.error?.message ?? 'Connection test failed' }));
+    }
+  }
+
+  async function startOAuth(id: string) {
+    setLoading(id);
+    setErrors((prev) => ({ ...prev, [id]: '' }));
+
+    const res = await fetch(`/api/v1/connectors/${id}/oauth/url`, {
+      credentials: 'include',
+    });
+
+    setLoading(null);
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: { message: 'Unknown error' } }));
+      setErrors((prev) => ({
+        ...prev,
+        [id]: body.error?.message ?? 'Failed to start OAuth flow',
+      }));
+      return;
+    }
+
+    const data = (await res.json()) as { url: string };
+    window.location.href = data.url;
+  }
+
   async function toggle(id: string) {
     const def = connectors.find((c) => c.id === id);
     if (!def) return;
@@ -251,8 +354,19 @@ export default function ConnectorsPage() {
       return;
     }
 
-    const { account, secretRef } = config[id] ?? { account: '', secretRef: id };
     setLoading(id);
+    setErrors((prev) => ({ ...prev, [id]: '' }));
+
+    const saved = await saveSecrets(id);
+    if (!saved) {
+      setLoading(null);
+      return;
+    }
+
+    const metadata = CONNECTOR_SETUP_METADATA[id as keyof typeof CONNECTOR_SETUP_METADATA];
+    const primarySecretAlias = metadata?.fields[0]?.key ?? id;
+    const { account } = config[id] ?? { account: '' };
+
     const res = await fetch('/api/v1/connectors', {
       method: 'POST',
       credentials: 'include',
@@ -260,7 +374,7 @@ export default function ConnectorsPage() {
       body: JSON.stringify({
         kind: id,
         account: account || undefined,
-        secretRef,
+        secretRef: primarySecretAlias,
         scopes: def.defaultScopes,
       }),
     });
@@ -270,6 +384,10 @@ export default function ConnectorsPage() {
       setConnectors((prev) =>
         prev.map((c) => (c.id === id ? { ...c, status: 'connected', lastSync: 'just now' } : c))
       );
+      setTestStatus((prev) => ({ ...prev, [id]: 'success' }));
+    } else {
+      const body = await res.json().catch(() => ({ error: { message: 'Unknown error' } }));
+      setErrors((prev) => ({ ...prev, [id]: body.error?.message ?? 'Failed to connect' }));
     }
   }
 
@@ -326,6 +444,12 @@ export default function ConnectorsPage() {
           {filtered.map((connector) => {
             const Icon = connector.icon;
             const isConnected = connector.status === 'connected';
+            const metadata =
+              CONNECTOR_SETUP_METADATA[connector.id as keyof typeof CONNECTOR_SETUP_METADATA];
+            const webhookUrl =
+              metadata?.webhookUrl?.replace('{tenantId}', tenantId ?? '') ?? undefined;
+            const hasSetup = metadata && metadata.fields.length > 0;
+
             return (
               <motion.div
                 key={connector.id}
@@ -358,34 +482,57 @@ export default function ConnectorsPage() {
                 </h3>
                 <p className="mt-1 text-xs text-[var(--text-secondary)]">{connector.description}</p>
 
-                {!isConnected && (
-                  <div className="mt-3 space-y-2">
-                    {connector.accountLabel && (
-                      <input
-                        type="text"
-                        placeholder={connector.accountLabel}
-                        value={config[connector.id]?.account ?? ''}
-                        onChange={(e) =>
-                          setConfig((prev) => ({
-                            ...prev,
-                            [connector.id]: { ...prev[connector.id], account: e.target.value },
-                          }))
-                        }
-                        className="h-8 w-full rounded-md border border-[var(--border-subtle-solid)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
-                      />
-                    )}
-                    <input
-                      type="text"
-                      placeholder="Secret alias (env var name)"
-                      value={config[connector.id]?.secretRef ?? connector.id}
-                      onChange={(e) =>
-                        setConfig((prev) => ({
+                {!isConnected && hasSetup && (
+                  <div className="mt-3">
+                    <ConnectorSetupPanel
+                      kind={connector.id}
+                      metadata={metadata}
+                      webhookUrl={webhookUrl}
+                      account={config[connector.id]?.account ?? ''}
+                      onAccountChange={
+                        connector.accountLabel
+                          ? (value) =>
+                              setConfig((prev) => ({
+                                ...prev,
+                                [connector.id]: { ...prev[connector.id], account: value },
+                              }))
+                          : undefined
+                      }
+                      secrets={secrets[connector.id] ?? {}}
+                      onSecretChange={(key, value) =>
+                        setSecrets((prev) => ({
                           ...prev,
-                          [connector.id]: { ...prev[connector.id], secretRef: e.target.value },
+                          [connector.id]: { ...prev[connector.id], [key]: value },
                         }))
                       }
-                      className="h-8 w-full rounded-md border border-[var(--border-subtle-solid)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+                      onConnect={() => toggle(connector.id)}
+                      onTest={metadata.testAction ? () => testConnector(connector.id) : undefined}
+                      onOAuthConnect={
+                        metadata.oauthAvailable ? () => startOAuth(connector.id) : undefined
+                      }
+                      oauthLoading={loading === connector.id}
+                      loading={loading === connector.id}
+                      testStatus={testStatus[connector.id] ?? 'idle'}
+                      testError={testErrors[connector.id]}
+                      error={errors[connector.id]}
                     />
+                  </div>
+                )}
+
+                {!isConnected && !hasSetup && (
+                  <div className="mt-4 flex items-center gap-2">
+                    <button
+                      type="button"
+                      data-testid="connector-toggle"
+                      disabled={loading === connector.id}
+                      onClick={() => toggle(connector.id)}
+                      className={cn(
+                        'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
+                        'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90'
+                      )}
+                    >
+                      <Check className="h-3.5 w-3.5" /> Connect
+                    </button>
                   </div>
                 )}
 
@@ -408,30 +555,22 @@ export default function ConnectorsPage() {
                   )}
                 </div>
 
-                <div className="mt-4 flex items-center gap-2">
-                  <button
-                    type="button"
-                    data-testid="connector-toggle"
-                    disabled={loading === connector.id}
-                    onClick={() => toggle(connector.id)}
-                    className={cn(
-                      'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
-                      isConnected
-                        ? 'bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-raised)]'
-                        : 'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90'
-                    )}
-                  >
-                    {isConnected ? (
-                      <>
-                        <X className="h-3.5 w-3.5" /> Disconnect
-                      </>
-                    ) : (
-                      <>
-                        <Check className="h-3.5 w-3.5" /> Connect
-                      </>
-                    )}
-                  </button>
-                </div>
+                {isConnected && (
+                  <div className="mt-4 flex items-center gap-2">
+                    <button
+                      type="button"
+                      data-testid="connector-toggle"
+                      disabled={loading === connector.id}
+                      onClick={() => toggle(connector.id)}
+                      className={cn(
+                        'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
+                        'bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-raised)]'
+                      )}
+                    >
+                      <X className="h-3.5 w-3.5" /> Disconnect
+                    </button>
+                  </div>
+                )}
               </motion.div>
             );
           })}

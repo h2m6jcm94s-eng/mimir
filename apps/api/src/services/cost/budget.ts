@@ -134,34 +134,33 @@ export class BudgetService {
   ): Promise<void> {
     const budget = await getBudget(ctx);
 
-    if (!budget || !budget.enabled) {
-      const governor = new CostGovernor();
-      await governor.recordAndCheck(
-        ctx.tenantId,
-        '',
-        request.projectedCostUsd,
-        request.actor ?? 'system'
-      );
-      return;
+    if (budget?.enabled) {
+      const now = new Date();
+      const dailySpend = await getTenantDailyCostUsd(ctx, now);
+      const monthlySpend = await getTenantMonthlyCostUsd(ctx, now);
+      const dailyBudget = budget.dailyBudgetUsd;
+      const monthlyBudget = budget.monthlyBudgetUsd;
+      const throttleThreshold = Number(budget.throttleThreshold);
+
+      if (dailyBudget > 0 && dailySpend + request.projectedCostUsd > dailyBudget) {
+        throw new BudgetExceededError('Daily budget exceeded');
+      }
+
+      if (monthlyBudget > 0 && monthlySpend + request.projectedCostUsd > monthlyBudget) {
+        throw new BudgetExceededError('Monthly budget exceeded');
+      }
+
+      if (dailyBudget > 0 && request.tier === 2 && dailySpend >= dailyBudget * throttleThreshold) {
+        throw new BudgetThrottledError('Daily budget throttle: cloud-tier actions paused');
+      }
     }
 
-    const now = new Date();
-    const dailySpend = await getTenantDailyCostUsd(ctx, now);
-    const monthlySpend = await getTenantMonthlyCostUsd(ctx, now);
-    const dailyBudget = budget.dailyBudgetUsd;
-    const monthlyBudget = budget.monthlyBudgetUsd;
-    const throttleThreshold = Number(budget.throttleThreshold);
-
-    if (dailyBudget > 0 && dailySpend + request.projectedCostUsd > dailyBudget) {
-      throw new BudgetExceededError('Daily budget exceeded');
-    }
-
-    if (monthlyBudget > 0 && monthlySpend + request.projectedCostUsd > monthlyBudget) {
-      throw new BudgetExceededError('Monthly budget exceeded');
-    }
-
-    if (dailyBudget > 0 && request.tier === 2 && dailySpend >= dailyBudget * throttleThreshold) {
-      throw new BudgetThrottledError('Daily budget throttle: cloud-tier actions paused');
-    }
+    const governor = new CostGovernor();
+    await governor.recordAndCheck(
+      ctx.tenantId,
+      '',
+      request.projectedCostUsd,
+      request.actor ?? 'system'
+    );
   }
 }

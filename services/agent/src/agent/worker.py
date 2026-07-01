@@ -8,7 +8,7 @@ from temporalio.worker import Worker
 
 async def main() -> None:
     client = await Client.connect("localhost:7233")
-    worker = Worker(client, task_queue="mimir-tasks", workflows=[], activities=[])
+    worker = Worker(client, task_queue="mimir-task-queue", workflows=[], activities=[])
     await worker.run()
 
 
